@@ -8,6 +8,10 @@ This repository tracks root-level assets for the Tastile workspace that spans mu
 - Root-level scripts and environment setup files
 - Workspace conventions and operational notes
 
+## Harness
+
+プロジェクト全体の前提・目的・方針・構成については [docs/HARNESS.md](./docs/HARNESS.md) を参照。
+
 ## Child repositories
 
 The following projects are managed in their own Git repositories and are intentionally excluded from this root repository:
