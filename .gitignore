@@ -2,12 +2,7 @@
 .worktrees/
 
 # Child repositories (managed in their own Git repositories)
-tastile-android/
-tastile-brands/
-tastile-core/
-tastile-core.wslc/
-tastile-desktop/
-tastile-web/
+tastile-*/
 
 # Build outputs
 *.dll
@@ -32,6 +27,18 @@ reference/
 .idea/
 *.user
 *.suo
+.vscode/
+
+# Local agent/editor metadata
+.claude/
+.codex/
+.cursor/
+.impeccable/
+.superpowers/
+
+# Local scratch files
+helper*.txt
+starttile_*.txt
 
 # OS
 .DS_Store
