@@ -1,0 +1,38 @@
+# Worktrees
+.worktrees/
+
+# Child repositories (managed in their own Git repositories)
+tastile-android/
+tastile-brands/
+tastile-core/
+tastile-core.wslc/
+tastile-desktop/
+tastile-web/
+
+# Build outputs
+*.dll
+*.exe
+*.pdb
+bin/
+obj/
+
+# Local probes and operational output
+ssm-*.txt
+ssm-*.json
+tmp_probe.*
+smoke.mjs
+userdata.txt
+scratch/
+reference/
+*.bak
+*.log
+
+# IDE
+.vs/
+.idea/
+*.user
+*.suo
+
+# OS
+.DS_Store
+Thumbs.db
