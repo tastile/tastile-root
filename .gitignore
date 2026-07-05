@@ -43,3 +43,5 @@ starttile_*.txt
 # OS
 .DS_Store
 Thumbs.db
+
+desktop.ini
