@@ -1,0 +1,2 @@
+   Compiling worker v0.1.0 (C:\Users\rebui\Desktop\tastile\tastile-core\crates\v1\worker)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 7.98s

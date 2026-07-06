@@ -1,0 +1,16 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.21s
+  Executable unittests src\lib.rs (target\debug\deps\storage-55d622cf077e181a.exe)
+  Executable tests\access_grant_bilateral.rs (target\debug\deps\access_grant_bilateral-e2f5c8e4a3914ed4.exe)
+  Executable tests\at_command_atomicity.rs (target\debug\deps\at_command_atomicity-39850cd0e2e03eb9.exe)
+  Executable tests\at_gap_break_emission.rs (target\debug\deps\at_gap_break_emission-c48a2dd5407ab227.exe)
+  Executable tests\at_idempotency_bilateral.rs (target\debug\deps\at_idempotency_bilateral-cf6ef1190c0ceab6.exe)
+  Executable tests\at_worker_lease_bilateral.rs (target\debug\deps\at_worker_lease_bilateral-ef9abd844b582e7d.exe)
+  Executable tests\calendar_v1_cross_user_filter.rs (target\debug\deps\calendar_v1_cross_user_filter-db8e35aecb2c9e89.exe)
+  Executable tests\integration_annotation_and_recurring_model_repos.rs (target\debug\deps\integration_annotation_and_recurring_model_repos-f21d64f66c47bce6.exe)
+  Executable tests\integration_flow_repo.rs (target\debug\deps\integration_flow_repo-03a75cb5b7b8ad9c.exe)
+  Executable tests\integration_placement_list.rs (target\debug\deps\integration_placement_list-a8fbea78f473e115.exe)
+  Executable tests\integration_v1_annotation_schema.rs (target\debug\deps\integration_v1_annotation_schema-ee994682e2685211.exe)
+  Executable tests\integration_v1_recurring_model_schema.rs (target\debug\deps\integration_v1_recurring_model_schema-41b11ef285c269e5.exe)
+  Executable tests\test_access_repo_workspaces.rs (target\debug\deps\test_access_repo_workspaces-4640ca7f1187e781.exe)
+  Executable tests\test_subject_schema_present.rs (target\debug\deps\test_subject_schema_present-2cdafd10653f548e.exe)
+
