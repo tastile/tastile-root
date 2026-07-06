@@ -1,8 +1,2 @@
-   Compiling domain v0.1.0 (C:\Users\rebui\Desktop\tastile\tastile-core\crates\v1\domain)
-   Compiling storage v0.1.0 (C:\Users\rebui\Desktop\tastile\tastile-core\crates\v1\storage)
    Compiling api v0.1.0 (C:\Users\rebui\Desktop\tastile\tastile-core\crates\v1\api)
-   Compiling worker v0.1.0 (C:\Users\rebui\Desktop\tastile\tastile-core\crates\v1\worker)
-error: failed to remove file `C:\Users\rebui\Desktop\tastile\tastile-core\target\debug\api.exe`
-
-Caused by:
-  アクセスが拒否されました。 (os error 5)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 6.53s

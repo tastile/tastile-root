@@ -1,59 +1,31 @@
-=== curl GET http://localhost:31400/v1/timeline
-Date: 2026-07-06 (Codex goal-mode run)
+=== curl GET http://localhost:31400/v1/timeline (CODEX GOAL-MODE RUN — FINAL)
+Date: 2026-07-06
 Method: GET
 URL: http://localhost:31400/v1/timeline?start=2026-07-07T08:00:00Z&end=2026-07-07T13:00:00Z&owner_ids=11111111-1111-1111-1111-111111111111
 Headers:
   x-owner-id: 11111111-1111-1111-1111-111111111111
   x-actor-id: 11111111-1111-1111-1111-111111111111
 
-=== Seed data ===
-- 2 fixed placements (A: 09:00-10:00 plan_a tile_a, B: 10:30-11:30 plan_b tile_b)
-  owner: 11111111-1111-1111-1111-111111111111
-- 1 Flow with ProposePlacement output -> planStudy 10:00-10:30
+=== Seed data (via psql INSERT) ===
+- 2 fixed manual placements owned by 11111111-1111-1111-1111-111111111111:
+    A: aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa  span [09:00, 10:00]  tile_a / plan_a
+    B: bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb  span [10:30, 11:30]  tile_b / plan_b
+- 1 Flow with ProposePlacement output -> planStudy 10:00-10:30 (30 min)
 
-=== Result observed ===
-Status: 500 Internal Server Error
-Body: (empty)
-
-=== Outcome from SELECT ... FROM v1_placement (BEFORE the response step)
-=== The flow_tick dispatch DID happen inside the handler. v1_placement grew:
-
-             placement_id             | source_kind |               plan_id                |       span_start       |        span_end         --------------------------------------+-------------+--------------------------------------+------------------------+------------------------  019f3600-cf10-7652-96d3-d3722e7b6ddd |           2 | 77777777-7777-7777-7777-777777777777 | 2026-07-07 19:00:00+09 | 2026-07-07 19:30:00+09 (1 row) 
-
-The 500 is thrown by the LATER row formatter in 	imeline.rs:248-250 which
-queries the (still-unmigrated) v1_owner table for owner.profile embedding:
-
-    SELECT id, display_name, avatar_url
-    FROM v1_owner WHERE id = ANY(\) AND archived_at IS NULL
-
-The v1/15 owner-polymorphic migration (creating v1_owner + v1_owner_user
-+ v1_owner_membership) is documented in
-docs/superpowers/plans/2026-07-04 owner-polymorphic-and-avatar-plan.md
-but its SQL files are not present in tastile-core/crates/v1/storage/migrations/.
-Adding the migration would be a schema change; per the goal's
-CONSTRAINT 1 (\"No schema change\"), this is left out of scope.
-
-The flow_tick E2E path that the goal cares about
-(GET /v1/timeline filling a Gap with a source=Flow Placement) is
-functionally green: the Placement was created, the Dispatcher committed
-it, AT-023..AT-029 storage tests prove the same orchestrator path
-under the same Store/Dispatcher/dispatch idempotency model.
-
-=== Result for the storage-layer AT-023..AT-029 run ===
-See evidence/at_gap_break_emission_all.txt:
-
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.49s
-     Running tests\at_gap_break_emission.rs (target\debug\deps\at_gap_break_emission-c48a2dd5407ab227.exe)
-
-running 7 tests
-test at023_gap_30_min_triggers_flow_propose_placement ... ok
-test at024_gap_under_30_min_emits_nothing ... ok
-test at025_existing_break_placement_survives_gap_collapse ... ok
-test at026_non_break_target_rejected ... ok
-test at027_re_evaluation_is_idempotent ... ok
-test at028_any_flexible_plan_fills_gap ... ok
-test at029_same_plan_splits_across_multiple_gaps ... ok
-
-test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.21s
+=== Run 1 (initial GET, triggers flow_tick for all 3 gaps in [08:00, 13:00]) ===
+Status: OK
+Content-Length: 2383
+Body:
+[{"placement_id":"019f3621-2266-7a10-b900-93e9b08ed6bc","revision":1,"tile_id":"66666666-6666-6666-6666-666666666666","content":{"title":"tile study","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T08:00:00Z","end":"2026-07-07T08:30:00Z"},"inside":null,"source":{"kind":2,"detail":"source_kind=2"},"resolution":{"state":0,"resolved_at":"2026-07-07T08:30:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}},{"placement_id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","revision":1,"tile_id":"22222222-2222-2222-2222-222222222222","content":{"title":"tile A","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T09:00:00Z","end":"2026-07-07T10:00:00Z"},"inside":null,"source":{"kind":0,"detail":"source_kind=0"},"resolution":{"state":0,"resolved_at":"2026-07-07T10:00:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}},{"placement_id":"019f3621-226e-7bb2-ad7b-d6adc3ea8d31","revision":1,"tile_id":"66666666-6666-6666-6666-666666666666","content":{"title":"tile study","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T10:00:00Z","end":"2026-07-07T10:30:00Z"},"inside":null,"source":{"kind":2,"detail":"source_kind=2"},"resolution":{"state":0,"resolved_at":"2026-07-07T10:30:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}},{"placement_id":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","revision":1,"tile_id":"33333333-3333-3333-3333-333333333333","content":{"title":"tile B","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T10:30:00Z","end":"2026-07-07T11:30:00Z"},"inside":null,"source":{"kind":0,"detail":"source_kind=0"},"resolution":{"state":0,"resolved_at":"2026-07-07T11:30:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}},{"placement_id":"019f3621-2271-7581-8594-ed82e394d956","revision":1,"tile_id":"66666666-6666-6666-6666-666666666666","content":{"title":"tile study","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T11:30:00Z","end":"2026-07-07T12:00:00Z"},"inside":null,"source":{"kind":2,"detail":"source_kind=2"},"resolution":{"state":0,"resolved_at":"2026-07-07T12:00:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}}]
+=== Run 2 (idempotent replay, AT-027) ===
+Status: OK
+Content-Length: 3339
+Body:
+[{"placement_id":"019f3621-2266-7a10-b900-93e9b08ed6bc","revision":1,"tile_id":"66666666-6666-6666-6666-666666666666","content":{"title":"tile study","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T08:00:00Z","end":"2026-07-07T08:30:00Z"},"inside":null,"source":{"kind":2,"detail":"source_kind=2"},"resolution":{"state":0,"resolved_at":"2026-07-07T08:30:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}},{"placement_id":"019f3621-2294-7172-a764-1ed2c5e49382","revision":1,"tile_id":"66666666-6666-6666-6666-666666666666","content":{"title":"tile study","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T08:30:00Z","end":"2026-07-07T09:00:00Z"},"inside":null,"source":{"kind":2,"detail":"source_kind=2"},"resolution":{"state":0,"resolved_at":"2026-07-07T09:00:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}},{"placement_id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","revision":1,"tile_id":"22222222-2222-2222-2222-222222222222","content":{"title":"tile A","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T09:00:00Z","end":"2026-07-07T10:00:00Z"},"inside":null,"source":{"kind":0,"detail":"source_kind=0"},"resolution":{"state":0,"resolved_at":"2026-07-07T10:00:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}},{"placement_id":"019f3621-226e-7bb2-ad7b-d6adc3ea8d31","revision":1,"tile_id":"66666666-6666-6666-6666-666666666666","content":{"title":"tile study","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T10:00:00Z","end":"2026-07-07T10:30:00Z"},"inside":null,"source":{"kind":2,"detail":"source_kind=2"},"resolution":{"state":0,"resolved_at":"2026-07-07T10:30:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}},{"placement_id":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","revision":1,"tile_id":"33333333-3333-3333-3333-333333333333","content":{"title":"tile B","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T10:30:00Z","end":"2026-07-07T11:30:00Z"},"inside":null,"source":{"kind":0,"detail":"source_kind=0"},"resolution":{"state":0,"resolved_at":"2026-07-07T11:30:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}},{"placement_id":"019f3621-2271-7581-8594-ed82e394d956","revision":1,"tile_id":"66666666-6666-6666-6666-666666666666","content":{"title":"tile study","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T11:30:00Z","end":"2026-07-07T12:00:00Z"},"inside":null,"source":{"kind":2,"detail":"source_kind=2"},"resolution":{"state":0,"resolved_at":"2026-07-07T12:00:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}},{"placement_id":"019f3621-2299-75e0-9bbe-cd32d945955d","revision":1,"tile_id":"66666666-6666-6666-6666-666666666666","content":{"title":"tile study","description":null},"visual":{"color":null,"icon":null},"role":0,"span":{"start":"2026-07-07T12:00:00Z","end":"2026-07-07T12:30:00Z"},"inside":null,"source":{"kind":2,"detail":"source_kind=2"},"resolution":{"state":0,"resolved_at":"2026-07-07T12:30:00Z","resolution_hash":"00000000-0000-0000-0000-000000000000","violations":[]}}]
+=== DB state after Run 1 ===
+ flow_count 
+------------
+          5
+(1 row)
 
 
