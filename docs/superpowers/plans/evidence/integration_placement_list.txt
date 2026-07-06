@@ -1,0 +1,11 @@
+   Compiling storage v0.1.0 (C:\Users\rebui\Desktop\tastile\tastile-core\crates\v1\storage)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.66s
+     Running tests\integration_placement_list.rs (target\debug\deps\integration_placement_list-a8fbea78f473e115.exe)
+
+running 3 tests
+test list_in_range_excludes_other_owners_placements ... ok
+test list_in_range_returns_all_source_kinds ... ok
+test list_in_range_returns_overlapping_placements_only ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s
+

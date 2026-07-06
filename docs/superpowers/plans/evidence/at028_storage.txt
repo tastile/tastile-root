@@ -1,0 +1,8 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.64s
+     Running tests\at_gap_break_emission.rs (target\debug\deps\at_gap_break_emission-c48a2dd5407ab227.exe)
+
+running 1 test
+test at028_any_flexible_plan_fills_gap ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.23s
+

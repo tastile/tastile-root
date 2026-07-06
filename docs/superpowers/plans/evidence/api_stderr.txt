@@ -1,0 +1,22 @@
+発生場所 C:\Users\rebui\Desktop\tastile\docs\superpowers\plans\evidence\run_api.ps1:5 文字:5
++ info,storage=debug = "info,storage=debug"
++     ~
+パラメーター一覧に引数が存在しません。
+発生場所 C:\Users\rebui\Desktop\tastile\docs\superpowers\plans\evidence\run_api.ps1:4 文字:1
++ 31400 = "31400"
++ ~~~~~
+代入式が無効です。代入演算子に対する入力には、代入を受け入れることができるオブジェクト (変数やプロパティなど) を指定す
+る必要があります。
+発生場所 C:\Users\rebui\Desktop\tastile\docs\superpowers\plans\evidence\run_api.ps1:6 文字:1
++ 1 = "1"
++ ~
+代入式が無効です。代入演算子に対する入力には、代入を受け入れることができるオブジェクト (変数やプロパティなど) を指定す
+る必要があります。
+発生場所 C:\Users\rebui\Desktop\tastile\docs\superpowers\plans\evidence\run_api.ps1:7 文字:1
++ 1 = "1"
++ ~
+代入式が無効です。代入演算子に対する入力には、代入を受け入れることができるオブジェクト (変数やプロパティなど) を指定す
+る必要があります。
+    + CategoryInfo          : ParserError: (:) [], ParentContainsErrorRecordException
+    + FullyQualifiedErrorId : MissingArgument
+ 

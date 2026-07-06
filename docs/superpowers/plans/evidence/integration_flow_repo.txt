@@ -1,0 +1,27 @@
+   Compiling storage v0.1.0 (C:\Users\rebui\Desktop\tastile\tastile-core\crates\v1\storage)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.82s
+     Running tests\integration_flow_repo.rs (target\debug\deps\integration_flow_repo-03a75cb5b7b8ad9c.exe)
+
+running 4 tests
+test load_active_flows_returns_empty_vec_for_owner_with_no_flows ... ok
+test load_active_flows_returns_only_requested_owner ... ok
+test load_active_flows_round_trips_observers_when_and_candidates ... ok
+test load_active_flows_round_trips_proposal_content_via_child_table ... FAILED
+
+failures:
+
+---- load_active_flows_round_trips_proposal_content_via_child_table stdout ----
+
+thread 'load_active_flows_round_trips_proposal_content_via_child_table' (20444) panicked at crates\v1\storage\tests\integration_flow_repo.rs:483:5:
+assertion `left == right` failed: proposal baseline span start must round-trip
+  left: 2026-07-06T06:06:25.658291Z
+ right: 2026-07-06T06:06:25.658291300Z
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    load_active_flows_round_trips_proposal_content_via_child_table
+
+test result: FAILED. 3 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.34s
+
+error: test failed, to rerun pass `-p storage --test integration_flow_repo`

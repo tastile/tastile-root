@@ -1,0 +1,3 @@
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.53s
+     Running `target\debug\api.exe`
+error: process didn't exit successfully: `target\debug\api.exe` (exit code: 0xffffffff)

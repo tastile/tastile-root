@@ -1,0 +1,8 @@
+$env:TASTILE_DATABASE_URL = "postgres://tastile:password@127.0.0.1:5432/tastile_db"
+$env:TASTILE_API_HOST = "0.0.0.0"
+$env:TASTILE_API_PORT = "31400"
+$env:RUST_LOG = "info,storage=debug"
+$env:RUST_BACKTRACE = "1"
+$env:TASTILE_BYPASS_AUTH = "1"
+Set-Location "C:\Users\rebui\Desktop\tastile\tastile-core"
+cargo run -p api *>&1 | Out-File -Encoding UTF8 "C:\Users\rebui\Desktop\tastile\docs\superpowers\plans\evidence\api_run.log"

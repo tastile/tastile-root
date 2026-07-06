@@ -1,0 +1,14 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.32s
+     Running tests\at_gap_break_emission.rs (target\debug\deps\at_gap_break_emission-c48a2dd5407ab227.exe)
+
+running 7 tests
+test at023_gap_30_min_triggers_flow_propose_placement ... ok
+test at024_gap_under_30_min_emits_nothing ... ok
+test at025_existing_break_placement_survives_gap_collapse ... ok
+test at026_non_break_target_rejected ... ok
+test at027_re_evaluation_is_idempotent ... ok
+test at028_any_flexible_plan_fills_gap ... ok
+test at029_same_plan_splits_across_multiple_gaps ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.91s
+
