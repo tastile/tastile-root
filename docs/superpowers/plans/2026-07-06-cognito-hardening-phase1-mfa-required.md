@@ -4,12 +4,15 @@
 
 **Goal:** AWS Cognito で MFA 必須 (TOTP) 認証を有効化し、`https://app.tastile.app/auth/email` のサインインが **TOTP 入力なしには完了しない** 状態を 7/8 (明後日) までに運用環境に立ち上げる。
 
-**Architecture:**
-- Cognito User Pool の `MfaConfiguration=ON` + `SoftwareTokenMfa=enabled` + SMS MFA 無効化により、TOTP を必須第二因子とする
-- TOTP 列挙/検証は Cognito 組み込み (`AssociateSoftwareToken` / `VerifySoftwareToken`) を使う。**カスタム Lambda trigger は Phase 2 で実装**し、Phase 1 では使わない
-- 既存 `tastile-web/src/lib/cognito/public-client.ts::startEmailOtpSignIn` / `completeEmailOtpSignIn` の返すチャネージを `EMAIL_OTP` / `PASSWORD_SRP` / `MFA_SETUP` / `SOFTWARE_TOKEN_MFA` の 4 種に拡張
-- Web app の `/auth/email/start` が `MFA_SETUP` / `SOFTWARE_TOKEN_MFA` を検知して `/auth/mfa-setup` へ redirect
-- 既存の `app.tastile.app` 環境へデプロイし、明後日 7/8 までに E2E (signup → confirm → MFA setup → sign-in) を user-flow Playwright で確認
+**Architecture (2026-07-06 Pivoted):**
+- Cognito User Pool の `MfaConfiguration=ON` + `SoftwareTokenMfa=enabled` + SMS MFA 無効化 + `AllowedFirstAuthFactors=["PASSWORD"]` で PASSWORD+TOTP 必須
+- **EMAIL_OTP は Cognito 制約により第一因子から除外** (MFA=ON 時のみ PASSWORD/WEB_AUTHN 許可)。EMAIL_OTP を MFA 因子として復活させる Phase 2 では Custom Challenge Lambda が必要
+- TOTP 列挙/検証は Cognito 組み込み (`AssociateSoftwareToken` / `VerifySoftwareToken`) を使う
+- サインイン flow: `email + password` 入力 → Cognito が password 検証 → MFA_SETUP (初回) または SOFTWARE_TOKEN_MFA (2回目以降) を返す → `/auth/mfa-setup` または `/auth/email/verify?mode=software_token_mfa` で TOTP 検証 → tokens 発行
+- Web app の `/auth/email` page を password 入力付きに変更。`startEmailOtpSignIn` を `startPasswordSignIn` に rename し、password + MFA_SETUP/SOFTWARE_TOKEN_MFA チャレンジを返す
+- 既存の `app.tastile.app` 環境へデプロイし、7/8 までに E2E (signup → confirm → MFA setup → sign-in) を user-flow Playwright で確認
+
+**重要:** Sign-up flow も password 必須に変更 (`/auth/email/signup`)。既存の `rebuild.up.up@gmail.com` (Google 連携) は Hosted UI 経由でこれまで通り sign-in 可能。
 
 **Tech Stack:**
 - AWS Cognito (ap-northeast-1, pool `ap-northeast-1_buh6oWoQ2`)
