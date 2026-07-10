@@ -368,17 +368,38 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 
 ## 13. 現在のステータスと次のマイルストーン
 
-### 13-1. リポジトリ別ステータス (2026-07-03 時点)
+### 13-1. リポジトリ別ステータス (2026-07-10 時点)
 
-| リポジトリ | ビルド | テスト | 備考 |
+| リポジトリ | fast gate | full gate | 備考 |
 | --- | --- | --- | --- |
-| tastile-core | ✗ (MinGW 環境問題) | WSL 内で可能 | v1 Phase A-D 完了。178 件 Green |
-| tastile-web | ✓ | ✓ (159 件) | biome + tsc + vitest + next build 通過 |
-| tastile-android | ✗ (JDK バージョン) | ✗ | JDK 17 必要 (現環境 JDK 11) |
-| tastile-desktop | ✓ | ✓ (156 件) | 完全 green |
-| tastile-brands | ✓ | — | 安定 |
+| tastile-core | ✓ | BLOCKED | domain 149 件 Green。full は PostgreSQL 接続情報がない場合に終了コード 2 で停止 |
+| tastile-web | ✓ | ✓ | Biome + ESLint + tsc + 316 tests + production audit + Next production build |
+| tastile-android | ✓ | ✓ | JDK 21 を自動選択。verify + assembleDebug 通過 |
+| tastile-desktop | ✓ | ✓ | 188 tests + default/win-x64 build 通過 |
+| tastile-brands | ✓ | ✓ | 56 PNG + ICO を再生成・検証 |
 
-### 13-2. 次のマイルストーン
+### 13-2. 実行ハーネスと収束ループ
+
+正本は `tastile-core`、`tastile-web`、`tastile-android`、`tastile-desktop`、`tastile-brands` の5リポジトリ。`*.wslc`、`*.avatar`、その他の複製クローンは対象外とする。
+
+```powershell
+# 日常の高速フィードバック
+pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile fast -KeepGoing
+
+# リリース相当。機械可読結果も保存
+pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile full -KeepGoing -ResultPath .\artifacts\workspace-check.json
+
+# 一時的失敗だけを最大3回まで再試行
+pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile full -KeepGoing -MaxAttempts 3
+```
+
+- 終了コード `0`: 選択した gate がすべて通過
+- 終了コード `1`: コード、テスト、ビルドの失敗
+- 終了コード `2`: DB、JDK、リポジトリ欠落など外部前提による BLOCKED
+- 停止条件: 全通過、再試行上限、または外部前提の不足。BLOCKED を成功として扱わない
+- core full gate には `TASTILE_DATABASE_URL` または `DATABASE_URL` で到達可能な PostgreSQL が必要
+
+### 13-3. 次のマイルストーン
 
 1. **web と android の完全な完成**
 2. 通知機能の実装
