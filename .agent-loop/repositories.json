@@ -1,0 +1,35 @@
+{
+  "repositories": [
+    {
+      "name": "core",
+      "path": "tastile-core",
+      "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
+      "gate": { "command": "cargo", "arguments": ["test", "-p", "domain"] }
+    },
+    {
+      "name": "web",
+      "path": "tastile-web",
+      "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
+      "snapshotLinks": ["node_modules"],
+      "gate": { "command": "bun", "arguments": ["run", "check"] }
+    },
+    {
+      "name": "android",
+      "path": "tastile-android",
+      "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
+      "gate": { "command": ".\\gradlew.bat", "arguments": ["verify", "--no-daemon"] }
+    },
+    {
+      "name": "desktop",
+      "path": "tastile-desktop",
+      "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
+      "gate": { "command": "pwsh", "arguments": ["-NoProfile", "-File", "scripts/check.ps1", "-SkipDesktopBuild"] }
+    },
+    {
+      "name": "brands",
+      "path": "tastile-brands",
+      "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
+      "gate": { "command": "bun", "arguments": ["run", "verify"] }
+    }
+  ]
+}
