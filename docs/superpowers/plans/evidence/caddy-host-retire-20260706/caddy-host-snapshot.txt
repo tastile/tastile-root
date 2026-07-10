@@ -1,0 +1,2 @@
+
+aws: [ERROR]: 'cp932' codec can't encode character '\u2014' in position 35: illegal multibyte sequence

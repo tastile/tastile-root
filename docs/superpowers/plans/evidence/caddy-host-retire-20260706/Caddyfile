@@ -1,0 +1,29 @@
+# Caddyfile — generated 2026-07-06 by deploy script
+:443 {
+  tls /etc/caddy/tastile-origin.crt /etc/caddy/tastile-origin.key
+  @api host api.tastile.app
+  @app host app.tastile.app tastile.app
+  handle @api {
+    reverse_proxy 127.0.0.1:31400
+  }
+  handle @app {
+    reverse_proxy 127.0.0.1:3000
+  }
+  handle {
+    respond "tastile v1" 200
+  }
+}
+
+:80 {
+  @api host api.tastile.app
+  @app host app.tastile.app tastile.app
+  handle @api {
+    reverse_proxy 127.0.0.1:31400
+  }
+  handle @app {
+    reverse_proxy 127.0.0.1:3000
+  }
+  handle {
+    respond "tastile v1" 200
+  }
+}

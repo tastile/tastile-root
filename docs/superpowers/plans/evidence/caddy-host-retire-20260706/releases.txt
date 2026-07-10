@@ -1,0 +1,7 @@
+total 32
+drwxr-xr-x. 5 tastile tastile    84 Jul  6 05:19 .
+drwxr-xr-x. 3 root    root       37 Jul  6 05:19 ..
+drwxr-xr-x. 5 tastile tastile   108 Jul  6 04:39 tastile-web-0.1.40
+drwxr-xr-x. 5 tastile tastile 16384 Jul  6 05:05 tastile-web-0.1.41
+drwxr-xr-x. 5 tastile tastile 16384 Jul  6 05:19 tastile-web-0.1.42
+

@@ -1,0 +1,19 @@
+[Unit]
+Description=Tastile v1 web (Next.js standalone)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tastile
+Group=tastile
+EnvironmentFile=/etc/tastile/tastile-web.env
+WorkingDirectory=/opt/tastile/web/current
+ExecStart=/usr/bin/node server.js
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+

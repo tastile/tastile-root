@@ -1,0 +1,5 @@
+=== instance metadata ===
+i-026c215cacda95559 (Caddy host, EIP 35.79.255.34)
+Region: ap-northeast-1
+Retired: 2026-07-06 11:23 JST (CF origin moved to 52.194.61.218 nginx host)
+
