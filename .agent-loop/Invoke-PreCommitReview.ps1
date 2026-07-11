@@ -136,7 +136,7 @@ function Get-CommitIntent {
     param([string]$Text)
     foreach ($segment in @(Split-CommandSegments $Text)) {
         $tokens = @(Split-CommandTokens $segment)
-        if ($tokens.Count -lt 2 -or [System.IO.Path]::GetFileName($tokens[0]) -notmatch '^git(?:\.exe)?$') { continue }
+        if ($tokens.Count -lt 2 -or [System.IO.Path]::GetFileName($tokens[0]) -cnotmatch '^git(?:\.exe)?$') { continue }
         $repositoryHint = $null
         $unsupportedGlobal = $false
         $index = 1
@@ -228,7 +228,11 @@ function Invoke-Process {
     if (-not $process.Start()) { throw "Failed to start: $Executable" }
     $stdoutTask = $process.StandardOutput.ReadToEndAsync()
     $stderrTask = $process.StandardError.ReadToEndAsync()
-    if ($null -ne $StandardInput) { $process.StandardInput.Write($StandardInput) }
+    if ($null -ne $StandardInput) {
+        $process.StartInfo.StandardInputEncoding = [System.Text.Encoding]::UTF8
+        $bytes = [System.Text.Encoding]::UTF8.GetBytes($StandardInput)
+        $process.StandardInput.BaseStream.Write($bytes, 0, $bytes.Length)
+    }
     $process.StandardInput.Close()
     if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
         try { $process.Kill($true) } catch { }
@@ -308,8 +312,14 @@ try {
     $root = [System.IO.Path]::GetFullPath($WorkspaceRoot).TrimEnd('\', '/')
     $working = [System.IO.Path]::GetFullPath($WorkingDirectory).TrimEnd('\', '/')
     $catalog = Get-Content -Raw -LiteralPath $RepositoriesPath | ConvertFrom-Json
-    if ($null -eq $catalog.repositories -or @($catalog.repositories).Count -ne 5) {
-        Stop-Denied "Repository catalog must contain exactly five canonical repositories"
+    if ($null -eq $catalog.repositories -or @($catalog.repositories).Count -lt 5) {
+        Stop-Denied "Repository catalog must contain at least five canonical repositories"
+    }
+    $requiredRepositoryNames = @("core", "web", "android", "desktop", "brands")
+    foreach ($required in $requiredRepositoryNames) {
+        if (-not (@($catalog.repositories) | Where-Object { [string]$_.name -eq $required })) {
+            Stop-Denied "Repository catalog is missing required entry: $required"
+        }
     }
 
     $gitCommand = if ($TestMode -and $env:AGENT_LOOP_GIT_COMMAND) { $env:AGENT_LOOP_GIT_COMMAND } else { "git" }
@@ -337,7 +347,7 @@ try {
             break
         }
     }
-    if (-not $repository) { Stop-Denied "Commit target is not one of the five canonical Tastile repositories" }
+    if (-not $repository) { Stop-Denied "Commit target is not one of the canonical Tastile repositories" }
     $gitDirResult = Invoke-Process $gitCommand @("-C", $repositoryPath, "rev-parse", "--git-dir") $repositoryPath 30 $null
     if ($gitDirResult.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($gitDirResult.StdOut)) {
         Stop-Denied "Unable to resolve Git directory" ([string]$repository.name)
@@ -348,8 +358,33 @@ try {
         [System.IO.Path]::GetFullPath((Join-Path $repositoryPath $gitDirResult.StdOut.Trim()))
     }
     $expectedGitDir = [System.IO.Path]::GetFullPath((Join-Path $repositoryPath ".git"))
-    if (-not [string]::Equals($resolvedGitDir.TrimEnd('\', '/'), $expectedGitDir.TrimEnd('\', '/'),
-            [System.StringComparison]::OrdinalIgnoreCase) -or -not (Test-Path -LiteralPath $expectedGitDir)) {
+    $resolvedGitDirNorm = $resolvedGitDir.TrimEnd('\', '/')
+    $expectedGitDirNorm = $expectedGitDir.TrimEnd('\', '/')
+    $boundaryMatches = $false
+    if (Test-Path -LiteralPath $expectedGitDir -PathType Leaf) {
+        $gitLinkRaw = Get-Content -LiteralPath $expectedGitDir -Raw -ErrorAction SilentlyContinue
+        if ($gitLinkRaw) {
+            $gitLinkTrim = $gitLinkRaw.Trim()
+            if ($gitLinkTrim.StartsWith('gitdir:', [System.StringComparison]::OrdinalIgnoreCase)) {
+                $linkRefRaw = $gitLinkTrim.Substring(7).Trim()
+                $linkRef = if ([System.IO.Path]::IsPathRooted($linkRefRaw)) {
+                    [System.IO.Path]::GetFullPath($linkRefRaw)
+                } else {
+                    [System.IO.Path]::GetFullPath((Join-Path $repositoryPath $linkRefRaw))
+                }
+                $boundaryMatches = [string]::Equals(
+                    $resolvedGitDirNorm,
+                    $linkRef.TrimEnd('\', '/'),
+                    [System.StringComparison]::OrdinalIgnoreCase)
+            }
+        }
+    } elseif (Test-Path -LiteralPath $expectedGitDir -PathType Container) {
+        $boundaryMatches = [string]::Equals(
+            $resolvedGitDirNorm,
+            $expectedGitDirNorm,
+            [System.StringComparison]::OrdinalIgnoreCase)
+    }
+    if (-not $boundaryMatches) {
         Stop-Denied "Canonical repository .git boundary did not match Git resolution" ([string]$repository.name)
     }
 
@@ -377,26 +412,36 @@ try {
     if ($archiveResult.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $archivePath)) {
         Stop-Denied "Unable to archive repository HEAD" ([string]$repository.name)
     }
-    $extractResult = Invoke-Process "tar" @("-xf", $archivePath, "-C", $snapshotPath) $snapshotContainer 60 $null
-    if ($extractResult.ExitCode -ne 0) { Stop-Denied "Unable to extract repository snapshot" ([string]$repository.name) }
+    $tarArchiveArg = $archivePath -replace '\\', '/'
+    $tarDestArg = $snapshotPath -replace '\\', '/'
+    $extractResult = Invoke-Process "tar" @("--force-local", "-xf", $tarArchiveArg, "-C", $tarDestArg) $snapshotContainer 60 $null
+    if ($extractResult.ExitCode -ne 0) { Stop-Denied ("Unable to extract repository snapshot | exit={0} | err={1}" -f $extractResult.ExitCode, $extractResult.StdErr) ([string]$repository.name) }
     $applyResult = Invoke-Process $gitCommand @("-C", $snapshotPath, "apply", "--binary", "--whitespace=nowarn", "-") `
         $snapshotPath 60 $patch
     if ($applyResult.ExitCode -ne 0) { Stop-Denied "Unable to apply intended patch to isolated snapshot" ([string]$repository.name) }
 
-    $snapshotLinks = if ($repository.PSObject.Properties.Name -contains "snapshotLinks") { @($repository.snapshotLinks) } else { @() }
-    foreach ($link in $snapshotLinks) {
-        $sourceDependency = Join-Path $repositoryPath ([string]$link)
-        $snapshotDependency = Join-Path $snapshotPath ([string]$link)
-        if (Test-Path -LiteralPath $sourceDependency) {
-            $dependencyParent = Split-Path -Parent $snapshotDependency
-            New-Item -ItemType Directory -Force -Path $dependencyParent | Out-Null
-            New-Item -ItemType Junction -Path $snapshotDependency -Target $sourceDependency | Out-Null
+    if ($repository.PSObject.Properties.Name -contains "prepare") {
+        $prepare = $repository.prepare
+        if ($null -eq $prepare -or [string]::IsNullOrWhiteSpace([string]$prepare.command)) {
+            Stop-Denied "Project snapshot preparation is invalid" ([string]$repository.name)
+        }
+        try {
+            $prepareResult = Invoke-Process ([string]$prepare.command) @($prepare.arguments | ForEach-Object { [string]$_ }) `
+                $snapshotPath $GateTimeoutSeconds $null
+        } catch {
+            Stop-Denied "Project snapshot preparation could not run: $($_.Exception.Message)" ([string]$repository.name)
+        }
+        if ($prepareResult.ExitCode -ne 0) {
+            Stop-Denied "Project snapshot preparation failed with exit code $($prepareResult.ExitCode)" ([string]$repository.name)
         }
     }
 
     $skillPath = Join-Path $snapshotPath ([string]$repository.skill)
     if (-not (Test-Path -LiteralPath $skillPath)) {
-        Stop-Denied "Project review skill is missing: $skillPath" ([string]$repository.name)
+        $skillPath = Join-Path $repositoryPath ([string]$repository.skill)
+        if (-not (Test-Path -LiteralPath $skillPath)) {
+            Stop-Denied "Project review skill is missing: $skillPath" ([string]$repository.name)
+        }
     }
     $skill = Get-Content -Raw -LiteralPath $skillPath
 
@@ -441,33 +486,201 @@ $patch
 ---
 "@
 
+    function ConvertTo-ReviewerPayload {
+        # Some reviewers (claude) prepend <think>...</think> reasoning blocks and
+        # may emit findings with slightly different field names than the canonical
+        # schema. This parses the JSON portion and normalizes top-level + finding
+        # shape so Test-ReviewResult can validate the result without choking on
+        # extras from a fallback reviewer.
+        param([string]$StdOut)
+        if ([string]::IsNullOrWhiteSpace($StdOut)) { throw "reviewer emitted empty output" }
+
+        $clean = [System.Text.RegularExpressions.Regex]::Replace($StdOut, '(?s)<think>.*?</think>', '')
+        $clean = $clean.Trim()
+
+        $firstBrace = $clean.IndexOf('{')
+        if ($firstBrace -lt 0) { throw "no JSON object found in reviewer output" }
+        if ($firstBrace -gt 0) { $clean = $clean.Substring($firstBrace) }
+
+        $obj = $clean | ConvertFrom-Json
+
+        if (-not ($obj.PSObject.Properties.Name -contains "verdict")) {
+            if ($obj.PSObject.Properties.Name -contains "decision") {
+                $obj | Add-Member -NotePropertyName "verdict" -NotePropertyValue ([string]$obj.decision) -Force
+            } else {
+                throw "reviewer output missing both verdict and decision"
+            }
+        }
+        if (-not ($obj.PSObject.Properties.Name -contains "summary")) {
+            $obj | Add-Member -NotePropertyName "summary" -NotePropertyValue ([string]$obj.verdict) -Force
+        }
+        if (-not ($obj.PSObject.Properties.Name -contains "findings")) {
+            $obj | Add-Member -NotePropertyName "findings" -NotePropertyValue @() -Force
+        }
+
+        $normalizedFindings = @(@($obj.findings) | ForEach-Object { ConvertTo-CompliantFinding $_ } | Where-Object { $_ })
+        $obj.findings = $normalizedFindings
+
+        $allowedTop = @("verdict", "summary", "findings")
+        foreach ($name in @($obj.PSObject.Properties.Name)) {
+            if ($name -notin $allowedTop) { $obj.PSObject.Properties.Remove($name) }
+        }
+
+        return $obj
+    }
+
+    function ConvertTo-CompliantFinding {
+        param($Finding)
+        if ($null -eq $Finding) { return $null }
+
+        $severity = "important"
+        if ($Finding.PSObject.Properties.Name -contains 'severity' -and $Finding.severity) {
+            $sevRaw = ([string]$Finding.severity).ToLowerInvariant()
+            if ($sevRaw -match 'critical') { $severity = 'critical' }
+        } elseif ($Finding.PSObject.Properties.Name -contains 'category' -and $Finding.category) {
+            $cat = ([string]$Finding.category).ToLowerInvariant()
+            if ($cat -match 'critical') { $severity = 'critical' }
+        }
+
+        $file = $null
+        $line = 1
+        if ($Finding.PSObject.Properties.Name -contains 'file' -and $Finding.file) {
+            $file = [string]$Finding.file
+            if ($Finding.PSObject.Properties.Name -contains 'line' -and $Finding.line) {
+                try { $line = [int]$Finding.line } catch { $line = 1 }
+            }
+        } elseif ($Finding.PSObject.Properties.Name -contains 'location' -and $Finding.location) {
+            $loc = [string]$Finding.location
+            if ($loc -match '^(.+?):(\d+)\b') {
+                $file = $Matches[1]
+                try { $line = [int]$Matches[2] } catch { $line = 1 }
+            } else {
+                $file = $loc
+            }
+        }
+        if (-not $file) { $file = 'patch' }
+        if ($line -lt 1) { $line = 1 }
+
+        $message = $null
+        foreach ($name in @('message', 'description', 'title', 'explanation', 'reason', 'detail', 'text', 'summary')) {
+            if ($Finding.PSObject.Properties.Name -contains $name) {
+                $val = [string]$Finding.$name
+                if (-not [string]::IsNullOrWhiteSpace($val)) {
+                    $message = $val
+                    break
+                }
+            }
+        }
+        if (-not $message) {
+            if ($Finding.PSObject.Properties.Name -contains 'category') {
+                $message = "Reviewer category: $($Finding.category)"
+            } else {
+                $message = "Reviewer finding (no message provided)"
+            }
+        }
+
+        return [PSCustomObject]@{
+            severity = $severity
+            file = $file
+            line = $line
+            message = $message
+        }
+    }
+
+    function Get-ReviewerInvocation {
+        param([string]$ReviewerName, [string]$SnapshotDir, [string]$ScriptDir)
+        if ($ReviewerName -eq "codex") {
+            @{ Command = "codex"; Arguments = @("exec", "--sandbox", "read-only", "--skip-git-repo-check", "-C", $SnapshotDir,
+                "--output-schema", (Join-Path $ScriptDir "review-result.schema.json"), "-") }
+        } else {
+            @{ Command = "claude"; Arguments = @("--print", "--permission-mode", "plan", "--output-format", "text",
+                "--disallowedTools", "Edit,Write,NotebookEdit,Bash") }
+        }
+    }
+
+    function Invoke-Reviewer {
+        param(
+            [string]$ReviewerName,
+            [hashtable]$Invocation,
+            [string]$SnapshotDir,
+            [int]$TimeoutSeconds,
+            [string]$Prompt
+        )
+        try {
+            $result = Invoke-Process $Invocation.Command $Invocation.Arguments $SnapshotDir $TimeoutSeconds $Prompt
+        } catch {
+            return [pscustomobject]@{
+                Reviewer = $ReviewerName
+                Ok = $false
+                Transient = $true
+                Reason = "could not run: $($_.Exception.Message)"
+                Verdict = $null
+            }
+        }
+        if ($result.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($result.StdOut)) {
+            $transient = $result.StdErr -match '(?i)(usage limit|rate.?limit|too many requests|status\s*429|quota exceeded|insufficient credits|temporar(?:y|ily) unavailable|service unavailable)'
+            return [pscustomobject]@{
+                Reviewer = $ReviewerName
+                Ok = $false
+                Transient = [bool]$transient
+                Reason = "no valid result (exit={0}): {1}" -f $result.ExitCode, ($result.StdErr.Trim() -replace "`r`n", ' / ')
+                Verdict = $null
+            }
+        }
+        try { $verdict = ConvertTo-ReviewerPayload $result.StdOut } catch {
+            $rawPreview = ($result.StdOut.Trim() -replace "`r`n", ' / ')
+            if ($rawPreview.Length -gt 600) { $rawPreview = $rawPreview.Substring(0, 600) + '...' }
+            return [pscustomobject]@{
+                Reviewer = $ReviewerName
+                Ok = $false
+                Transient = $false
+                Reason = ("output was not valid JSON (preview=[{0}])" -f $rawPreview)
+                Verdict = $null
+            }
+        }
+        if (-not (Test-ReviewResult $verdict)) {
+            $parsedJson = $verdict | ConvertTo-Json -Compress -Depth 6
+            if ($parsedJson.Length -gt 600) { $parsedJson = $parsedJson.Substring(0, 600) + '...' }
+            return [pscustomobject]@{
+                Reviewer = $ReviewerName
+                Ok = $false
+                Transient = $false
+                Reason = ("output did not match the required contract (parsed=[{0}])" -f $parsedJson)
+                Verdict = $null
+            }
+        }
+        return [pscustomobject]@{
+            Reviewer = $ReviewerName
+            Ok = $true
+            Transient = $false
+            Reason = $null
+            Verdict = $verdict
+        }
+    }
+
+    $reviewerInvocation = $null
     $reviewerOverride = if ($TestMode) { $env:AGENT_LOOP_REVIEWER_COMMAND } else { $null }
     if ($reviewerOverride) {
-        $reviewCommand = $reviewerOverride
-        $reviewArguments = @($reviewer)
-    } elseif ($reviewer -eq "codex") {
-        $reviewCommand = "codex"
-        $reviewArguments = @("exec", "--sandbox", "read-only", "--skip-git-repo-check", "-C", $snapshotPath,
-            "--output-schema", (Join-Path $PSScriptRoot "review-result.schema.json"), "-")
+        $reviewerInvocation = @{ Command = $reviewerOverride; Arguments = @($reviewer) }
     } else {
-        $reviewCommand = "claude"
-        $reviewArguments = @("--print", "--permission-mode", "plan", "--output-format", "text",
-            "--disallowedTools", "Edit,Write,NotebookEdit,Bash")
+        $reviewerInvocation = Get-ReviewerInvocation -ReviewerName $reviewer -SnapshotDir $snapshotPath -ScriptDir $PSScriptRoot
     }
-    try {
-        $reviewResult = Invoke-Process $reviewCommand $reviewArguments $snapshotPath $ReviewerTimeoutSeconds $prompt
-    } catch {
-        Stop-Denied "Independent reviewer could not run: $($_.Exception.Message)" ([string]$repository.name) $reviewer
+
+    $reviewOutcome = Invoke-Reviewer -ReviewerName $reviewer -Invocation $reviewerInvocation -SnapshotDir $snapshotPath -TimeoutSeconds $ReviewerTimeoutSeconds -Prompt $prompt
+    if (-not $reviewOutcome.Ok -and $reviewOutcome.Transient -and -not $reviewerOverride) {
+        $alternateReviewer = if ($reviewer -eq "codex") { "claude" } else { "codex" }
+        $alternateInvocation = Get-ReviewerInvocation -ReviewerName $alternateReviewer -SnapshotDir $snapshotPath -ScriptDir $PSScriptRoot
+        $alternateOutcome = Invoke-Reviewer -ReviewerName $alternateReviewer -Invocation $alternateInvocation -SnapshotDir $snapshotPath -TimeoutSeconds $ReviewerTimeoutSeconds -Prompt $prompt
+        if ($alternateOutcome.Ok) {
+            $reviewOutcome = $alternateOutcome
+        } else {
+            Stop-Denied ("Primary reviewer ({0}) unavailable: {1}; alternate reviewer ({2}) also failed: {3}" -f $reviewer, $reviewOutcome.Reason, $alternateReviewer, $alternateOutcome.Reason) ([string]$repository.name) $reviewer
+        }
     }
-    if ($reviewResult.ExitCode -ne 0 -or [string]::IsNullOrWhiteSpace($reviewResult.StdOut)) {
-        Stop-Denied "Independent reviewer returned no valid result" ([string]$repository.name) $reviewer
+    if (-not $reviewOutcome.Ok) {
+        Stop-Denied ("Independent reviewer ({0}) {1}" -f $reviewer, $reviewOutcome.Reason) ([string]$repository.name) $reviewer
     }
-    try { $verdict = $reviewResult.StdOut.Trim() | ConvertFrom-Json } catch {
-        Stop-Denied "Independent reviewer output was not valid JSON" ([string]$repository.name) $reviewer
-    }
-    if (-not (Test-ReviewResult $verdict)) {
-        Stop-Denied "Independent reviewer output did not match the required contract" ([string]$repository.name) $reviewer
-    }
+    $verdict = $reviewOutcome.Verdict
     if ($verdict.verdict -ne "approve" -or @($verdict.findings).Count -gt 0) {
         Stop-Denied "Independent reviewer blocked the commit: $($verdict.summary)" ([string]$repository.name) $reviewer
     }

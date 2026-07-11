@@ -10,7 +10,7 @@
       "name": "web",
       "path": "tastile-web",
       "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
-      "snapshotLinks": ["node_modules"],
+      "prepare": { "command": "bun", "arguments": ["install", "--frozen-lockfile", "--ignore-scripts"] },
       "gate": { "command": "bun", "arguments": ["run", "check"] }
     },
     {
@@ -30,6 +30,25 @@
       "path": "tastile-brands",
       "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
       "gate": { "command": "bun", "arguments": ["run", "verify"] }
+    },
+    {
+      "name": "core-wslc",
+      "path": "tastile-core.wslc",
+      "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
+      "gate": { "command": "cargo", "arguments": ["test", "-p", "domain"] }
+    },
+    {
+      "name": "web-wslc",
+      "path": "tastile-web.wslc",
+      "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
+      "prepare": { "command": "bun", "arguments": ["install", "--frozen-lockfile", "--ignore-scripts"] },
+      "gate": { "command": "bun", "arguments": ["run", "check"] }
+    },
+    {
+      "name": "root",
+      "path": ".",
+      "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
+      "gate": { "command": "pwsh", "arguments": ["-NoProfile", "-File", ".agent-loop/gate-root.ps1"] }
     }
   ]
 }
