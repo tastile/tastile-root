@@ -399,7 +399,20 @@ pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile full -KeepGoing -Ma
 - 停止条件: 全通過、再試行上限、または外部前提の不足。BLOCKED を成功として扱わない
 - core full gate には `TASTILE_DATABASE_URL` または `DATABASE_URL` で到達可能な PostgreSQL が必要
 
-### 13-3. 次のマイルストーン
+### 13-3. Agent commit review loop
+
+Claude Code、Codex、OpenCode は `tastile` 直下から起動する。各agentのネイティブ tool hook は、agentが単一の直接 `git -C <repo> commit ...` を実行する直前に共通エンジンを起動する。
+
+- Git hookではない。人間の通常commitには作用しない
+- fast gateと別CLI agent reviewの両方が必須
+- gate、skill、reviewerはHEADへcommit予定patchだけを適用した一時snapshot上で動く
+- Claude→Codex、Codex→Claude、OpenCode→Codexとして自己レビューを禁止
+- project固有基準は各child repoの `.agents/skills/tastile-precommit-review/SKILL.md`
+- Critical / Important のみblocking。approvalはキャッシュしない
+- CLI不在、認証不足、timeout、判定不能、曖昧なshell形式はfail-closed
+- 実装・対応形式・テストは `.agent-loop/README.md` を正本とする
+
+### 13-4. 次のマイルストーン
 
 1. **web と android の完全な完成**
 2. 通知機能の実装

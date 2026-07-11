@@ -107,12 +107,16 @@ exit /b %FAKE_REVIEW_EXIT%
 
     $catalog = [ordered]@{ repositories = @() }
     foreach ($repository in $repositories) {
-        $catalog.repositories += [ordered]@{
+        $entry = [ordered]@{
             name = $repository.Replace("tastile-", "")
             path = $repository
             skill = ".agents/skills/tastile-precommit-review/SKILL.md"
             gate = [ordered]@{ command = (Join-Path $bin "fake-gate.cmd"); arguments = @("--fast") }
         }
+        if ($repository -eq "tastile-web") {
+            $entry.prepare = [ordered]@{ command = (Join-Path $bin "fake-gate.cmd"); arguments = @("--prepare") }
+        }
+        $catalog.repositories += $entry
     }
     $catalog | ConvertTo-Json -Depth 6 | Set-Content -Path $config -Encoding utf8
 
@@ -146,7 +150,8 @@ exit /b %FAKE_REVIEW_EXIT%
         "pwsh -Command echo safe", "bash -c echo", "sh -c echo", "zsh -c echo", "wsl echo safe",
         'python -c "import subprocess"', 'node -e "require(''child_process'')"',
         "call git commit", 'command git commit', 'env git commit', '& $command', '$command commit',
-        '%COMMAND% commit', '!COMMAND! commit', 'g commit', 'Set-Alias g git'
+        '%COMMAND% commit', '!COMMAND! commit', 'g commit', 'Set-Alias g git',
+        '.\git.exe commit -m test', 'C:\tmp\git.exe commit -m test'
     )) {
         Clear-Logs
         $result = Invoke-Engine $unsafeBoundary
@@ -229,6 +234,9 @@ exit /b %FAKE_REVIEW_EXIT%
         Assert-True (-not (Get-Content -Raw $gateLog).Contains((Join-Path $workspace $repository))) "$repository gate must run in an isolated snapshot"
         Assert-True ((Get-Content -Raw $promptLog).Contains("snapshot-skill")) "$repository skill was not loaded from the snapshot"
         Assert-True (-not (Get-Content -Raw $promptLog).Contains("unstaged-skill")) "$repository unstaged skill must not leak into review"
+        if ($repository -eq "tastile-web") {
+            Assert-True ((Get-Content -Raw $gateLog).Contains("--prepare")) "Web dependencies must be prepared inside the isolated snapshot"
+        }
     }
     Assert-True ((Get-Content -Raw $gitLog).Contains("rev-parse --show-toplevel")) "Engine must resolve Git top-level before diff"
     Assert-True ((Get-Content -Raw $gitLog).Contains("rev-parse --git-dir")) "Engine must verify the canonical .git boundary before diff"

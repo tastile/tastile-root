@@ -6,8 +6,8 @@
 
 **Architecture:** Native root-level tool hooks delegate to one fail-closed
 PowerShell engine. Each child repository supplies a small review skill, while
-the engine owns diff hashing, fast gates, cross-agent selection, structured
-verdicts, and exact-diff caching.
+the engine owns exact isolated snapshots, fast gates, cross-agent selection,
+and structured no-cache verdicts.
 
 **Tech Stack:** PowerShell 7, Git, Claude Code CLI, Codex CLI, OpenCode plugins,
 SKILL.md.
@@ -23,10 +23,10 @@ SKILL.md.
 - Create: `.agent-loop/tests/Invoke-PreCommitReview.Tests.ps1`
 
 1. Write fake-command tests for pass-through, repository routing, gate failure,
-   reviewer failure, approval, cache hit, and diff invalidation.
+   reviewer failure, approval, mandatory repeated review, and snapshot isolation.
 2. Run the tests and confirm RED because the engine does not exist.
 3. Implement command detection, exact intended-patch capture, fast gates,
-   cross-agent selection, structured output, and SHA-256 cache.
+   cross-agent selection, structured output, and isolated exact snapshots.
 4. Run the tests until GREEN.
 
 ### Task 2: Native agent adapters
@@ -63,7 +63,7 @@ SKILL.md.
 - Modify: `docs/HARNESS.md`
 - Create: `.agent-loop/README.md`
 
-1. Document the lifecycle, fail-closed behavior, cache invalidation, supported
+1. Document the lifecycle, fail-closed behavior, no-cache policy, supported
    command forms, and troubleshooting.
 2. Run all contract tests and the workspace fast harness.
 3. Simulate approve/block paths with fake reviewers.

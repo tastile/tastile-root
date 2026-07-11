@@ -28,9 +28,10 @@ Three thin native adapters live at the workspace root:
 All adapters call `.agent-loop/Invoke-PreCommitReview.ps1`. The engine parses
 the pending command without executing it, resolves one of the five canonical
 child repositories, captures the intended patch (staged diff, or tracked
-working-tree diff for `git commit -a`), runs the repository's fast gate, loads
-that repository's `.agents/skills/tastile-precommit-review/SKILL.md`, and
-launches a read-only reviewer CLI.
+working-tree diff for `git commit -a`), applies it to an isolated snapshot of
+HEAD, then runs the repository's fast gate, loads the snapshot's
+`.agents/skills/tastile-precommit-review/SKILL.md`, and launches a read-only
+reviewer CLI from that exact snapshot.
 
 Reviewer selection is deliberately cross-agent:
 
@@ -58,9 +59,9 @@ Only correctness, security, data loss, specification violations, missing
 tests, and release-breaking defects are blocking. Style preferences and minor
 cleanup are out of scope.
 
-Successful approval is cached under `.agent-loop/cache/` using repository,
-caller, reviewer, HEAD, and patch SHA-256. The cache is invalidated by any
-staged-diff or HEAD change and never stores repository contents.
+Approval is intentionally not cached. The workspace is agent-writable, so an
+approval file stored there could be forged. Every commit attempt reruns both
+the deterministic gate and the independent reviewer.
 
 ## Project skills
 
@@ -75,12 +76,14 @@ duplicated skill files.
 
 ## Safety and stopping conditions
 
-- Non-commit Bash calls pass without starting a reviewer.
+- Simple direct non-commit commands pass without starting a reviewer.
+- Shell/interpreter wrappers, expansion, encoded commands, and ambiguous commit
+  forms fail closed because their actual process cannot be proven from hook text.
 - Unknown repositories and clone/worktree copies fail closed.
 - Empty intended patches fail closed.
 - The reviewer receives no write tools and cannot commit.
 - The engine never stages, edits, resets, stashes, or deploys.
-- Approval is valid only for the exact patch hash.
+- Gate, skill, and reviewer all operate on the same isolated intended snapshot.
 - The original commit is allowed only after both deterministic and agent gates
   pass.
 
@@ -92,7 +95,7 @@ Contract tests use fake Git, gate, Codex, and Claude executables to prove:
 2. Every canonical repository resolves to its own skill and gate.
 3. A failed gate blocks before agent review.
 4. Missing/unparseable/block reviewer responses fail closed.
-5. Approved exact diffs pass and are cached.
-6. A changed diff invalidates the cache.
+5. Every approved commit attempt still launches an independent reviewer.
+6. Dirty unstaged changes cannot mask defects in the staged snapshot.
 7. Claude, Codex, and OpenCode adapters all invoke the common engine.
 

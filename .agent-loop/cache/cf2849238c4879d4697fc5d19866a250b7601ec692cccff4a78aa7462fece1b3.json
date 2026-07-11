@@ -1,9 +1,0 @@
-{
-  "verdict": "approve",
-  "repository": "web",
-  "caller": "claude",
-  "reviewer": "codex",
-  "head": "0123456789abcdef",
-  "patchSha256": "d241a56c041dda29c40237c8868dd58f1a970027e353ca87333651a92ef19033",
-  "approvedAt": "2026-07-10T10:26:22.2301482Z"
-}

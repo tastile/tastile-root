@@ -47,3 +47,6 @@ starttile_*.txt
 Thumbs.db
 
 desktop.ini
+
+.tmp-e2e/
+.tmp-storage-gap-fill-target/

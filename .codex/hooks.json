@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "pwsh -NoProfile -File \"./.agent-loop/Invoke-AgentHook.ps1\" -Caller codex",
+            "commandWindows": "pwsh -NoProfile -Command \"$dir = (Get-Location).Path; while ($dir -and -not (Test-Path -LiteralPath (Join-Path $dir '.agent-loop\\Invoke-AgentHook.ps1') -PathType Leaf)) { $parent = Split-Path -Parent $dir; if ($parent -eq $dir) { exit 1 }; $dir = $parent }; & (Join-Path $dir '.agent-loop\\Invoke-AgentHook.ps1') -Caller codex\"",
+            "timeout": 1200,
+            "statusMessage": "Checking Tastile commit review policy"
+          }
+        ]
+      }
+    ]
+  }
+}
