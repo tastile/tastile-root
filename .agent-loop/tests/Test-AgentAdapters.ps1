@@ -20,7 +20,8 @@ $claudeGroup = @($claude.hooks.PreToolUse)[0]
 $claudeHook = @($claudeGroup.hooks)[0]
 Assert-True ($claudeGroup.matcher -eq "Bash") "Claude must inspect every Bash call"
 Assert-True ($claudeHook.type -eq "command") "Claude adapter must be a command hook"
-Assert-True ($claudeHook.command -match 'Invoke-AgentHook\.ps1.+Caller claude') "Claude caller identity is missing"
+Assert-True ($claudeHook.command -match 'Get-Location.+\.agent-loop\\Invoke-AgentHook\.ps1.+Caller claude') "Claude hook must search parent directories"
+Assert-True (-not $claudeHook.command.Contains('C:\\Users\\rebui\\Desktop\\tastile')) "Claude hook must not contain a fixed absolute path"
 Assert-True ([int]$claudeHook.timeout -ge 900) "Claude hook timeout is too short for gate plus review"
 
 $codex = Get-Content -Raw -LiteralPath $codexHooks | ConvertFrom-Json
@@ -28,8 +29,9 @@ $codexGroup = @($codex.hooks.PreToolUse)[0]
 $codexHook = @($codexGroup.hooks)[0]
 Assert-True ($codexGroup.matcher -eq "Bash") "Codex must inspect every Bash call"
 Assert-True ($codexHook.type -eq "command") "Codex adapter must be a command hook"
-Assert-True ($codexHook.command -match 'Invoke-AgentHook\.ps1.+Caller codex') "Codex caller identity is missing"
+Assert-True ($codexHook.command -match 'Get-Location.+\.agent-loop\\Invoke-AgentHook\.ps1.+Caller codex') "Codex hook must search parent directories"
 Assert-True ($codexHook.commandWindows -match 'Invoke-AgentHook\.ps1.+Caller codex') "Codex Windows command is missing"
+Assert-True (-not $codexHook.command.Contains('C:\\Users\\rebui\\Desktop\\tastile')) "Codex hook must not contain a fixed absolute path"
 Assert-True ([int]$codexHook.timeout -ge 900) "Codex hook timeout is too short for gate plus review"
 
 $codexHookInput = @{
@@ -41,6 +43,8 @@ $codexHookInput = @{
 $originalLocation = Get-Location
 try {
     Push-Location (Join-Path $root "tastile-web")
+    $codexHookInput | cmd /d /c $claudeHook.command | Out-Null
+    Assert-True ($LASTEXITCODE -eq 0) "Claude hook must resolve the adapter when the session starts in a subdirectory"
     $codexHookInput | cmd /d /c $codexHook.commandWindows | Out-Null
     Assert-True ($LASTEXITCODE -eq 0) "Codex hook must resolve the adapter when the session starts in a subdirectory"
 } finally {

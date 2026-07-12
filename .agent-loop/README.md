@@ -57,7 +57,7 @@ changing hook or plugin files.
 ## Prerequisites
 
 - `pwsh`, `git`, `tar`
-- Authenticated `claude` and `codex` CLIs
+- Authenticated `claude` CLI (used as the fixed independent reviewer)
 - Each repository's normal fast-gate toolchain
 - Agents started from the Tastile workspace root
 
@@ -74,6 +74,11 @@ pwsh -NoProfile -File .\.agent-loop\tests\Test-ReviewSkills.ps1
 
 The engine test uses fake Git, gate, and reviewer processes. It never invokes a
 real reviewer or commit.
+
+All callers route review through Claude Code using its standard model; no model
+selection flag is supplied. Claude and Codex hooks locate `.agent-loop` by
+searching from the current working directory toward its parents, so they also
+work when launched from a repository subdirectory.
 
 ## Troubleshooting
 
