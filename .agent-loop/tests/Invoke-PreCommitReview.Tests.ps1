@@ -241,7 +241,7 @@ exit /b %FAKE_REVIEW_EXIT%
     Assert-True ((Get-Content -Raw $gitLog).Contains("rev-parse --show-toplevel")) "Engine must resolve Git top-level before diff"
     Assert-True ((Get-Content -Raw $gitLog).Contains("rev-parse --git-dir")) "Engine must verify the canonical .git boundary before diff"
     Assert-True ((Get-Content -Raw $gitLog).Contains("diff --no-ext-diff --no-textconv --cached --binary --")) "Normal commit must disable external diff/textconv and capture the staged patch"
-    Assert-True ((Get-Content -Raw $reviewLog).Trim() -eq "codex") "Claude caller must select Codex reviewer"
+    Assert-True ((Get-Content -Raw $reviewLog).Trim() -eq "claude") "Claude caller must select Claude reviewer"
 
     foreach ($unsupported in @(
         "git -C tastile-web commit src/file.ts",
@@ -299,7 +299,7 @@ exit /b %FAKE_REVIEW_EXIT%
     $second = Invoke-Engine "git -C tastile-android commit -m second" -Caller "opencode"
     Assert-True ($first.ExitCode -eq 0 -and $second.ExitCode -eq 0) "Repeated exact diff can be approved"
     Assert-True (@(Get-Content $reviewLog).Count -eq 2) "Mandatory review must run for every commit attempt"
-    Assert-True (@(Get-Content $reviewLog | Where-Object { $_.Trim() -eq "codex" }).Count -eq 2) "OpenCode caller must select Codex reviewer"
+    Assert-True (@(Get-Content $reviewLog | Where-Object { $_.Trim() -eq "claude" }).Count -eq 2) "OpenCode caller must select Claude reviewer"
 
     Clear-Logs
     $env:FAKE_GIT_PATCH = "diff --git a/content.txt b/content.txt +broken-staged"
