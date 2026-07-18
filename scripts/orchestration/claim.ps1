@@ -1,0 +1,54 @@
+[CmdletBinding()]
+param(
+    [Parameter(Mandatory)][ValidatePattern('^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$')][string]$Id,
+    [Parameter(Mandatory)][string]$Agent,
+    [Parameter(Mandatory)][string[]]$FileGlob,
+    [ValidateRange(1, 86400)][int]$TtlSeconds = 3600,
+    [switch]$Renew
+)
+
+$ErrorActionPreference = 'Stop'
+if ($Id -eq 'live-stack') { throw "'live-stack' is reserved for release-claim.ps1." }
+$root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+$claimsDirectory = Join-Path $root 'docs\implementation\recurring-to-source\.claims'
+
+function Normalize-Glob([string]$Value) { return $Value.Replace('\', '/').Trim().TrimStart('.').TrimStart('/').TrimEnd('/') }
+function Test-GlobOverlap([string]$Left, [string]$Right) {
+    $leftValue = Normalize-Glob $Left; $rightValue = Normalize-Glob $Right
+    if (-not $leftValue -or -not $rightValue -or $leftValue -eq '**' -or $rightValue -eq '**') { return $true }
+    if ($leftValue -eq $rightValue) { return $true }
+    $leftPrefix = ($leftValue -split '[*?\[]', 2)[0].TrimEnd('/')
+    $rightPrefix = ($rightValue -split '[*?\[]', 2)[0].TrimEnd('/')
+    if ($leftPrefix -and ($rightValue.StartsWith($leftPrefix + '/') -or $rightPrefix.StartsWith($leftPrefix + '/'))) { return $true }
+    if ($rightPrefix -and ($leftValue.StartsWith($rightPrefix + '/') -or $leftPrefix.StartsWith($rightPrefix + '/'))) { return $true }
+    $leftParent = Split-Path $leftPrefix -Parent; $rightParent = Split-Path $rightPrefix -Parent
+    return (($leftValue -match '[*?\[]' -or $rightValue -match '[*?\[]') -and $leftParent -eq $rightParent)
+}
+
+$mutex = [System.Threading.Mutex]::new($false, 'Global\tastile-recurring-to-source-claims')
+$hasMutex = $false
+try {
+    try { $hasMutex = $mutex.WaitOne([TimeSpan]::FromSeconds(30)) }
+    catch [System.Threading.AbandonedMutexException] { $hasMutex = $true }
+    if (-not $hasMutex) { throw 'Timed out waiting for the claim registry.' }
+    [System.IO.Directory]::CreateDirectory($claimsDirectory) | Out-Null
+    foreach ($glob in $FileGlob) { if ((Normalize-Glob $glob) -eq 'live-stack') { throw "'live-stack' is reserved for release-claim.ps1." } }
+    $now = [DateTime]::UtcNow; $target = Join-Path $claimsDirectory ($Id + '.json')
+    $existing = Get-ChildItem -LiteralPath $claimsDirectory -Filter '*.json' -File | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json }
+    foreach ($claim in $existing) {
+        if ($claim.releaseState -ne 'active' -or [DateTime]$claim.expiresUtc -le $now) { continue }
+        if ($claim.id -eq $Id) {
+            if (-not $Renew) { throw "Active claim '$Id' cannot be overwritten; use -Renew with the same owner and globs." }
+            if ($claim.agent -ne $Agent -or (@($claim.fileGlob) -join "`n") -ne (@($FileGlob) -join "`n")) { throw 'Renew requires the same agent and file globs.' }
+            continue
+        }
+        foreach ($requestedGlob in $FileGlob) { foreach ($claimedGlob in @($claim.fileGlob)) {
+            if (Test-GlobOverlap $requestedGlob $claimedGlob) { throw "Active claim '$($claim.id)' by '$($claim.agent)' overlaps '$requestedGlob'." }
+        }}
+    }
+    $record = [ordered]@{ id=$Id; agent=$Agent; fileGlob=@($FileGlob); acquiredUtc=$now.ToString('o'); expiresUtc=$now.AddSeconds($TtlSeconds).ToString('o'); releaseState='active' }
+    $temporary = Join-Path $claimsDirectory ('.' + $Id + '.' + [guid]::NewGuid().ToString('N') + '.tmp')
+    [System.IO.File]::WriteAllText($temporary, ($record | ConvertTo-Json -Depth 3), [System.Text.UTF8Encoding]::new($false))
+    [System.IO.File]::Move($temporary, $target, $true); $record | ConvertTo-Json -Depth 3
+}
+finally { if ($hasMutex) { $mutex.ReleaseMutex() }; $mutex.Dispose() }
