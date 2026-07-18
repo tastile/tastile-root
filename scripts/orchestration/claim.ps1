@@ -4,11 +4,13 @@ param(
     [Parameter(Mandatory)][string]$Agent,
     [Parameter(Mandatory)][string[]]$FileGlob,
     [ValidateRange(1, 86400)][int]$TtlSeconds = 3600,
-    [switch]$Renew
+    [switch]$Renew,
+    [switch]$Release
 )
 
 $ErrorActionPreference = 'Stop'
 if ($Id -eq 'live-stack') { throw "'live-stack' is reserved for release-claim.ps1." }
+if ($Renew -and $Release) { throw 'Specify only one of -Renew or -Release.' }
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $claimsDirectory = Join-Path $root 'docs\implementation\recurring-to-source\.claims'
 
@@ -21,8 +23,14 @@ function Test-GlobOverlap([string]$Left, [string]$Right) {
     $rightPrefix = ($rightValue -split '[*?\[]', 2)[0].TrimEnd('/')
     if ($leftPrefix -and ($rightValue.StartsWith($leftPrefix + '/') -or $rightPrefix.StartsWith($leftPrefix + '/'))) { return $true }
     if ($rightPrefix -and ($leftValue.StartsWith($rightPrefix + '/') -or $leftPrefix.StartsWith($rightPrefix + '/'))) { return $true }
-    $leftParent = Split-Path $leftPrefix -Parent; $rightParent = Split-Path $rightPrefix -Parent
-    return (($leftValue -match '[*?\[]' -or $rightValue -match '[*?\[]') -and $leftParent -eq $rightParent)
+    if ($leftValue -match '[*?\[]' -or $rightValue -match '[*?\[]') {
+        $leftAtRoot = -not $leftValue.Contains('/')
+        $rightAtRoot = -not $rightValue.Contains('/')
+        if ($leftAtRoot -and $rightAtRoot -and (-not $leftPrefix -or -not $rightPrefix -or $leftPrefix.StartsWith($rightPrefix) -or $rightPrefix.StartsWith($leftPrefix))) { return $true }
+    }
+    $leftParent = if ($leftPrefix) { Split-Path $leftPrefix -Parent } else { $null }
+    $rightParent = if ($rightPrefix) { Split-Path $rightPrefix -Parent } else { $null }
+    return (($leftValue -match '[*?\[]' -or $rightValue -match '[*?\[]') -and $leftParent -and $leftParent -eq $rightParent)
 }
 
 $mutex = [System.Threading.Mutex]::new($false, 'Global\tastile-recurring-to-source-claims')
@@ -34,6 +42,18 @@ try {
     [System.IO.Directory]::CreateDirectory($claimsDirectory) | Out-Null
     foreach ($glob in $FileGlob) { if ((Normalize-Glob $glob) -eq 'live-stack') { throw "'live-stack' is reserved for release-claim.ps1." } }
     $now = [DateTime]::UtcNow; $target = Join-Path $claimsDirectory ($Id + '.json')
+    if ($Release) {
+        if (-not (Test-Path -LiteralPath $target)) { throw "Claim '$Id' does not exist." }
+        $prior = Get-Content -LiteralPath $target -Raw | ConvertFrom-Json
+        if ($prior.releaseState -ne 'active' -or [DateTime]$prior.expiresUtc -le $now) { throw "Claim '$Id' is not active." }
+        if ($prior.agent -ne $Agent -or (@($prior.fileGlob) -join "`n") -ne (@($FileGlob) -join "`n")) { throw 'Release requires the same agent and file globs.' }
+        $record = [ordered]@{ id=$prior.id; agent=$prior.agent; fileGlob=@($prior.fileGlob); acquiredUtc=$prior.acquiredUtc; expiresUtc=$prior.expiresUtc; releaseState='released'; releasedUtc=$now.ToString('o') }
+        $temporary = Join-Path $claimsDirectory ('.' + $Id + '.' + [guid]::NewGuid().ToString('N') + '.tmp')
+        [System.IO.File]::WriteAllText($temporary, ($record | ConvertTo-Json -Depth 3), [System.Text.UTF8Encoding]::new($false))
+        [System.IO.File]::Move($temporary, $target, $true)
+        $record | ConvertTo-Json -Depth 3
+        return
+    }
     $existing = Get-ChildItem -LiteralPath $claimsDirectory -Filter '*.json' -File | ForEach-Object { Get-Content -LiteralPath $_.FullName -Raw | ConvertFrom-Json }
     foreach ($claim in $existing) {
         if ($claim.releaseState -ne 'active' -or [DateTime]$claim.expiresUtc -le $now) { continue }
