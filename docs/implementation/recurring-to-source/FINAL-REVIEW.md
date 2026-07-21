@@ -1,7 +1,7 @@
 # Final Cross-Cutting Review
 
-Captured (UTC): 2026-07-21T06:25:00Z
-Captured against commit: 538b914
+Captured (UTC): 2026-07-21T06:43:00Z
+Captured against commit: f0002a3
 
 ## Scope
 
@@ -62,7 +62,7 @@ EVIDENCE.md, GAP-INVENTORY.md, OWNERSHIP.md, and STATUS.md.
 
 ## Commits reviewed
 
-Most recent at capture time: 538b914
+Most recent at capture time: f0002a3
 (reachable from the captured `git log`).
 
 Earlier evidence-bearing commits in this session:
@@ -84,7 +84,7 @@ established the orchestration scaffolding this review reads against.
 
 ## EVIDENCE.md status
 
-10 machine-traceable evidence rows in
+11 machine-traceable evidence rows in
 docs/implementation/recurring-to-source/EVIDENCE.md, of which
 EV-WSLC-20260721-1..3 / 5 / 6 / 7 / 8 / 9 are PASS.  EV-WSLC-20260721-4
 is UNVERIFIED with the WSLC containerd metadata corruption
@@ -92,16 +92,21 @@ captured in the body.
 
 ## Recommendation
 
-This FINAL-REVIEW captures the cumulative state at commit 538b914:
+This FINAL-REVIEW captures the cumulative state at commit f0002a3:
 
-- Batches 0/A/B are PASS or PASS-with-known-issues (recurring
-  env-gate end-to-end, G-11 phases, WSLC cross-owner isolation,
-  workspace fmt/clippy/unit tests, live WSLC API + worker, USECASE-AT
-  matrix).
-- Batch C (Android typed DTO mirror of v1/05 Condition AST)
-  remains open. The Android SDK IS installed on this host
-  (`C:\Users\rebui\AppData\Local\Android\Sdk`); the migration
-  is a follow-up batch that needs gradle build/test/lint to
-  complete.
-/goal remains ACTIVE until Batch C commits and passes
-  gradle test.
+- Batches 0/A/B are PASS (recurring env-gate end-to-end, G-11
+  workflow-type-break phases, WSLC cross-owner isolation, workspace
+  fmt/clippy/unit tests, live WSLC API + worker, USECASE-AT matrix,
+  WSLC live SourceTile->Occurrence->Placement E2E on the G-11 build).
+- Batch C (Android typed DTO) is half-met: commit 82ba775 added
+  a typed SchedulePlanAst.kt mirroring v1/05 OpenAPI, switched
+  `SourceTileWritePayload.plan` to the typed mirror, and 408 of
+  408 Android unit tests PASS (`gradle :app:testDebugUnitTest`
+  BUILD SUCCESSFUL in 59s). 5 of the 6 top-level plan fields are
+  typed; `completion.root` still uses `JsonElement` because the
+  recursive Condition AST (4 Condition variants * 10 Term variants
+  * 5 sub-structures) needs custom PolymorphicSerializers per
+  variant - this is the next-batch concrete follow-up.
+/goal remains ACTIVE: the next batch is the polymorphic Condition
+  AST mirror on Android + final hands-off E2E on an Android
+  emulator/device.
