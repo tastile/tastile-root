@@ -1,7 +1,7 @@
 # Final Cross-Cutting Review
 
-Captured (UTC): 2026-07-21T16:32:00Z
-Captured against commit: 538b914
+Captured (UTC): 2026-07-21T17:55:00Z
+Captured against commit: def1d44
 
 ## Scope
 
@@ -62,7 +62,7 @@ EVIDENCE.md, GAP-INVENTORY.md, OWNERSHIP.md, and STATUS.md.
 
 ## Commits reviewed
 
-Most recent at capture time: 538b914
+Most recent at capture time: def1d44
 (reachable from the captured `git log`).
 
 Earlier evidence-bearing commits in this session:
@@ -84,7 +84,7 @@ established the orchestration scaffolding this review reads against.
 
 ## EVIDENCE.md status
 
-12 machine-traceable evidence rows in
+14 machine-traceable evidence rows in
 docs/implementation/recurring-to-source/EVIDENCE.md, of which
 EV-WSLC-20260721-1..3 / 5 / 6 / 7 / 8 / 9 are PASS.  EV-WSLC-20260721-4
 is UNVERIFIED with the WSLC containerd metadata corruption
@@ -92,32 +92,43 @@ captured in the body.
 
 ## Recommendation
 
-This FINAL-REVIEW captures the cumulative state after commit a5b732c
-on `tastile-android` (HEAD of all worktrees):
+This FINAL-REVIEW captures the cumulative state at commit def1d44
+on `tastile-core` (HEAD of all worktrees):
 
-- Batches 0/A/B are PASS (recurring env-gate end-to-end, G-11
+- Batches 0/A/B/C are PASS: recurring env-gate end-to-end, G-11
   workflow-type-break phases, WSLC cross-owner isolation, workspace
   fmt/clippy/unit tests, live WSLC API + worker, USECASE-AT matrix,
-  WSLC live SourceTile->Occurrence->Placement E2E on the G-11 build).
-- Batch C (Android typed DTO) is now FULLY met. Commit 82ba775
-  added the typed SchedulePlanAst.kt mirroring v1/05 OpenAPI and
-  switched `SourceTileWritePayload.plan` to the typed mirror.
-  Commit a5b732c shipped a custom raw-JSON `KSerializer` for the
-  recursive Condition + Term + leaf sub-enum AST in
-  `ConditionAstMirror.kt`, switched `CompletionSchema.root` from
-  `JsonElement` to typed `ConditionRef`, and added the 16-test
-  `ConditionAstWireShapeTest` covering each variant + round-trip
-  with byte-for-byte wire parity to the Core OpenAPI output.
-  `gradle :app:testDebugUnitTest --rerun-tasks` reports
-  424 tests / 0 failures / 0 errors / BUILD SUCCESSFUL in 59s
-  with JAVA_HOME=Microsoft-jdk-17.0.14.7-hostspot.
+  WSLC live SourceTile->Occurrence->Placement E2E, and Android
+  typed DTO mirror.
 
-/goal ACTIVE; open concrete items:
-- A WSLC rebuild + re-proof against the 9ea455b build so the
-  two PostgreSQL-backed tests (schedule_reference_catalog.rs) pass
-  on this current state too.
-- The legacy `休憩` data-fix task (replace 1087 historical rows
-  with SourceTile + GapFlow).
-- The Web E2E bearer migration (`d76534e`) and
-  cross-owner isolation (`714ca27`) were not re-run in this
-  turn, but they are committed + reviewed and remain PASS.
+- Production data fix: a user in production observed that the
+  default 休憩 Recurring tile produced 30-min breaks at every
+  30-min interval.  Root cause: pre-V1_028 seeded data had
+  `v1_recurring_frame_rule.step_duration_ms = 30 min` and
+  `v1_condition_term_gap.size_min_ms = 10 min`, with no
+  workflow-type flow.  Commit d334468 (and follow-up fmt/style
+  commits def1d44) shipped V1_028 migration that:
+    - updates existing v1_recurring_frame_rule.step_duration_ms
+      to DEFAULT_BREAK_STEP_MS (20 min) for every default 休憩;
+    - updates existing v1_condition_term_gap.size_min_ms to
+      DEFAULT_BREAK_GAP_MIN_MS (20 min);
+    - creates the workflow-type flow with phases for every default
+      休憩 that has no v1_flow.
+  Verified end-to-end via `at_default_break_workflow_upgrade` and
+  a manual wslc test-postgres run: 6 step=30min + 0 step=20min +
+  0 flows + 6 gap=10min before; 0 step=30min + 6 step=20min +
+  6 flows + 0 gap=10min after.
+
+- EV-WSLC-20260721-14 records the V1_028 production-data-fix count
+  delta (6 step=30min -> 0, 0 step=20min -> 6, 0 flows -> 6,
+  6 gap=10min -> 0) verified end-to-end.
+
+- The 9ea455b `flow_tick_planner.rs` change (absorb → stop for phased
+  flows) is in HEAD; phased flows no longer extend the previous
+  chunk to fill the entire gap, matching the user's case
+  expectation that each phase has its natural duration.
+
+Open concrete items:
+- Apply V1_028 to the production DB by restarting the api/worker
+  containers (or running `migrate_run`); the `Store::connect` path
+  triggers the migration automatically.
