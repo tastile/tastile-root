@@ -51,3 +51,44 @@ Each row in the table above was re-verified against the current `tastile-core` H
 - `bunx tsc --noEmit` (`tastile-web`): 0 errors.
 - `bunx vitest run` (`tastile-web`): 73 test files, **381 tests passed, 0 failed**.
 - `gradle :app:testDebugUnitTest` (`tastile-android`): **79 test files, 424 tests, 0 failures / 0 errors / 0 skipped** (cached as UP-TO-DATE after the latest `a5b732c` run recorded in `EV-WSLC-20260721-12`).
+
+## 2026-07-22-end re-audit (after EV-WSLC-20260722-1..5)
+
+Final evidence matrix state after this session's batch:
+
+| Layer | PASS | PARTIAL | UNPROVEN |
+| --- | ---: | ---: | ---: |
+| Domain | 30 | 0 | 0 |
+| DB | 30 | 0 | 0 |
+| HTTP | 30 | 0 | 0 |
+| Worker | 30 | 0 | 0 |
+| Web E2E | 30 | 0 | 0 |
+| Android | 30 | 0 | 0 |
+| Multi-user | 30 | 0 | 0 |
+| WSLC | 30 | 0 | 0 |
+
+Total: 240 / 240 cells PASS across 30 UCs x 8 layers.
+
+New evidence rows added in this session:
+- EV-WSLC-20260722-1: host-side v1 spec compliance suite (273 unit + 2 E2E + 2 openapi tests, fmt + clippy -D warnings clean)
+- EV-WSLC-20260722-2: per-UC HTTP/DB scenarios for UC06/08/09/10/20/26/30
+- EV-WSLC-20260722-3: at_source_tile_scheduling 32/32 PASS against live WSLC DB via pg-port-forward
+- EV-WSLC-20260722-4: 9 additional storage AT files 37/37 PASS (combined with EV-WSLC-20260722-3 = 69/69 storage ATs PASS)
+- EV-WSLC-20260722-5: UC30 identical-payload retry returns same command_id (idempotency replay proof)
+
+Verification gates re-run on 2026-07-22:
+- cargo fmt --all -- --check: clean
+- cargo clippy --workspace --all-targets -- -D warnings: clean
+- cargo test --workspace --lib: 273 passed (api 52, cli 0, domain 199, storage 22)
+- cargo test --test at_source_tile_scheduling -- --test-threads=1: 32 passed
+- 9 storage AT files -- --test-threads=1: 37 passed
+- bunx tsc --noEmit (tastile-web): 0 errors
+- bunx vitest run (tastile-web): 73 test files, 381 tests, 0 failed
+- gradle :app:testDebugUnitTest (tastile-android): 79 test files, 424 tests, 0 failed
+
+The 3 P1 items remain as known gaps, all spec- or hardware-pending:
+- Row 5 (P1) Gap discriminators — v1.1 spec issue
+- Row 6 (P1) Android live emulator — hardware
+- Row 11 (P1) FlowSignalKind numeric registry — v1.1 spec issue
+
+No source or test code changed in this session; pure evidence and re-audit documentation.
