@@ -1,7 +1,7 @@
 # Final Cross-Cutting Review
 
-Captured (UTC): 2026-07-21T06:43:00Z
-Captured against commit: f0002a3
+Captured (UTC): 2026-07-21T06:50:00Z
+Captured against commit: 312bb5c
 
 ## Scope
 
@@ -62,7 +62,7 @@ EVIDENCE.md, GAP-INVENTORY.md, OWNERSHIP.md, and STATUS.md.
 
 ## Commits reviewed
 
-Most recent at capture time: f0002a3
+Most recent at capture time: 312bb5c
 (reachable from the captured `git log`).
 
 Earlier evidence-bearing commits in this session:
@@ -92,7 +92,7 @@ captured in the body.
 
 ## Recommendation
 
-This FINAL-REVIEW captures the cumulative state at commit f0002a3:
+This FINAL-REVIEW captures the cumulative state at commit 312bb5c:
 
 - Batches 0/A/B are PASS (recurring env-gate end-to-end, G-11
   workflow-type-break phases, WSLC cross-owner isolation, workspace
@@ -102,11 +102,21 @@ This FINAL-REVIEW captures the cumulative state at commit f0002a3:
   a typed SchedulePlanAst.kt mirroring v1/05 OpenAPI, switched
   `SourceTileWritePayload.plan` to the typed mirror, and 408 of
   408 Android unit tests PASS (`gradle :app:testDebugUnitTest`
-  BUILD SUCCESSFUL in 59s). 5 of the 6 top-level plan fields are
-  typed; `completion.root` still uses `JsonElement` because the
-  recursive Condition AST (4 Condition variants * 10 Term variants
-  * 5 sub-structures) needs custom PolymorphicSerializers per
-  variant - this is the next-batch concrete follow-up.
-/goal remains ACTIVE: the next batch is the polymorphic Condition
-  AST mirror on Android + final hands-off E2E on an Android
-  emulator/device.
+  BUILD SUCCESSFUL in 60+s). 5 of the 6 top-level plan fields are
+  typed; `completion.root` (the recursive Condition AST) still uses
+  `JsonElement` because it is an externally-tagged union that needs
+  custom KSerializer per polymorphic level - this is the next-batch
+  concrete follow-up; the corrected spec lives at
+  `docs/implementation/recurring-to-source/NEXT-BATCH-android-condition-ast.md`
+  (committed at 312bb5c). A first attempt at this session produced
+  compile errors (descriptor duplication); a corrected plan is now
+  recorded so the next batch ships it cleanly.
+
+/goal remains ACTIVE:
+- Next concrete batch is the Android polymorphic Condition AST
+  mirror per `NEXT-BATCH-android-condition-ast.md`.
+- Then a WSLC rebuild + re-proof against the 9ea455b build so the
+  two PostgreSQL-backed tests (schedule_reference_catalog.rs) pass
+  on this current state too.
+- Then the legacy `休憩` data-fix task (replace 1087 historical
+  rows with SourceTile + GapFlow).
