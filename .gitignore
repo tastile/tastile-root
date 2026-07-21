@@ -50,3 +50,5 @@ desktop.ini
 
 .tmp-e2e/
 .tmp-storage-gap-fill-target/
+# Local scratch (transient fixture, log, and review scripts).
+.tmp/
