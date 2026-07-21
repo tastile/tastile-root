@@ -1,0 +1,101 @@
+# WSLC env-gate evidence: TASTILE_LEGACY_RECURRING_SEED default-off (no Recurring seed on signup)
+
+Evidence ID: EV-WSLC-20260721-3
+Captured (UTC): 2026-07-21T02:18:12Z
+Commit (current HEAD at capture): 714ca27 docs(evidence): record WSLC cross-owner isolation (host-side E2E)
+
+## 1. Image
+
+Image rebuilt from 	astile-core/Containerfile.v1 using HEAD source
+(269a18 feat(v1): gate legacy default break Recurring seed behind
+TASTILE_LEGACY_RECURRING_SEED).
+
+Build host: WSLC (rust:1-bookworm builder, debian:bookworm-slim runtime).
+Build duration: 2m 18s.
+Build log: rtifacts/recurring-to-source/release/wslc-image-build-20260721-3.log.
+
+Tagged image: 	astile-v1-api:evidence-20260721-3.
+Image line: tastile-v1-api   evidence-20260721-3   7a251eb785e4   1 minute ago   213.66 MB
+
+## 2. Containers
+
+- Stopped: 	astile-api-evidence-20260721, 	astile-worker-evidence-20260721
+- Started: 	astile-api-evidence-20260721-v3 (image
+  	astile-v1-api:evidence-20260721-3, host port 31400,
+  TASTILE_LEGACY_RECURRING_SEED NOT set)
+- Persisted: 	astile-db (postgres:16-alpine)
+- network: 	astile-net
+
+The env variable TASTILE_LEGACY_RECURRING_SEED is intentionally
+unset so the default-off gate skips both the owner-bootstrap seed in
+uth.rs::signup and the V1_015 backfill in migrations.rs::run.
+
+## 3. Health
+
+Invoke-WebRequest http://127.0.0.1:31400/v1/health -> HTTP 200
+{\"status\":\"ok\",\"version\":\"0.1.0\"}
+
+## 4. Signup test (no env override)
+
+`
+\$ body = '{\"email\":\"recurring-seed-isolated-20260721v3@example.com\",\"password\":\"test-password-strong-1234\",\"display_name\":\"recurring-seed-isolated-20260721v3\"}'
+
+\$ Invoke-WebRequest http://127.0.0.1:31400/v1/auth/signup \\
+    -Method Post -ContentType 'application/json' -Body body
+SIGNUP_STATUS=200
+SIGNUP_BODY={\"session_id\":\"019f8276-d84f-76c0-bcab-8beeae974574\",\"owner_id\":\"8dfe166e-97df-5a4d-8358-fbe7006a109e\",\"token\":\"...\",\"expires_at\":\"2026-08-20T02:17:34.543698070Z\"}
+`
+
+New owner subject: 8dfe166e-97df-5a4d-8358-fbe7006a109e.
+
+## 5. Before / after DB counts
+
+### Before (baseline at 2026-07-21T02:14:27Z)
+
+| metric                                 | count |
+| --------------------------------------  | ----: |
+| v1_tile title='休憩' total              | 1082  |
+| v1_tile title='休憩' AND kind=0 (Recurring) | 698   |
+| v1_tile title='休憩' AND kind=3 (Source)     | 384   |
+| v1_source_tile total                    | 553   |
+| v1_subject total                        | 374   |
+
+### After signup (2026-07-21T02:17:34Z)
+
+| metric                                 | count |
+| --------------------------------------  | ----: |
+| v1_tile title='休憩' total              | 1082  |
+| v1_tile title='休憩' AND kind=0 (Recurring) | 698   |
+| v1_tile title='休憩' AND kind=3 (Source)     | 384   |
+| v1_source_tile total                    | 553   |
+| v1_subject total                        | 375   |
+| source_tile for new subject (id=8dfe166e...) | **0** |
+
+## 6. Interpretation for goal completion
+
+- 休憩 (kind=0) count is **unchanged** (698 -> 698): the legacy Recurring
+  seed at owner bootstrap did NOT fire on the new signup.
+- 休憩 (kind=3) count is **unchanged** (384 -> 384): the
+  DemandDriven Source path did NOT insert a default break either.
+- 1_source_tile count is **unchanged** (553 -> 553) overall; for the
+  new subject it is **0**.
+- 1_subject grew by exactly 1 (374 -> 375), matching the single
+  new subject.
+
+This is the first host-side E2E that demonstrates the goal's
+"Recurring 経由の新規書き込みが残らない" clause. With
+TASTILE_LEGACY_RECURRING_SEED unset, the gates in
+crates/v1/api/src/handlers/auth.rs::default_break_seed_enabled()
+and
+crates/v1/storage/src/migrations.rs::legacy_default_break_seed_enabled()
+both return alse, so neither code path inserts a new 1_recurring
+or default-break source tile at signup.
+
+The 698 existing 休憩 Recurring rows and 384 existing 休憩
+Source rows are historical (created before commit 269a18). The
+gates only block **new** writes; the goal clause is satisfied
+because no new Recurring writes remain.
+
+To opt back into the legacy seed (e.g. for an existing deployment
+that still depends on the V1_015 backfill), set
+TASTILE_LEGACY_RECURRING_SEED=1 in the API container env.
