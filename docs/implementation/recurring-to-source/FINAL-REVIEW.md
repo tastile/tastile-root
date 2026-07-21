@@ -1,7 +1,7 @@
 # Final Cross-Cutting Review
 
-Captured (UTC): '$utc'
-Captured against commit: '$headSha'
+Captured (UTC): 2026-07-21T05:58:05Z
+Captured against commit: 1ef30ca4a6f88f79957b910edc21a93efe8698d3
 
 ## Scope
 
@@ -55,7 +55,7 @@ EVIDENCE.md, GAP-INVENTORY.md, OWNERSHIP.md, and STATUS.md.
 
 ## Commits reviewed
 
-Most recent at capture time: '$headSha'
+Most recent at capture time: 1ef30ca4a6f88f79957b910edc21a93efe8698d3
 (reachable from the captured `git log`).
 
 Earlier evidence-bearing commits in this session:
@@ -77,7 +77,7 @@ established the orchestration scaffolding this review reads against.
 
 ## EVIDENCE.md status
 
-'$evCount' machine-traceable evidence rows in
+9 machine-traceable evidence rows in
 docs/implementation/recurring-to-source/EVIDENCE.md, of which
 EV-WSLC-20260721-1..3 / 5 / 6 / 7 / 8 / 9 are PASS.  EV-WSLC-20260721-4
 is UNVERIFIED with the WSLC containerd metadata corruption
