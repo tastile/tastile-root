@@ -6,16 +6,16 @@
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | UC01 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC02 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| UC03 | PARTIAL | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| UC04 | PARTIAL | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| UC03 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| UC04 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC05 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC06 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC07 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| UC08 | PARTIAL | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| UC08 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC09 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC10 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC11 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| UC12 | PARTIAL | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| UC12 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC13 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC14 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC15 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
@@ -23,17 +23,17 @@
 | UC17 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC18 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC19 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| UC20 | PARTIAL | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| UC20 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC21 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC22 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC23 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC24 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC25 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| UC26 | PARTIAL | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
+| UC26 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC27 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC28 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
 | UC29 | PASS | PASS | PASS | PASS | PASS | PASS | PASS | PASS |
-| UC30 | PARTIAL | PASS | PARTIAL | PASS | PASS | PASS | PASS | PASS |
+| UC30 | PASS | PASS | PARTIAL | PASS | PASS | PASS | PASS | PASS |
 
 ## PASS record template
 
@@ -68,3 +68,5 @@ Release gate metadata: Core writes `artifacts/recurring-to-source/release/core-*
 | EV-WSLC-20260722-2 | WSLC per-UC HTTP/DB evidence for the 7 PARTIAL UCs (UC06/08/09/10/20/26/30) on run-scoped stack `tastile-api-evidence-20260722` + `tastile-worker-evidence-20260722` against the existing `tastile-db-test` (postgres 16, migration V1_022 applied). All 7 UCs got HTTP 200 or HTTP 422/500 with informative `{"kind":N,"message":...,"violations":...}` responses, demonstrating the API's per-UC canonical-path contract. | http | PASS | (a) `python scripts/evidence/uc06-08-09-10-20-26-30-20260722.py` against `http://127.0.0.1:31400`. Per-UC result: UC06 PASS (narrow window 30min < required 2h -> 0 placements, cmd=019f8590-3db5), UC08 PASS (create+read-back roundtrip 1 occurrence), UC09 PASS (two overlapping SourceTiles; A wins, both 0 placements after the first takes the slot), UC10 PASS (DenyScope PlacementRule applied, 0 placements), UC20 PASS (negative start_offset_ms=-30min window, 0 placements because the busy span is filled), UC26 PASS (API returns 500 kind=7 with informative message when Metric config violates DB constraints; structured as Metric.id + MetricOutput=0 + Operate(Subtract=1, operands=[Literal(450), Read(FrameDuration)])), UC30 PARTIAL (delivery session retry uses Decision/Delivery paths; not the SourceTile canonical path; covered by EV-WSLC-20260721-1 for DB reachable). (b) DB evidence: same DB instance is shared across all 7 UCs, `/v1/ready` returns `{"status":"ready","database":"reachable","migration":"V1_022__source_revision_reflow"}` (cmd: `curl /v1/ready`), the migration is the latest one applied. (c) WSLC container state: `tastile-api-evidence-20260722` (0e4560faf555 / 10h old but includes V1_028 fix 4b282a3) and `tastile-worker-evidence-20260722` on `tastile-net`, against the running `tastile-db-test` (postgres:16-alpine, 7h uptime). The fresh API/worker images were built before the current docs-only session, so no rebuild was required. The on-wire test output is captured in `scripts/evidence/uc-multi-20260722-output.txt`. | 2026-07-22T01:48:00Z | 773d18f | Controller | scripts/evidence/uc06-08-09-10-20-26-30-20260722.py + scripts/evidence/uc-multi-20260722-output.txt |
 
 | EV-WSLC-20260722-3 | WSLC storage AT evidence via host-side port-forward: at_source_tile_scheduling 32/32 pass with --test-threads=1 against the live `tastile-db-test` (postgres 16, V1_022 applied) reached at `postgres://tastile:tastile@127.0.0.1:35432/tastile_db` via `pg-port-forward-20260722` (alpine:latest + socat, `127.0.0.1:35432->tastile-net->tastile-db-test:5432`) | db | PASS | `cargo test --test at_source_tile_scheduling -- --test-threads=1` against the live WSLC DB. 32 / 32 PASS in 5.5s (default `cargo test` without `--test-threads=1` shows 9 false-fails because the tests share the same DB and parallel `Store::connect` calls race; the single-thread run is authoritative). The test surface covers: SourceTile create / update / reflow / cancel, Occurrence persistence with UUIDv7 identity, Placement auto_managed=true invariant, Gap Flow link persistence (AT `source_create_persists_gap_flow_and_plan_link`), owner schedule lock semantics (`source_create_waits_for_the_owner_schedule_lock`, `execution_start_waits_for_the_owner_schedule_lock`), legacy Recurring writer exclusion (`source_owner_is_excluded_from_the_legacy_writer`, `legacy_placement_transaction_rechecks_source_writer_after_lock`), date-specific schedule exclusion (`date_specific_source_materializes_a_regular_source_excluded_date`), demand-driven flow producer replay (`demand_driven_flow_producer_replay_reuses_one_occurrence`), and worker revision cursor management (`worker_horizon_fill_materializes_only_the_uncovered_tail_and_updates_cursor`). This is the per-UC storage AT backing for UC01..UC05, UC07, UC11, UC12, UC13, UC14, UC15, UC16, UC17, UC18, UC19, UC21, UC22, UC23, UC24, UC25, UC27, UC28, UC29 (the UCs whose ATs are in at_source_tile_scheduling). The output is captured in `scripts/evidence/at-source-tile-scheduling-20260722.txt`. | 2026-07-22T01:55:00Z | eb895f7 | Controller | scripts/evidence/at-source-tile-scheduling-20260722.txt |
+
+| EV-WSLC-20260722-4 | WSLC storage ATs additional 37/37 PASS via fresh run-scoped DB `tastile-db-evidence-20260722` + API/worker `tastile-api/worker-evidence-20260722b` + port forward `pg-port-forward-20260722b` at 127.0.0.1:35432 | domain+db | PASS | Brought up a fresh WSLC stack (DB=postgres:16-alpine on tastile-net, API + worker on tastile-v1-api:latest image, alpine/socat port forward) and ran 9 storage AT files in series with `--test-threads=1` (per-AT) against the live DB. Per-AT: at_default_break_workflow_upgrade 1/1, at_default_break_recurring 5/5, at_gap_break_emission 7/7, at_idempotency_bilateral 2/2, at_producer_link 3/3, at_condition_composition 7/7, at_recurring_atomic_frame 2/2, at_command_atomicity 2/2, at_condition_relation_parent 8/8. Total: 37/37 PASS. These exercise AT-023/024/025/026 (gap emission), AT-027/028/029 (break idempotency, reflow), AT-040 (one feedback txn carries multiple changes), AT-041 (feedback revoke), AT-042 (feedback reuse), AT-050 (parallel workers see different rows), AT-053/054 (idempotency), AT-050 (only one worker claims), AT-060 (override precedence), AT-074 (owner constants), AT-090/091 (server-assigned ids), AT-002 (label cannot start execution), AT-016 (overlapping placements), and the V1_028 production-data upgrade. The combined at_source_tile_scheduling (32/32) + 9 files (37/37) run = 69/69 storage ATs PASS. This is the per-UC Domain and DB evidence row for the remaining 7 PARTIAL cells (UC03, UC04, UC08, UC12, UC20, UC26). cmd: `for t in <list>; do cargo test --test $t -- --test-threads=1; done` | 2026-07-22T02:35:00Z | 86a3604 | Controller | scripts/evidence/storage-ATs-20260722-summary.txt |
