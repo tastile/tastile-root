@@ -110,7 +110,7 @@ v7 仕様で開発を進めるが複雑化 → 2026-06-24 に v1 era として�
 
 ### 3-3. 仕様の正本
 
-- `tastile-core/v1/` 配下の 15 ファイルが唯一の正本
+- `tastile-core/v1/` 配下の 16 ファイル（`v1/00-glossary.md` 〜 `v1/15-owner-and-profile.md`）が唯一の正本
 - 旧 v7 仕様 (`docs/MOST_IMPORTANT_PLAN/` / `docs/architecture.md` / `docs/algorithm.md` 等) は archive 済み・**再導出禁止**
 - `tastile-core/HARNESS.md` にドメイン・実装の詳細ハーネスがある
 
@@ -323,7 +323,7 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 | 対象 | 正本の場所 |
 | --- | --- |
 | プロジェクト全体方針・全体設計 | **tastile-root/docs/HARNESS.md** (本ドキュメント) |
-| ドメインモデル・不変条件・仕様 | tastile-core/v1/*.md (15 ファイル) |
+| ドメインモデル・不変条件・仕様 | tastile-core/v1/*.md (16 ファイル) |
 | 実装ハーネス (バックエンド詳細) | tastile-core/HARNESS.md |
 | API 仕様 | tastile-core/v1/14-read-model-and-endpoint.md |
 | ブランドアセット | tastile-brands/ (コピーして使用) |
