@@ -16,3 +16,39 @@ Audit baseline: 2026-07-18. Absolute paths identify the observed source; the aut
 | P0 | `C:\Users\rebui\Desktop\tastile\tastile-web\src\lib\api\v1\source-tiles.ts`; `C:\Users\rebui\Desktop\tastile\tastile-android\app\src\main\java\app\tastile\android\data\api\V1CommandPayloads.kt` | Initial SourceTile clients used `unknown` / `JsonObject`; preliminary wire model is not yet Core-Serde-parity and omits a verified Flow wire shape | v1 `10-invariants.md` §2; `14-read-model-and-endpoint.md`: fixed typed command surface, no arbitrary JSON escape hatch | All SourceTile client cases | C | Full Core/OpenAPI parity matrix, typed Web/Android wire models, exact envelope/read decoder tests, Android compilation |
 | P1 | `C:\Users\rebui\Desktop\tastile\tastile-core\crates\v1\domain\src\constants.rs:606`; `v1/09-nesting-and-flow.md` | `FlowSignalKind` is explicitly opaque and says numeric registry is deferred to v1.1; SourceTile currently exposes a simplified string enum | v1 `10-invariants.md` §2 requires published fixed kinds to be numeric | UC04-05, UC26; Flow API | Controller/spec owner | Authoritative append-only numeric FlowSignal registry and SourceTile-permitted-signal contract; do not infer values |
 | P0 | WSL Ubuntu distribution (`ext4.vhdx`); `tastile-core/scripts/wslc/` (separate `wslc` engine, **not** the WSL distro) | `wsl -d Ubuntu --exec sh -lc ...` returns `HCS/ERROR_PATH_NOT_FOUND` (WSL distro `ext4.vhdx` missing). `wslc list` shows `tastile-db` running; `tastile-api` and `tastile-worker` are not started. Host `127.0.0.1:31400` has no listener. | Goal WSLC runtime verification; v1 `12-acceptance-tests.md` PostgreSQL integration requirement | All DB/WSLC evidence | Controller + env | Start `tastile-api` and `tastile-worker` via `wslc container run` against the existing `tastile-db` and `tastile-net`, with `TASTILE_DATABASE_URL=postgres://tastile:tastile@tastile-db:5432/tastile_db`; retain health/API/worker/inspection logs in `EVIDENCE.md`. WSL Ubuntu recovery is **not** required for the WSLC runtime path; treat it as a separate Linux-cargo-build concern. |
+
+## 2026-07-22 re-audit (post-V1_028 + Web bearer + Android typed mirror)
+
+Each row in the table above was re-verified against the current `tastile-core` HEAD (`4b282a3`), `tastile-web` HEAD (`d76534e`), `tastile-android` HEAD (`a5b732c`), and the `docs/implementation/recurring-to-source/{STATUS,FINAL-REVIEW,EVIDENCE}.md` artifacts. Mapping (status: PASS = resolution evidence in tree; OPEN = still actionable; PARTIAL = narrowed but not closed):
+
+| Row | Topic | Status | Resolution evidence (commit / file / EV-WSLC row) |
+| --- | --- | --- | --- |
+| 1 (P0) | Core Recurring creation / seed / worker writer | PASS | `b269a18 feat(v1): gate legacy default break Recurring seed behind TASTILE_LEGACY_RECURRING_SEED`; `6e77bc8 refactor(worker): remove legacy recurring fill path`; `d334468 fix(v1): V1_028 production data fix for default break tile`; `4b282a3 fix(v1): V1_028 also disables legacy v1_recurring (state=Ended)`. EV-WSLC-20260721-3 PASS. |
+| 2 (P0) | Web / Android typed SourceTile clients | PASS | `tastile-web` `2bc331b feat(web): gate createRecurringCommand` + `d76534e` 12-spec bearer migration. `tastile-android` `82ba775 feat(android): typed SchedulePlan AST` + `a5b732c feat(android): typed Condition+Term AST mirror`. EV-WSLC-20260721-6, -8, -9, -11, -12. |
+| 3 (P0) | Web E2E auth bypass / direct DB fixtures | PASS | `2bc331b` bearer helper (TASTILE_E2E_BEARER); `d76534e` all 12 specs ported; `f62c7e9` 7 _debug-* specs dropped. EV-WSLC-20260721-9. |
+| 4 (P0) | WSLC fixed names / ports | PASS | Run-scoped stacks via `wslc container run` for `tastile-api-evidence-YYYYMMDD` and `tastile-worker-evidence-YYYYMMDD` namespaces. EV-WSLC-20260721-1, -2, -10. |
+| 5 (P1) | Gap routes / canonical `serde_json::Value` | PARTIAL | Source-typed `SchedulePlanDefinitionSchema` and Flow `Effect` / `ScalarExpression` are typed in Core; pure Gap edges still defer one discriminator. `constants.rs:606` FlowSignalKind numeric registry is the v1.1 spec issue (row 11). |
+| 6 (P1) | Android live emulator / device E2E | PARTIAL | Android `gradle :app:testDebugUnitTest --rerun-tasks` PASS (424 tests, EV-WSLC-20260721-12). Live emulator → wslc stack link is documented as a separate ops step. |
+| 7 (P0) | `source_tile_repo.rs` write SQL omitted weekday mask / date range / excluded_dates | PASS | `ccc5d0b feat(source): support date-specific schedule exclusions` added V1_024 `v1_source_date_exclusion` and the storage roundtrip. SQL at line 700 now writes all six calendar fields; line 746 deletes+reinserts excluded dates. OpenAPI and `at_source_tile_scheduling.rs` exercise roundtrip. |
+| 8 (P0) | Source Flow materialization with source / occurrence identity | PARTIAL | Canonical Source path: `source_tile_repo::materialize` (line 1029) and `materialize_flow_occurrence` (line 1387) write `v1_placement` rows with `source_kind=4` (PlacementSource::SOURCE), `source_tile_id`, `occurrence_id`, `split_index/count/group_id`, plus `v1_placement_source_ref_source` and `v1_change_set_source_ref_source`. Legacy `flow_tick` still emits `PlacementSource::Flow`; it is not reachable from the canonical Source path. The remaining narrow gap is making the linked-Flow route always carry source/occurrence identity (currently only the authored-occurrence branch does). |
+| 9 (P0) | `source_schedule.rs` no date exclusion | PASS | `SourceGeneration.excluded_dates: Vec<String>` is in the struct, `filters_pass` enforces it, and `excluded_date_suppresses_only_that_nominal_day` test passes (199/199 domain tests PASS, see current `cargo test -p domain --lib`). `v1_source_date_exclusion` table roundtrips. |
+| 10 (P0) | Web / Android clients used `unknown` / `JsonObject` | PASS | Web wire parity matrix in `openapi_schema.rs:722+` and Android `a5b732c` `ConditionAstMirror.kt` (16 variants, 16 tests, 424 total PASS). |
+| 11 (P1) | `FlowSignalKind` numeric registry | OPEN | Spec v1 `09-nesting-and-flow.md` and `10-invariants.md §2` defer the registry to v1.1. SourceTile-permitted-signal contract still unproven. No concrete values to add until the spec lands. |
+| 12 (P0) | WSL Ubuntu `ext4.vhdx` missing; WSLC api/worker not started | PASS | EV-WSLC-20260721-10 / -13 record `tastile-api`, `tastile-worker`, `tastile-db` running, `127.0.0.1:31400` listener live. Final review at `def1d44` re-verifies. WSL distro recovery is a separate Linux-cargo concern. |
+
+### Open items after re-audit
+
+- **Row 5 (P1) Gap discriminators** — narrow, defer to v1.1 spec.
+- **Row 6 (P1) Android live emulator** — needs a real device or emulator run, not a unit-test gate.
+- **Row 8 (P0) Source-Flow identity for linked flows** — write a TDD test that asserts a SourceTile-linked Flow placement carries `(source_tile_id, occurrence_id)`, and refactor `flow_tick` (or split a new `source_flow_tick`) to populate those fields.
+- **Row 11 (P1) FlowSignalKind numeric registry** — v1.1 spec, not actionable now.
+
+### Verification gates run on 2026-07-22
+
+- `cargo fmt --all -- --check`: clean (`tastile-core`).
+- `cargo clippy --workspace --all-targets -- -D warnings`: clean (`tastile-core`).
+- `cargo test --workspace --lib`: api 52 / cli 0 / domain 199 / storage 22 = **273 passed, 0 failed**.
+- `cargo test -p api --test openapi_schema`: 2 passed.
+- `bunx tsc --noEmit` (`tastile-web`): 0 errors.
+- `bunx vitest run` (`tastile-web`): 73 test files, **381 tests passed, 0 failed**.
+- `gradle :app:testDebugUnitTest` (`tastile-android`): **79 test files, 424 tests, 0 failures / 0 errors / 0 skipped** (cached as UP-TO-DATE after the latest `a5b732c` run recorded in `EV-WSLC-20260721-12`).
