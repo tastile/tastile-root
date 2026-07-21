@@ -307,9 +307,9 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 
 ### 9-3. Windows 開発環境
 
-- **WSL container** を使用し、Linux バイナリを動かす
+- **WSL container** を使用し、Linux バイナリを動かす (注: `wsl` サブシステムとは別系統。`wslc` が OCI ランタイム。WSL distro `Ubuntu` の `ext4.vhdx` がこのホストで `HCS/ERROR_PATH_NOT_FOUND` を返すため `wsl -d Ubuntu --exec ...` 経路は塞がれている。WSLC コンテナ (`tastile-db`, `tastile-api`, `tastile-worker`) は別ファイルシステムで独立稼働。)
 - **Docker は使わない** (開発でも本番でも)
-- tastile-core.wslc は WSL 内での core クローン
+- `tastile-core.wslc` は WSL distro `Ubuntu` 内の `tastile-core` クローン (`cargo build`/`cargo test` の Linux 実行用; `wsl -d Ubuntu` 依存)
 
 ### 9-4. 本番環境
 
