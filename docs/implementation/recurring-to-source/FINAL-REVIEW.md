@@ -1,7 +1,7 @@
 # Final Cross-Cutting Review
 
-Captured (UTC): 2026-07-21T05:58:05Z
-Captured against commit: 1ef30ca4a6f88f79957b910edc21a93efe8698d3
+Captured (UTC): 2026-07-21T06:25:00Z
+Captured against commit: 538b914
 
 ## Scope
 
@@ -20,8 +20,10 @@ EVIDENCE.md, GAP-INVENTORY.md, OWNERSHIP.md, and STATUS.md.
      off, and the bearer helper v1AuthHeaders (2bc331b) is the
      only auth path used by the e2e specs.
    - android/V1CommandPayloads.kt:298-318 still uses
-     JsonObject/JsonArray, but a session with the Android SDK is
-     required to ship a typed Kotlin mirror.
+     JsonObject/JsonArray. The Android SDK IS available on this
+     host (C:\Users\rebui\AppData\Local\Android\Sdk, Gradle 9.6.1,
+     Java 11); the migration was attempted but left in this session
+     with the typed mirror deferred to the Android code owner.
 2. `SourceTile to Execution` public API.  Endpoint surface in
    core/openapi.rs (EV-WSLC-20260721-3) and core/handlers/
    source_tiles.rs maps to the wire contract.
@@ -40,22 +42,27 @@ EVIDENCE.md, GAP-INVENTORY.md, OWNERSHIP.md, and STATUS.md.
    host clippy / cargo test pass.  Two integration tests need
    the WSLC stack to run; they pass on EV-WSLC-20260721-1.
 8. Final review and STATUS.md reflection.  This document and
-   commit 51a95d6 are the two artefacts for this P0.
+   commit 538b914 are the two artefacts for this P0.
+9. WSLC live SourceTile -> Occurrence -> Placement E2E on the
+   G-11 build (538b914) was demonstrated in this session
+   (EV-WSLC-20260721-10 / fa62da8); the ev count is now 10.
 
 ## What is not in scope and why
 
-- Android typed DTO mirror of v1/05 Condition AST: requires
-  Android SDK and a Gradle build chain.  The session that ships
-  that change will run gradle test, so it must be deferred to a
-  session that has the Android build chain installed.
-- Integration test re-run inside WSLC after the containerd
-  metadata corruption (EV-WSLC-20260721-4) cleared: that is the
-  same host-administrative dependency, the test would be the
-  same code path already exercised in EV-WSLC-20260721-1.
+- Android typed DTO mirror of v1/05 Condition AST: the
+  Android SDK is in fact available on this host. The typed
+  Kotlin mirror is the next concrete task; gradle build/test/lint
+  verification is the gate that completes this criterion.
+- Integration test re-run inside WSLC after the previous
+  containerd-image loss (EV-WSLC-20260721-4) was re-verified in
+  this session by EV-WSLC-20260721-10 against the G-11 build
+  (538b914): WSLC db/api/worker were brought back online without
+  an admin service restart, simply by issuing `wslc container
+  run` against the existing images.
 
 ## Commits reviewed
 
-Most recent at capture time: 1ef30ca4a6f88f79957b910edc21a93efe8698d3
+Most recent at capture time: 538b914
 (reachable from the captured `git log`).
 
 Earlier evidence-bearing commits in this session:
@@ -77,7 +84,7 @@ established the orchestration scaffolding this review reads against.
 
 ## EVIDENCE.md status
 
-9 machine-traceable evidence rows in
+10 machine-traceable evidence rows in
 docs/implementation/recurring-to-source/EVIDENCE.md, of which
 EV-WSLC-20260721-1..3 / 5 / 6 / 7 / 8 / 9 are PASS.  EV-WSLC-20260721-4
 is UNVERIFIED with the WSLC containerd metadata corruption
@@ -85,7 +92,16 @@ captured in the body.
 
 ## Recommendation
 
-`/goal` should remain `active` until the Android typed DTO
-commit lands and the WSLC containerd metadata is repaired so
-the two integration tests can re-run.  Every other completion
-criterion is satisfied or recorded as PASS in EVIDENCE.md.
+This FINAL-REVIEW captures the cumulative state at commit 538b914:
+
+- Batches 0/A/B are PASS or PASS-with-known-issues (recurring
+  env-gate end-to-end, G-11 phases, WSLC cross-owner isolation,
+  workspace fmt/clippy/unit tests, live WSLC API + worker, USECASE-AT
+  matrix).
+- Batch C (Android typed DTO mirror of v1/05 Condition AST)
+  remains open. The Android SDK IS installed on this host
+  (`C:\Users\rebui\AppData\Local\Android\Sdk`); the migration
+  is a follow-up batch that needs gradle build/test/lint to
+  complete.
+/goal remains ACTIVE until Batch C commits and passes
+  gradle test.
