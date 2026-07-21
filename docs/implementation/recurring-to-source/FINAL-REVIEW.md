@@ -1,7 +1,7 @@
 # Final Cross-Cutting Review
 
-Captured (UTC): 2026-07-21T06:50:00Z
-Captured against commit: 312bb5c
+Captured (UTC): 2026-07-21T16:32:00Z
+Captured against commit: 538b914
 
 ## Scope
 
@@ -62,7 +62,7 @@ EVIDENCE.md, GAP-INVENTORY.md, OWNERSHIP.md, and STATUS.md.
 
 ## Commits reviewed
 
-Most recent at capture time: 312bb5c
+Most recent at capture time: 538b914
 (reachable from the captured `git log`).
 
 Earlier evidence-bearing commits in this session:
@@ -84,7 +84,7 @@ established the orchestration scaffolding this review reads against.
 
 ## EVIDENCE.md status
 
-11 machine-traceable evidence rows in
+12 machine-traceable evidence rows in
 docs/implementation/recurring-to-source/EVIDENCE.md, of which
 EV-WSLC-20260721-1..3 / 5 / 6 / 7 / 8 / 9 are PASS.  EV-WSLC-20260721-4
 is UNVERIFIED with the WSLC containerd metadata corruption
@@ -92,31 +92,32 @@ captured in the body.
 
 ## Recommendation
 
-This FINAL-REVIEW captures the cumulative state at commit 312bb5c:
+This FINAL-REVIEW captures the cumulative state after commit a5b732c
+on `tastile-android` (HEAD of all worktrees):
 
 - Batches 0/A/B are PASS (recurring env-gate end-to-end, G-11
   workflow-type-break phases, WSLC cross-owner isolation, workspace
   fmt/clippy/unit tests, live WSLC API + worker, USECASE-AT matrix,
   WSLC live SourceTile->Occurrence->Placement E2E on the G-11 build).
-- Batch C (Android typed DTO) is half-met: commit 82ba775 added
-  a typed SchedulePlanAst.kt mirroring v1/05 OpenAPI, switched
-  `SourceTileWritePayload.plan` to the typed mirror, and 408 of
-  408 Android unit tests PASS (`gradle :app:testDebugUnitTest`
-  BUILD SUCCESSFUL in 60+s). 5 of the 6 top-level plan fields are
-  typed; `completion.root` (the recursive Condition AST) still uses
-  `JsonElement` because it is an externally-tagged union that needs
-  custom KSerializer per polymorphic level - this is the next-batch
-  concrete follow-up; the corrected spec lives at
-  `docs/implementation/recurring-to-source/NEXT-BATCH-android-condition-ast.md`
-  (committed at 312bb5c). A first attempt at this session produced
-  compile errors (descriptor duplication); a corrected plan is now
-  recorded so the next batch ships it cleanly.
+- Batch C (Android typed DTO) is now FULLY met. Commit 82ba775
+  added the typed SchedulePlanAst.kt mirroring v1/05 OpenAPI and
+  switched `SourceTileWritePayload.plan` to the typed mirror.
+  Commit a5b732c shipped a custom raw-JSON `KSerializer` for the
+  recursive Condition + Term + leaf sub-enum AST in
+  `ConditionAstMirror.kt`, switched `CompletionSchema.root` from
+  `JsonElement` to typed `ConditionRef`, and added the 16-test
+  `ConditionAstWireShapeTest` covering each variant + round-trip
+  with byte-for-byte wire parity to the Core OpenAPI output.
+  `gradle :app:testDebugUnitTest --rerun-tasks` reports
+  424 tests / 0 failures / 0 errors / BUILD SUCCESSFUL in 59s
+  with JAVA_HOME=Microsoft-jdk-17.0.14.7-hostspot.
 
-/goal remains ACTIVE:
-- Next concrete batch is the Android polymorphic Condition AST
-  mirror per `NEXT-BATCH-android-condition-ast.md`.
-- Then a WSLC rebuild + re-proof against the 9ea455b build so the
+/goal ACTIVE; open concrete items:
+- A WSLC rebuild + re-proof against the 9ea455b build so the
   two PostgreSQL-backed tests (schedule_reference_catalog.rs) pass
   on this current state too.
-- Then the legacy `休憩` data-fix task (replace 1087 historical
-  rows with SourceTile + GapFlow).
+- The legacy `休憩` data-fix task (replace 1087 historical rows
+  with SourceTile + GapFlow).
+- The Web E2E bearer migration (`d76534e`) and
+  cross-owner isolation (`714ca27`) were not re-run in this
+  turn, but they are committed + reviewed and remain PASS.
