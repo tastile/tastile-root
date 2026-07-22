@@ -32,6 +32,9 @@ reference/
 # Local agent/editor metadata
 .claude/*
 !.claude/settings.json
+!.claude/hooks/
+!.claude/skills/
+!.claude/agents/
 .codex/*
 !.codex/hooks.json
 .cursor/

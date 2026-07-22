@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "aws-readonly": {
+      "command": "uvx",
+      "args": [
+        "awslabs.aws-api-mcp-server@latest"
+      ],
+      "env": {
+        "AWS_PROFILE": "${TASTILE_AWS_READONLY_PROFILE}",
+        "AWS_REGION": "${TASTILE_AWS_READONLY_REGION}",
+        "READ_OPERATIONS_ONLY": "true",
+        "AWS_API_MCP_ALLOW_WRITE": "false"
+      }
+    },
+    "postgres-readonly": {
+      "command": "uvx",
+      "args": [
+        "postgres-mcp",
+        "--access-mode=restricted"
+      ],
+      "env": {
+        "DATABASE_URI": "${TASTILE_POSTGRES_READONLY_URI}"
+      }
+    }
+  }
+}
