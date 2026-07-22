@@ -326,3 +326,177 @@ powershell -NoProfile -Command "Get-PSDrive C,D | Select-Object Name,Used,Free"
 | (D: drive) `D:/wslc/cache/` | T6 | created via junction or wslc config |
 
 No schema change. No API change. No production deploy.
+
+---
+
+## Plan Update — 2026-07-22 PM (post-Task 3, pre-Task 4)
+
+### What changed
+
+After deeper investigation triggered by user pushback ("wslをDドライブ移動させろ"), the original Tasks 5–6 turned out to be based on a wrong assumption. The canonical WSL Ubuntu package (`CanonicalGroupLimited.Ubuntu*`) is **not installed** on this host — only the wslc preview engine is. So `wsl --export Ubuntu` is N/A, and the entire wsl footprint lives at non-canonical paths under `%LOCALAPPDATA%\wslc\` and `%LOCALAPPDATA%\wsl\{guid}\`. The "wslc image cache" is not a separate directory either — all 13 images and 17 volumes live **inside** one 84 GB VHDX file.
+
+### Actual wsl/wslc footprint on C: (measured 2026-07-22 14:41)
+
+| Path | Size | Note |
+|---|---|---|
+| `C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic\storage.vhdx` | **84.15 GB** | the engine's union fs — containers + images + volumes all live here |
+| `C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic\swap.vhdx` | 1.47 GB | wslc session swap |
+| `C:\Users\rebui\AppData\Local\wsl\{386307ad-9c8e-400a-9d22-e729619369b6}\ext4.vhdx` | 1.42 GB | WSL2 system rootfs (the VM's ext4 layer that hosts the wslc engine) |
+| `C:\Program Files\WSL\system.vhd` | 722.9 MB | **DO NOT MOVE** — Windows component install (System32-equivalent for WSL) |
+| `C:\Program Files\WSL\tools\modules.vhd` | 159.4 MB | **DO NOT MOVE** — Windows component install |
+
+**Total movable: ~87 GB.** `C:\Program Files\WSL\*.vhd` (~880 MB) are protected Windows binaries and stay where they are.
+
+### wslc inventory (verified)
+
+- 4 running containers (full names):
+  - `tastile-api-evidence-20260722b` (port 31400→31400, image `tastile-v1-api:latest`)
+  - `tastile-db-evidence-20260722` (image `postgres:16-alpine`)
+  - `tastile-worker-evidence-20260722b` (image `tastile-v1-api:latest`)
+  - `pg-port-forward-20260722b` (port 35432→5432, image `alpine:latest`)
+- 13 images cumulative (~3.2 GB; layers live inside `storage.vhdx`)
+- 17 named+anonymous volumes (8 named: `tastile-cargo-target`, `tastile-clippy-target`, `tastile-rust-cache`, `tastile-pgdata-test`, `tastile-src`, `tastile-cargo-tools`, `tastile-cargo-git`, `tastile-cargo-registry`); all live inside `storage.vhdx`
+- `wslc settings` opens `C:\Users\rebui\.wslc\config.yaml` (file does not exist yet — first-run creates it with all keys commented)
+- No separate `C:\Users\rebui\AppData\Local\wslc\volumes\` or `\images\` directories — confirming all wslc state is inside `storage.vhdx`
+
+### C: drive now
+
+- Before this session: 492 GB used / 18 GB free
+- After Tasks 2–3 (target/debug + Cargo.toml): ~472 GB used / ~38 GB free
+- **Now: 504.8 GB used / 6.15 GB free** — drifting up; `storage.vhdx` grew during the session (was 90,351,599,616 bytes when checked before, 84.15 GB after the carve measurement)
+
+### Revised Tasks (supersede old Task 4–7 numbering; old versions preserved above for history)
+
+#### Task 4 (revised) — DONE 2026-07-22
+
+Measurement complete. Numbers recorded in the table above. No further work needed.
+
+#### Task 5 (revised) — Stop wslc, capture recreate flags, terminate session
+
+**Step 1:** Capture recreate flags for all 4 containers BEFORE stopping (per `feedback_wslc_delete_and_recreate`):
+```powershell
+foreach ($n in @('tastile-api-evidence-20260722b','tastile-db-evidence-20260722','tastile-worker-evidence-20260722b','pg-port-forward-20260722b')) {
+  wslc container inspect $n 2>&1 | Tee-Object -FilePath "D:\wslc\inspect-$n.txt"
+}
+```
+**Step 2:** Stop all 4 containers:
+```powershell
+foreach ($n in @('tastile-api-evidence-20260722b','tastile-db-evidence-20260722','tastile-worker-evidence-20260722b','pg-port-forward-20260722b')) {
+  wslc container stop $n
+}
+wslc container ls   # confirm 0 running
+```
+**Step 3:** Terminate the wslc session:
+```powershell
+wslc system session terminate wslc-cli-basic
+wslc system session list   # confirm 0 sessions
+```
+
+**Rollback:** If anything fails before the file move, just restart the session — `wslc system session run wslc-cli-basic` (or similar; actual subcommand TBD) brings everything back as-is.
+
+#### Task 6 (revised) — Move `storage.vhdx` + `swap.vhdx` to D:, then `ext4.vhdx`
+
+This is the single Task 6 (old Task 5 WSL-Ubuntu and old Task 6 wslc-cache merged into one cohesive move).
+
+**Files:**
+- Move: `%LOCALAPPDATA%\wslc\sessions\wslc-cli-basic\storage.vhdx` (84 GB)
+- Move: `%LOCALAPPDATA%\wslc\sessions\wslc-cli-basic\swap.vhdx` (1.5 GB)
+- Move: `%LOCALAPPDATA%\wsl\{386307ad-9c8e-400a-9d22-e729619369b6}\ext4.vhdx` (1.42 GB)
+
+**Step 1:** Shutdown WSL to release `ext4.vhdx` file locks:
+```powershell
+wsl --shutdown
+```
+**Step 2:** Create D: destinations and robocopy:
+```powershell
+New-Item -ItemType Directory -Force -Path 'D:\wslc\sessions','D:\wsl\system'
+robocopy 'C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic' 'D:\wslc\sessions\wslc-cli-basic' /MIR /R:3 /W:5
+robocopy 'C:\Users\rebui\AppData\Local\wsl\{386307ad-9c8e-400a-9d22-e729619369b6}' 'D:\wsl\system\{386307ad-9c8e-400a-9d22-e729619369b6}' /MIR /R:3 /W:5
+```
+**Step 3:** Verify file identities match (size + bytes; the 84 GB file is unique enough):
+```powershell
+Get-FileHash 'C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic\storage.vhdx','D:\wslc\sessions\wslc-cli-basic\storage.vhdx'
+Get-FileHash 'C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic\swap.vhdx','D:\wslc\sessions\wslc-cli-basic\swap.vhdx'
+Get-FileHash 'C:\Users\rebui\AppData\Local\wsl\{386307ad-9c8e-400a-9d22-e729619369b6}\ext4.vhdx','D:\wsl\system\{386307ad-9c8e-400a-9d22-e729619369b6}\ext4.vhdx'
+```
+**Step 4:** Replace originals with NTFS junctions (transparent redirect):
+```powershell
+Remove-Item 'C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic' -Recurse -Force
+New-Item -ItemType Junction -Path 'C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic' -Target 'D:\wslc\sessions\wslc-cli-basic'
+
+Remove-Item 'C:\Users\rebui\AppData\Local\wsl\{386307ad-9c8e-400a-9d22-e729619369b6}' -Recurse -Force
+New-Item -ItemType Junction -Path 'C:\Users\rebui\AppData\Local\wsl\{386307ad-9c8e-400a-9d22-e729619369b6}' -Target 'D:\wsl\system\{386307ad-9c8e-400a-9d22-e729619369b6}'
+```
+**Step 5:** Restart wslc engine + recreate containers from captured flags:
+```powershell
+# Bring the session back
+wslc system session list   # verify wslc-cli-basic starts automatically on first container cmd; if not, check for `wslc system session start` or `wslc system session run`
+
+# Recreate each container using flags captured in Task 5 Step 1
+# (will be written as a PowerShell script `D:\wslc\recreate-containers.ps1` generated from the inspect output)
+& D:\wslc\recreate-containers.ps1
+```
+**Step 6:** Smoke test:
+```powershell
+wslc container ls   # all 4 should be running
+curl -sS http://127.0.0.1:31400/health      # tastile-api-evidence
+wslc exec tastile-db-evidence-20260722 pg_isready -U postgres   # confirm DB is alive
+```
+
+**Rollback:** NTFS junctions are true rollback points. To go back to C:
+```powershell
+# 1. Stop everything
+wsl --shutdown
+wslc system session terminate wslc-cli-basic 2>$null
+# 2. Remove junctions
+Remove-Item 'C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic' -Force
+Remove-Item 'C:\Users\rebui\AppData\Local\wsl\{386307ad-9c8e-400a-9d22-e729619369b6}' -Force
+# 3. Move files back
+robocopy 'D:\wslc\sessions\wslc-cli-basic' 'C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic' /MIR
+robocopy 'D:\wsl\system\{386307ad-9c8e-400a-9d22-e729619369b6}' 'C:\Users\rebui\AppData\Local\wsl\{386307ad-9c8e-400a-9d22-e729619369b6}' /MIR
+```
+
+#### Task 7 (revised) — Post-migration verification + size check
+
+**Step 1:** Final disk snapshot:
+```powershell
+Get-PSDrive C,D | Select-Object Name,@{n='UsedGB';e={[math]::Round($_.Used/1GB,1)}},@{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}} | Format-Table -AutoSize
+```
+Expect C: free to go from 6 GB → ~93 GB; D: free to drop from 244 GB → ~157 GB.
+
+**Step 2:** Verify all 4 containers are running + the API health endpoint responds:
+```powershell
+wslc container ls
+curl -sS http://127.0.0.1:31400/health
+curl -sS http://127.0.0.1:35432/   # 35432 is mapped, but only postgres is listening (this will fail; use wslc exec instead)
+wslc exec tastile-db-evidence-20260722 psql -U postgres -c '\l' | Select-String 'tastile'
+```
+**Step 3:** Verify the file paths still look right (junctions resolve transparently):
+```powershell
+Get-Item 'C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic\storage.vhdx' | Select-Object FullName,Length,LinkType,Target
+```
+**Step 4:** Commit any final touch-ups and append `## Done — 2026-07-22 PM` section with measured final numbers.
+
+### Updated top 3 risks (and mitigations)
+
+1. **`wslc system session` subcommand semantics are unclear from help alone** — the help text didn't enumerate `start` / `stop` / `restart`; only `enter / list / run / shell / terminate`. The session may auto-start on first `wslc container run` (common pattern for preview tools), or it may need an explicit `wslc system session start`. Mitigation: Task 5 Step 3 uses `terminate` only; Task 6 Step 5 probes with `wslc system session list` after first container command. If list is empty after a container command, document the implicit-start behavior in Task 6's commit message.
+
+2. **`ext4.vhdx` is locked while wslc session is alive** — even after `wsl --shutdown`, if the wslc engine keeps the WSL VM running, the file will be in use. Mitigation: Task 5 Step 3 explicitly terminates the wslc session FIRST (not just `wsl --shutdown`); Task 6 Step 1 is belt-and-suspenders. If robocopy still fails with sharing violation, add `Get-Process | Where-Object {$_.Path -like '*wsl*'}` debug step and stop the offending PID.
+
+3. **Container recreate flags may not be deterministic** — `wslc container inspect` returns JSON but env vars / port mappings may be opaque (a hashed mount ID instead of `D:\wslc\data\db:/var/lib/postgresql/data`). Mitigation: Task 5 Step 1 ALSO captures each container's original `run` command via `wslc container logs <name> --previous 2>&1 | Select-String 'POST /containers/create'` (Docker API equivalent in wslc) AND from any wrapper script the user might have used to create them. If the wrapper exists (`tastile-core/scripts/wslc/up-v1.ps1` per CLAUDE.md), regenerate flags from there.
+
+### Updated files-touched summary
+
+| File / Path | Task | Change |
+|---|---|---|
+| `docs/plans/2026-07-22-storage-reclaim-and-wslc-migration-design.md` | T1, update | created + this revision |
+| `tastile-core/Cargo.toml` | T2, T3 | + profile block, - unused deps |
+| `tastile-core/.github/workflows/ci.yml` | T2 (review fix) | - `CARGO_PROFILE_DEV_DEBUG` env-var override |
+| `tastile-core/target/` (Windows-side) | T2 | deleted (gitignored) |
+| `tastile-core/crates/v1/*/Cargo.toml` | T3 | removed `thiserror` (api), `serde_json` + `thiserror` (worker) |
+| `D:\wslc\sessions\wslc-cli-basic\` | T6 | created via robocopy + junction |
+| `D:\wsl\system\{guid}\` | T6 | created via robocopy + junction |
+| `D:\wslc\inspect-*.txt` | T5 | container recreate-flag capture |
+| `D:\wslc\recreate-containers.ps1` | T6 | generated script for container recreation |
+
+No schema change. No API change. No production deploy.
