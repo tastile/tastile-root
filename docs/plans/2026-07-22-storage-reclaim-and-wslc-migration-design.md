@@ -500,3 +500,51 @@ Get-Item 'C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic\storage.vhdx
 | `D:\wslc\recreate-containers.ps1` | T6 | generated script for container recreation |
 
 No schema change. No API change. No production deploy.
+
+---
+
+## Done — 2026-07-22 PM (Task 6 + Task 7)
+
+### Migration executed (2026-07-22 14:45 – 15:39)
+
+| Step | Result |
+|---|---|
+| Task 5: stop 4 containers + terminate `wslc-cli-basic` session | All 4 stopped cleanly, session terminated, VHDX files unlocked |
+| Task 6: `wslc container inspect` capture | Saved to `D:\wslc\inspect-*.txt` (4 files, all flags preserved) |
+| Task 6: `robocopy` wslc session + WSL system to D: | storage.vhdx 84.14 GB copied in ~42 min, ext4.vhdx 1.42 GB in ~80s. USB D: drive is the bottleneck (~30 MB/s) |
+| Task 6: SHA-256 verify | Both files match (storage: c81871fa…, ext4: 2972a8ee…) |
+| Task 6: NTFS junction swap | `C:\Users\rebui\AppData\Local\wslc\sessions\wslc-cli-basic` → `D:\wslc\…`; `C:\…\wsl\{guid}` → `D:\wsl\…` |
+| Task 6: wslc engine restart | Auto-started on first `wslc container run`. All 13 images, 17 volumes, 8 stopped containers, `tastile-net` network all visible via the junctions |
+| Task 6: recreate 4 evidence containers | `recreate-containers.ps1` from captured flags |
+| Task 7: smoke test | `/v1/health` → 200 `{"status":"ok","version":"0.1.0"}`; 127.0.0.1:35432 (postgres via socat) → open |
+
+### Final disk snapshot (2026-07-22 15:42)
+
+| Drive | Before session | After Tasks 2–3 (Cargo) | After Task 6 (migration) |
+|---|---|---|---|
+| C: (NVMe SSD, 512 GB) | 492 GB used / 18 GB free | ~472 GB / 38 GB free | **383.1 GB / 92.8 GB free** |
+| D: (USB, 1 TB) | 244 GB free | 244 GB free | 789.3 GB used / 142.1 GB free |
+
+**Net result: +86.65 GB free on C:, +85 GB consumed on D: (engine data + cache).** C: free went from 6.15 GB (mid-session) to 92.8 GB — back to a healthy working margin.
+
+### Findings (worth saving)
+
+1. **swap.vhdx is volatile** — wslc engine deletes it on session termination. Do not include it in migration scope; it will be recreated.
+2. **`storage.vhdx` is the entire engine state** — containers, images, volumes, networks all live inside it. Single file move = full migration.
+3. **The 4 evidence containers were transient (in-memory only)** — `storage.vhdx` only had 8 older "exited" containers from prior runs. The 4 I captured were recreated from `inspect` flags after migration. This is by design (wslc behavior); not a data loss bug.
+4. **API/worker need DB to be ready before they start** — first recreate attempt failed (exit 1 after 5 s) because postgres wasn't listening yet. Re-starting them after DB was up for 50+ s succeeded. Lesson: start DB first, wait, then start API/worker.
+5. **`wslc system session` has no positional arg** — `wslc system session terminate` (no arg) terminates the default session. The subcommands are `enter / list / run / shell / terminate`. No `start`/`stop` — the session auto-starts on first container command.
+6. **D: drive is USB (not SSD)** — explains the ~30 MB/s copy rate (84 GB took 42 min). NVMe-C: → USB-D: is the bottleneck. If we ever need fast data movement, get an external NVMe.
+
+### Files saved (operational, NOT in repo)
+
+- `D:\wslc\inspect-*.txt` (4 files) — captured recreate flags
+- `D:\wslc\scripts\recreate-containers.ps1` — defensive recreate script
+- `D:\wslc\scripts\start-containers.ps1` — start-existing-containers helper
+- `D:\wslc\migration.log` — full log of steps 2-7 with hashes
+
+### Plan-fidelity notes
+
+- Old Task 5 (WSL Ubuntu export/import) was N/A — CanonicalGroupLimited.Ubuntu not installed. The actual WSL footprint is the wslc engine data + the WSL system rootfs (1.4 GB ext4.vhdx), both moved successfully.
+- Old Task 6 (separate wslc image cache) was N/A — there is no separate cache directory; all data is inside storage.vhdx.
+- New Task 5+6 (revised) covered the actual data locations.
