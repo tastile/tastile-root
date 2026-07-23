@@ -21,6 +21,14 @@
       "env": {
         "DATABASE_URI": "${TASTILE_POSTGRES_READONLY_URI}"
       }
+    },
+    "chrome-devtools": {
+      "command": "bunx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--isolated"
+      ]
     }
   }
 }
