@@ -55,3 +55,8 @@ desktop.ini
 .tmp-storage-gap-fill-target/
 # Local scratch (transient fixture, log, and review scripts).
 .tmp/
+
+*.py
+*.ps1
+*.sh
+*.txt
