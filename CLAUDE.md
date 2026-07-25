@@ -109,23 +109,35 @@ There are two distinct things called "wslc" in this workspace — do not confuse
 - When you need to run a Rust integration test, do it from this clone, not
   from the Windows-side `tastile-core/`.
 
-### `wslc` — WSL Container preview (in migration, not yet landed)
+### `.wslc/` — Per-repository WSL Container development
 
-- Microsoft June 2026 preview feature (`C:\Program Files\WSL\wslc`,
-  `wslc 2.9.3.0`) intended to replace Docker Desktop for local dev. Build
-  with `wsl --container build -f Containerfile.v1`, run with
-  `wsl --container run -d <name> --image <ref>`.
-- Current state (2026-07-06): `wslc list` reports 0 containers, but the image
-  cache has `tastile-v1-api` (~1.9 GB, built 3 days ago) and `postgres:16-alpine`.
-- **Not yet implemented**: `tastile-core/scripts/wslc/` orchestration
-  (`bootstrap.{sh,ps1}`, `build.{sh,ps1}`, `up-v1.{sh,ps1}`, etc.). The
-  planned deletion of `Dockerfile.v1`, `docker-compose.v1.yml`,
-  `.dockerignore`, and the legacy `scripts/_*.log` files has not happened.
-- **Hard gate when the migration lands**: `rg -l docker` over tracked files
-  must return 0 (design doc: `tastile-core/docs/archive/2026-07-02-wslc-migration-design.md`).
-- Until `scripts/wslc/` is in place, treat plain `wsl --exec bash` as the
-  local validation path — do not block Phase C' (and later) work on the
-  `wslc` migration landing.
+Each repository manages its own `.wslc/` directory with:
+- `Containerfile` — Container definition
+- `wslc-build.ps1` — Build script that auto-extracts versions from the repo's config files
+
+**Version sync (automatic, no manual updates):**
+
+| Repository | Config file | Extracted values |
+| --- | --- | --- |
+| `tastile-core` | `crates-v1/api/Cargo.toml` | `rust-version` |
+| `tastile-android` | `app/build.gradle.kts` | `compileSdk`, `ndkVersion` |
+
+**Build commands:**
+
+```powershell
+# tastile-core
+cd tastile-core
+.wslc/wslc-build.ps1
+
+# tastile-android
+cd tastile-android
+.wslc/wslc-build.ps1
+
+# Dry run (check what would be built)
+.wslc/wslc-build.ps1 -WhatIf
+```
+
+**Fallback behavior:** If the extracted SDK version is not available (e.g., preview SDK), the android build script automatically falls back to the latest stable version (SDK 36).
 
 ### Practical flow today
 
