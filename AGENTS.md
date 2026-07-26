@@ -1,15 +1,31 @@
-# Codex / MiniMax-M3 Tool Usage
+# Large Tool Argument Safety
 
-The Codex model in this project (`MiniMax-M3` via `api.minimax.io`) is configured with a low per-turn output cap. A single tool call whose `arguments` embed a multi-KB file (e.g. `exec_command` running `python -c '...'` or a heredoc to write a 150+ line Rust file) hits the cap, the response is truncated mid-JSON, the proxy returns `code: "invalid_prompt"` (HTTP-style 2013), and the session is unrecoverable.
+Some model and proxy configurations may truncate tool calls when a single argument contains several kilobytes of embedded text. Truncation can produce invalid JSON and make the current session unusable.
 
-## Rules
+This section applies only to commands that create or modify files. It does not affect normal tool selection, code search, repository exploration, builds, tests, or other shell commands.
 
-- **Use `apply_patch` for any file create / edit where the resulting change exceeds ~50 lines or ~4 KB.** The diff stays well under the output cap.
-- For files **smaller than ~50 lines**, `apply_patch` is still preferred but `write_file` / `write` is acceptable.
-- Do **not** embed large file contents inside `exec_command` arguments (no `python -c '...'`, no `cat <<EOF`, no Node `mcp__node_repl__js` write of multi-KB blobs).
-- `exec_command` is fine for builds, tests, git, cargo, and other shell operations.
-- If a write must exceed the cap (e.g. generating a long migration), split it across multiple turns: write the file in chunks via `apply_patch`, or write a small scaffold with `apply_patch` and append chunks with `exec_command` running `printf >> file` (each call stays small).
+## File editing
 
-## Why
+* Use `apply_patch` for substantial file creation or modification.
+* Avoid placing large file contents directly inside a shell command or another tool argument.
+* In particular, do not use large heredocs, `python -c`, `node -e`, or equivalent commands to transmit an entire source file.
+* Small, simple writes are acceptable when the complete tool call remains compact.
+* For generated files that are too large for one patch, create them incrementally with multiple reasonably sized patches.
 
-Direct evidence from session `rollout-2026-06-24T17-53-02`: the model emitted `function_call` for `exec_command` whose `arguments` was 7648 chars and ended mid-JSON (missing closing `}`). Local parser: `failed to parse function arguments: EOF while parsing an object at line 1 column 7648`. Proxy: `invalid params, invalid function arguments json string ... (2013) invalid_prompt`.
+## Shell commands
+
+Use ordinary shell commands normally for:
+
+* repository search and inspection
+* `rg`, `find`, and similar command-line utilities
+* builds and tests
+* `git`, `cargo`, and project scripts
+* formatting, linting, and code generation
+
+Choose tools based on the task. Do not prefer an MCP tool merely because one is available.
+
+## Failure prevention
+
+Before sending a file-writing tool call, check whether the command embeds a large block of source code or data. If it does, replace it with `apply_patch` or split the change into smaller patches.
+
+Do not discuss this constraint during normal work unless it directly affects the current operation or a related tool call fails.
