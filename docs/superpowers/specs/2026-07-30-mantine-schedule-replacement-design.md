@@ -144,7 +144,7 @@ export function renderEventBody(
 }
 ```
 
-- Three variants (`day`, `week`, `month`, `agenda`) each emit the corresponding `data-testid` so existing e2e selectors (`day-event-*`, `week-event-*`, `month-event-*`) match without test changes.
+- Four variants (`day`, `week`, `month`, `agenda`) each emit the corresponding `data-testid` so existing e2e selectors (`day-event-*`, `week-event-*`, `month-event-*`) match without test changes.
 - `IconByName` resolves `e.icon` against `tastile-brands/icons/` registry; unknown names render nothing.
 - `ProjectBadge` and `TagDots` are existing leaf components migrated unchanged from the deleted `*EventTile.tsx` files.
 
