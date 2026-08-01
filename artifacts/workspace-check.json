@@ -1,0 +1,99 @@
+{
+  "profile": "fast",
+  "maxAttempts": 1,
+  "generatedAt": "2026-07-29T13:08:26.7741855Z",
+  "results": [
+    {
+      "repository": "core",
+      "attempt": 1,
+      "status": "failed",
+      "exitCode": 101,
+      "durationMs": 51,
+      "command": "cargo test -p domain",
+      "reason": null
+    },
+    {
+      "repository": "web",
+      "attempt": 1,
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 49433,
+      "command": "bun run check",
+      "reason": null
+    },
+    {
+      "repository": "android",
+      "attempt": 1,
+      "status": "failed",
+      "exitCode": 1,
+      "durationMs": 9106,
+      "command": ".\\gradlew.bat verify --no-daemon",
+      "reason": null
+    },
+    {
+      "repository": "desktop",
+      "attempt": 1,
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 4659,
+      "command": "pwsh -NoProfile -File scripts/check.ps1 -SkipDesktopBuild",
+      "reason": null
+    },
+    {
+      "repository": "brands",
+      "attempt": 1,
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 502,
+      "command": "bun run verify",
+      "reason": null
+    }
+  ],
+  "final": [
+    {
+      "repository": "core",
+      "attempt": 1,
+      "status": "failed",
+      "exitCode": 101,
+      "durationMs": 51,
+      "command": "cargo test -p domain",
+      "reason": null
+    },
+    {
+      "repository": "web",
+      "attempt": 1,
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 49433,
+      "command": "bun run check",
+      "reason": null
+    },
+    {
+      "repository": "android",
+      "attempt": 1,
+      "status": "failed",
+      "exitCode": 1,
+      "durationMs": 9106,
+      "command": ".\\gradlew.bat verify --no-daemon",
+      "reason": null
+    },
+    {
+      "repository": "desktop",
+      "attempt": 1,
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 4659,
+      "command": "pwsh -NoProfile -File scripts/check.ps1 -SkipDesktopBuild",
+      "reason": null
+    },
+    {
+      "repository": "brands",
+      "attempt": 1,
+      "status": "passed",
+      "exitCode": 0,
+      "durationMs": 502,
+      "command": "bun run verify",
+      "reason": null
+    }
+  ]
+}
