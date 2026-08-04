@@ -60,3 +60,6 @@ desktop.ini
 *.ps1
 *.sh
 *.txt
+
+# Legacy tile-create-e2e-wiring (moved to tastile-web/docs/plans and tastile-core/docs/plans on 2026-08-04)
+/tile-create-e2e-wiring/

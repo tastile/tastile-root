@@ -31,6 +31,7 @@ package has its own toolchain and verification scripts.
 | Desktop client (Windows) harness | `tastile-desktop/CLAUDE.md` |
 | Android client harness | `tastile-android/README.md` (no `CLAUDE.md` yet) |
 | Brand assets | `tastile-brands/` — **copy, never reference by relative path** |
+| Wiring initiative plans (93 files, A–H sub-projects + T traces) | `tastile-web/docs/plans/` (web-primary, BOTH-canonical), `tastile-core/docs/plans/` (core-primary) | `tastile-web/`, `tastile-core/` |
 
 The **v1 spec at `tastile-core/v1/` is the single source of truth for the
 domain**. Old v7 vocabulary (`TickOutput`, `Arbiter`, `Materializer`,
@@ -47,6 +48,7 @@ domain**. Old v7 vocabulary (`TickOutput`, `Arbiter`, `Materializer`,
 | Domain / API / schema change | `tastile-core/v1/02`, `v1/10`, `v1/14` | `tastile-core/` |
 | Backend Rust change (handler, store, worker) | `tastile-core/CLAUDE.md`, `tastile-core/HARNESS.md` | `tastile-core/` |
 | Plan a v1 feature | write `tastile-core/docs/plans/YYYY-MM-DD-<topic>.md` | `tastile-core/` |
+| Wiring initiative plan execution | pick plan from `tastile-web/docs/plans/` or `tastile-core/docs/plans/` | `tastile-web/` or `tastile-core/` |
 | Web UI / Next.js / Stripe webhook | `tastile-web/CLAUDE.md` | `tastile-web/` |
 | Desktop (WinUI / .NET) | `tastile-desktop/CLAUDE.md` | `tastile-desktop/` |
 | Android (Kotlin / Compose) | `tastile-android/README.md` | `tastile-android/` |
