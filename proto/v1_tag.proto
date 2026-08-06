@@ -1,0 +1,52 @@
+syntax = "proto2";
+
+package tastile.core.tag;
+
+// Wire extension path for v1_tag
+// The extensions block defines a reserved range for future extensions
+// Field numbers in extensions must be outside the standard field range (1-29)
+// The extension path is implicitly the message name with the extension prefix
+
+message Tag {
+  // Standard fields (field numbers 1-29)
+  optional int32 id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional string wire_path = 4;
+  optional string wire_extension_path = 5;
+  
+  // Reserved field numbers for future standard extensions
+  reserved 6 to 10;
+  
+  // Extension declaration block
+  // This defines a range of field numbers available for extensions
+  // The actual extension path is: "Tag." + extension_field_number
+  extensions 100 to 299;
+  
+  // Explicit extension field with full path specification
+  // The wire extension path is: ".tastile.core.tag.Tag.v1_extension_field_number"
+  optional string v1_tag_name = 100 [
+    option (google_implementation_options) = {
+      extension_path = ".tastile.core.tag.Tag.v1_extension_100"
+    };
+  ];
+  
+  optional string v1_tag_description = 101 [
+    option (google_implementation_options) = {
+      extension_path = ".tastile.core.tag.Tag.v1_extension_101"
+    };
+  ];
+}
+
+// Alternative: Using explicit extension syntax with full path
+message V1Tag {
+  optional int32 id = 1;
+  optional string name = 2;
+  
+  // Extension declarations with explicit paths
+  extensions 100 to 199;
+  
+  // The wire extension path follows the pattern:
+  // .package_name.MessageName.extension_field_number
+  // e.g., ".tastile.core.tag.V1Tag.v1_extension_100"
+}
