@@ -268,8 +268,88 @@ operation:
 
 ---
 
+## G8b cold reset
+
+Concrete application of this schema to the `tastile-core` wslc dev stack.
+Tracked as `tastile/tastile-core#103`. Canonical plan:
+`tastile-core/docs/plans/G8b-cold-reset.md`.
+
+- `type`: `state_wipe` — `scope`: `full` — target: local wslc `tastile-pgdata`
+- **Destructive execution requires explicit user confirmation.** Per the issue's
+  リスク section: "Volume wipe は不可逆" and "対話的セッションでは必ずユーザー確認を先に取り".
+  Do not run while another agent, E2E run, or test run depends on the volume.
+- Never run this against production / RDS.
+
+### Container names
+
+The issue and plan text say `tastile-v1-api` / `tastile-v1-worker`. The actual
+stack created by `tastile-core/scripts/wslc/up-v1.sh` uses `tastile-db`,
+`tastile-api`, `tastile-worker` (`tastile-v1-api` is the *image* name, not a
+container name). Use the actual names when executing or verifying.
+
+### Procedure
+
+1. Confirm blast radius. Verify this is the dev environment and no parallel test
+   run depends on the volume. `wslc volume ls` + `wslc container ls` to confirm
+   the exact names. Get explicit user approval before removing the volume.
+2. Stop the running stack:
+   ```bash
+   cd tastile-core
+   bash scripts/wslc/down.sh
+   ```
+   `down.sh` stops `tastile-worker`, `tastile-api`, `tastile-db` and
+   intentionally preserves `tastile-pgdata` and `tastile-net`.
+3. Remove the Postgres data volume (irreversible):
+   ```bash
+   wslc volume rm tastile-pgdata
+   ```
+   If removal fails, find the container still holding it. Do not guess at a
+   different volume name.
+4. Remove leftover containers so no old migration state, env, or exit state
+   carries over:
+   ```bash
+   wslc container rm tastile-db tastile-api tastile-worker 2>/dev/null || true
+   ```
+5. Rebuild the image **only if** `Containerfile.v1` changed, a crate `Cargo.toml`
+   added dependencies, or `crates-v1/api/Cargo.toml` `rust-version` changed.
+   Cold build takes 5-10 minutes:
+   ```bash
+   bash scripts/wslc/build.sh
+   ```
+   Expected: `tastile-v1-api:latest` produced with exit code 0.
+6. Export the web bridge secret so API and web agree. Never echo the value into
+   logs, plans, or commits:
+   ```bash
+   BRIDGE_SECRET=$(grep TASTILE_WEB_BRIDGE_SECRET ../tastile-web/.env.development | cut -d= -f2)
+   export BRIDGE_SECRET
+   ```
+7. Bring the stack back up (recreates `tastile-pgdata`):
+   ```bash
+   bash scripts/wslc/up-v1.sh
+   ```
+
+### Verification
+
+```bash
+curl -i http://127.0.0.1:31400/v1/health                                  # HTTP 200
+wslc container exec tastile-db psql -U tastile -d tastile_db -c "\dt"     # >= N v1_* tables
+wslc container exec tastile-api printenv | grep BRIDGE                    # name only, not value
+wslc container ls                                                          # 3 containers running
+```
+
+N is the count of applied `v1_*` migrations for this environment — read it from
+the migration files / startup log, do not hardcode a guessed number.
+
+Also confirm the corruption symptoms are gone: no `column already exists` /
+`relation already exists` in the migration log, no `UNIQUE constraint` on
+`v1_subject(id)` during seed, no `relation "v1_xxx" does not exist` test
+failures, and no Postgres crash-loop on `could not open relation mapping file`.
+
+---
+
 ## Version History
 
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0.0 | 2026-08-06 | Initial schema definition |
+| 1.1.0 | 2026-08-07 | Add G8b cold reset procedure (tastile-core#103) |
