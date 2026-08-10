@@ -1,114 +1,67 @@
-# Tastile — AGENTS.md
+# Tastile ワークスペース契約
 
-This is `tastile-root`, a **shell monorepo** holding independent child repositories:
-`tastile-core/` (Rust backend), `tastile-web/` (Next.js), `tastile-android/` (Kotlin),
-`tastile-desktop/` (.NET/WinUI), and `tastile-brands/` (assets). Each child is its own
-Git repo with its own `CLAUDE.md` / `AGENTS.md`. The child dirs are in `.gitignore`.
+このリポジトリは、独立した Git リポジトリである `tastile-core`、`tastile-web`、
+`tastile-android`、`tastile-desktop`、`tastile-brands` を同階層に置く shell
+repository である。ルートの Git 状態だけで子リポジトリの状態を判断しない。
 
-## Canonical sources
+## 正本とルーティング
 
-| Concern | Location |
-|---|---|
-| Project policy, scope, infra, auth, routing | `docs/HARNESS.md` |
-| Workspace decisions log | `docs/decisions.md` |
-| Domain model, API surface, invariants | `tastile-core/v1/*.md` |
-| Backend build/test/conventions | `tastile-core/CLAUDE.md` + `tastile-core/HARNESS.md` |
-| Web client | `tastile-web/CLAUDE.md` |
-| Desktop client | `tastile-desktop/CLAUDE.md` |
-| Android client | `tastile-android/README.md` |
-| Brand assets | `tastile-brands/README.md` — **copy, never reference by relative path** |
+| 対象 | 最初に読む正本 | 作業場所 |
+| --- | --- | --- |
+| 全体方針、認証、インフラ | `docs/HARNESS.md`、`docs/decisions.md` | root |
+| domain、API、schema | `tastile-core/v1/` の該当章、子の `AGENTS.md` | `tastile-core` |
+| Web / Next.js | `tastile-web/AGENTS.md` | `tastile-web` |
+| Android / Compose | `tastile-android/README.md` | `tastile-android` |
+| Desktop / WinUI | `tastile-desktop/CLAUDE.md` | `tastile-desktop` |
+| brand asset | `tastile-brands/README.md` | `tastile-brands` |
 
-## Dev environment
+複数の子リポジトリまたは共有 contract に触れる場合は、すべての対象リポジトリの
+指示と `tastile-core/v1/` の該当章を読む。brand asset は相対参照せず各 consumer
+へ copy する。
 
-- **Package manager**: `bun` for everything frontend (`bun install`, `bun add`,
-  `bun run`, `bunx`). Never `npm` / `npx`.
-- **Goal is no Docker**: dev and prod run native Linux binaries (WSL on Windows).
-  CI is `ubuntu-latest`. `Dockerfile.v1` / `docker-compose.v1.yml` still exist in
-  `tastile-core/` pending WSL Container migration — do not remove.
-- **`.env.example` only** — real `.env` values are local or in GitHub Secrets.
-- **Frontend is a thin client** — business logic lives only in `tastile-core`.
-- **Plan → implement**: write a plan doc in `tastile-core/docs/plans/` (or package
-  equivalent) before starting implementation.
+## 常時適用する不変条件
 
-## Build & test
+- 開始時に対象ごとの branch、`git status --short`、既存差分を確認し、無関係な変更を
+  reset、checkout、stash、revert、stage、commit しない。worktree は作らない。
+- design / specification がある変更は、最終状態の design をユーザーと確定してから
+  実装する。履歴は ADR に置く。
+- source code、識別子、code comment、Git / GitHub message は英語、内部開発文書と
+  project agent instruction は日本語で書く。
+- frontend と script-side の package manager は Bun とする。新規 Python script は
+  作らない。検索は `rg` / `rg --files` を優先する。
+- business logic は `tastile-core` が所有し、client は thin client とする。v1 の語彙と
+  schema を正本とし、互換 shim を独断で追加しない。
+- 実値は `.env`、`.env.development`、`.env.production` のみへ置き、commit しない。
+  schema は対応する `*.example` に置く。一時物は root の `.tmp/`、外部参照 clone は
+  `.reference/` に置き、どちらも dependency にしない。
+- 権限と利用可能な機能が許す場合、独立した作業だけを明示的な file ownership で
+  並列化する。同一 file の並列編集と、subagent による自己承認は禁止する。
 
-Workspace-wide checks (run from this root):
+## Agent Skills
+
+詳細手順は `.agents/skills/` を正本とし、trigger に一致したときだけ読む。
+
+- `cross-repo-contract-check`: 複数 child、API / schema / auth / 共有 UI contract の変更。
+- `verify-tastile-change`: PASS、DONE、GREEN、commit / merge / ship 可能と述べる直前。
+- `tastile-precommit-review`: root 変更を agent が commit する直前の独立 review。
+
+## 検証と commit
+
+変更した各 child の local instruction が指定する全 applicable gate を実行する。全体入口:
 
 ```powershell
-# Fast gate (domain unit tests only)
 pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile fast -KeepGoing
-
-# Full release-quality check
-pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile full -KeepGoing -ResultPath .\artifacts\workspace-check.json
+pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile full -KeepGoing -ResultPath .\.tmp\workspace-check.json
 ```
 
-Exit codes: `0=all pass`, `1=code/test failure`, `2=BLOCKED (env missing)`.
-Add `-MaxAttempts 3` for retry on transient failures.
+agent 環境自体の検証入口:
 
-Per-package (each package has its own toolchain — see its `CLAUDE.md`):
+```powershell
+pwsh -NoProfile -File .\scripts\check-agent-environment.ps1
+```
 
-| Package | Fast gate | Full gate |
-|---|---|---|
-| tastile-core | `cargo test -p domain` (in `tastile-core.wslc`) | `pwsh -NoProfile -File scripts/check.ps1` |
-| tastile-web | `bun run check` | `bun run check:release` |
-| tastile-android | `.\gradlew.bat verify --no-daemon` | `.\gradlew.bat verify assembleDebug --no-daemon` |
-| tastile-desktop | `pwsh -NoProfile -File scripts/check.ps1` | same |
-
-## Conventions
-
-- **No `enum` types in PostgreSQL**; no JSONB in source of truth; numeric
-  constants only (`smallint` + app-side Registry). See `tastile-core/v1/10`.
-- **v1 vocabulary only** — `TickOutput`, `Arbiter`, `Materializer`, `v7_tiles`,
-  `6軸 enum`, etc. are banned. See `tastile-core/CLAUDE.md`.
-- **Agent pre-commit review loop**: agent-initiated `git commit` from this root
-  goes through an independent CLI agent review before the commit proceeds.
-  Format: `git -C tastile-<pkg> commit -m "type: msg"` (direct, no wrappers).
-  Details: `.agent-loop/README.md`.
-
-## Pitfalls (this Windows host)
-
-- **Windows Defender blocks `cc1.exe`** — `cargo build` of crates with C deps
-  (`ring`, `libsqlite3-sys`) silently fails. Build/test `tastile-core` inside WSL
-  Ubuntu via the `tastile-core.wslc` worktree clone. CI (`ubuntu-latest`) is the
-  source of truth for green/red.
-- **JDK 11 vs JDK 17**: Android Gradle plugin needs JDK 17. Set `JAVA_HOME` to
-  JDK 17 before `./gradlew`.
-- **AWS state can differ from `.env.local.example`** — query live AWS
-  (`aws cognito-idp list-user-pools`, etc.) before baking IDs into builds.
-- **WSL Container (`wslc`)**: per-repo `.wslc/` directories auto-extract SDK
-  versions from config files. Build with `.wslc/wslc-build.ps1` (or `-WhatIf`
-  for dry run).
-
----
-
-# Large Tool Argument Safety
-
-Some model and proxy configurations may truncate tool calls when a single argument contains several kilobytes of embedded text. Truncation can produce invalid JSON and make the current session unusable.
-
-This section applies only to commands that create or modify files. It does not affect normal tool selection, code search, repository exploration, builds, tests, or other shell commands.
-
-## File editing
-
-* Use `apply_patch` for substantial file creation or modification.
-* Avoid placing large file contents directly inside a shell command or another tool argument.
-* In particular, do not use large heredocs, `python -c`, `node -e`, or equivalent commands to transmit an entire source file.
-* Small, simple writes are acceptable when the complete tool call remains compact.
-* For generated files that are too large for one patch, create them incrementally with multiple reasonably sized patches.
-
-## Shell commands
-
-Use ordinary shell commands normally for:
-
-* repository search and inspection
-* `rg`, `find`, and similar command-line utilities
-* builds and tests
-* `git`, `cargo`, and project scripts
-* formatting, linting, and code generation
-
-Choose tools based on the task. Do not prefer an MCP tool merely because one is available.
-
-## Failure prevention
-
-Before sending a file-writing tool call, check whether the command embeds a large block of source code or data. If it does, replace it with `apply_patch` or split the change into smaller patches.
-
-Do not discuss this constraint during normal work unless it directly affects the current operation or a related tool call fails.
+終了コードは `0=PASS`、`1=code/test failure`、`2=external prerequisite により BLOCKED`。
+skip、broad ignore、warning suppression、古い出力で green を作らない。UI は実 browser、
+PostgreSQL は到達可能な実 DB、Android は対象 device、Rust はこの host では WSL / wslc
+で確認する。agent が commit する場合は `.agent-loop/README.md` の独立 review gate を通し、
+英語の `<type>: <concise title>` を使う。

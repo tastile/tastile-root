@@ -1,44 +1,38 @@
 ---
 name: verify-tastile-change
-description: Use when about to claim a Tastile change PASS, DONE, GREEN, ready to commit, ready to merge, or ready to ship across any root or child repository.
+description: Tastile の変更を PASS、DONE、GREEN、commit / merge / ship 可能と述べる直前に使用する。
 ---
 
-# Verify Tastile Change
+# Tastile change verification
 
-Distinguish **REVIEWED** (read code) from **VERIFIED** (executed and observed behavior). Never claim PASS when any touched package lacks current execution evidence.
+code を読んだ `REVIEWED` と、command と挙動を観測した `VERIFIED` を区別する。変更した
+package に現在の実行証跡がなければ PASS と述べない。
 
-## Repository Routing
+## Routing
 
-| Change | Read and verify in |
+| 変更 | 読む正本と検証場所 |
 | --- | --- |
-| Domain, API, schema | `tastile-core/v1/02`, `v1/10`, `v1/14`; core instructions |
-| Rust handler, store, worker | `tastile-core/AGENTS.md`, `tastile-core/HARNESS.md` |
+| domain、API、schema | `tastile-core/v1/02`、`v1/10`、`v1/14`、core instruction |
+| Rust handler、store、worker | `tastile-core/AGENTS.md`、`tastile-core/HARNESS.md` |
 | Web | `tastile-web/AGENTS.md` |
 | Android | `tastile-android/README.md` |
-| Desktop | `tastile-desktop/AGENTS.md` |
-| Workspace or infrastructure | `docs/HARNESS.md` |
+| Desktop | `tastile-desktop/CLAUDE.md` |
+| workspace / infrastructure | `docs/HARNESS.md` |
 
-Run `git status --short` and `git diff --stat` from every touched child repository. Never trust a subagent's file list without checking it.
+各対象 Git root で `git status --short` と `git diff --stat` を実行し、報告された file list を
+鵜呑みにしない。
 
-## Binding Evidence Rules
+## Binding evidence
 
-- **PostgreSQL:** use a reachable real Postgres instance. Observe `test result: ok. N passed; 0 failed; 0 ignored`. A skip branch that returns when no URL exists proves no SQL behavior.
-- **Backend behavior:** run the daemon and exercise the affected endpoint with `curl`. Tests may encode stale assumptions.
-- **Web UI:** use a real browser through Chrome DevTools, exercise the flow, and inspect live DOM or screenshots. JSDOM and snapshots are insufficient.
-- **Android:** confirm JDK 17, install the current APK on the intended device, and compare source/APK timestamps before judging behavior.
-- **Rust:** Windows Defender blocks required C compilation. Build and test through the cached `tastile-v1-api` wslc image; Windows-side cargo output is not verification.
-- **Evidence freshness:** cached output from an earlier run is not current evidence.
+- PostgreSQL: 到達可能な実 PostgreSQL を使う。接続不可時に return する test は SQL 挙動を
+  証明しない。pass / fail / ignored 件数を観測する。
+- Backend: daemon を起動し、影響 endpoint を実 request で確認する。
+- Web UI: 実 browser で flow、live DOM、console、必要な screenshot を確認する。
+- Android: JDK 17+、対象 device の current APK、source / APK timestamp を確認する。
+- Rust: この host の Windows build は証跡にせず WSL / wslc で実行する。
+- freshness: 過去の CI、cache、stale binary、implementer の要約を現在の証跡にしない。
 
-## Quick Reference
+## 出力
 
-1. Identify every touched repository from its own Git root.
-2. Label each check REVIEWED or VERIFIED.
-3. Record command, exit code, and decisive observed output.
-4. Report BLOCKED with the missing check if any required evidence is absent.
-
-## Common Mistakes
-
-- Treating an apparent passing count as proof when integration tests skipped database access.
-- Treating a DDL/source match as migrated-schema verification.
-- Treating a web unit test or Android build as exercised UI behavior.
-- Declaring success from stale binaries, cached output, or a subagent summary.
+対象 child、各 check の `REVIEWED` / `VERIFIED`、command、exit code、決定的出力を記録する。
+必須証跡が欠ける場合は `BLOCKED` と、次に必要な正確な command を示す。

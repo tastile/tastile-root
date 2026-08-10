@@ -1,62 +1,35 @@
 ---
 name: cross-repo-contract-check
-description: Use when a Tastile change touches two or more sibling child repositories, when an API or schema field is renamed, added, or removed, or before approving multi-package work as PASS.
+description: Tastile の変更が複数 child repository、API、schema、auth flow、または client 間の共有挙動に触れるときに使用する。
 ---
 
-# Cross-Repo Contract Check
+# Cross-repository contract check
 
-A Tastile change is not done at the root. The shell repo ignores every child repo; a clean root `git status` proves nothing about `tastile-core`, `tastile-web`, `tastile-android`, or `tastile-desktop`. Each child has its own Git history and instructions.
+root は child を ignore するため、root の clean status は child の状態を証明しない。
+`verify-tastile-change` が各 package の実行証跡を確認するのに対し、この Skill は producer
+と全 consumer の contract が一致するか確認する。
 
-## When to Use
+## 手順
 
-Invoke before approval, merge, or "ready to ship" when a core API or schema field changes, a backend may ship ahead of a client, two or more child repositories are affected, or a subagent asks for sign-off because all packages compile. Pair with `verify-tastile-change`: that skill asks whether each package proved green; this skill asks whether the contract between them holds.
+1. 対象 child を列挙する。core API 変更では web、Android、desktop の全 consumer を検索する。
+2. 各 child の local instruction と `tastile-core/v1/` の該当章を読む。schema / API では
+   `v1/10` と `v1/14` を含める。
+3. 各 child で `git status --short`、`git diff --stat`、該当 diff を確認する。
+4. 次の contract matrix を作る。
 
-## Enumerate Affected Children
-
-List every child repository in scope before approval. A core API change requires checking every consumer: web, Android, and desktop. Use the routing table in root `AGENTS.md` as the entry index, not as the complete answer.
-
-## Read Relevant Instructions
-
-Open each affected child's `AGENTS.md`, `AGENTS.md`, or `README.md`, plus matching canonical `tastile-core/v1/` chapters. For example, schema and API changes require `v1/10` and `v1/14`. Never rely on root instructions alone.
-
-## Produce a Contract Matrix
-
-Create rows for:
-
-| Concern | Required evidence |
+| 項目 | 必須証跡 |
 | --- | --- |
-| Producer | Core type, handler, serializer |
-| Consumers | Web, Android, desktop call sites |
-| Schema | Canonical columns and numeric registry |
-| Migration | Executed migration path |
-| Tests | Producer and consumer contract coverage |
+| Producer | core type、handler、serializer |
+| Consumers | web、Android、desktop の call site |
+| Schema | canonical column と numeric registry |
+| Migration | 実行された migration path |
+| Tests | producer / consumer contract の現在の実行証跡 |
 
-A required blank or mismatch means BLOCKED.
+5. web と Android で共有する visible behavior は、control 数、順序、label、i18n key、遷移を
+   比較する。layout と個別 rendering の差は許容するが、composition と behavior は drift
+   させない。
+6. canonical contract が要求しない alias、dual-read、adapter、`accept both` を拒否する。
+7. commit、version、release は child ごとに独立して計画する。
 
-## Check Composition Parity
-
-For user-visible behavior shared by web and Android, compare control count, order, labels, and i18n keys. Mobile layout and individual control rendering may differ; behavior and composition may not drift.
-
-## Check Each Git Repository
-
-Run `git status --short` and `git diff --stat` inside every affected child. Plan commits, versions, and releases independently. Root status is irrelevant.
-
-## Reject Invented Compatibility Shims
-
-Do not add dual-read, aliases, or "accept both fields" behavior unless the canonical contract explicitly requires it. A shim that avoids coordinating consumers is not a contract fix.
-
-## Quick Reference
-
-1. List affected children.
-2. Read every affected instruction file and matching v1 chapters.
-3. Fill the producer/consumer/schema/migration/test matrix.
-4. Check web–Android parity when user-visible.
-5. Inspect status and diff per child; plan independent releases.
-6. Report PASS only when every required cell agrees; otherwise report `BLOCKED: <mismatch>`.
-
-## Common Mistakes
-
-- Trusting root `git status` because children are ignored.
-- Approving because each package compiles independently.
-- Updating web while forgetting Android or desktop.
-- Inventing a compatibility shim instead of aligning the canonical contract.
+必須 cell の空欄、consumer drift、未実行 migration、独断 shim、root だけの status 確認が
+あれば `BLOCKED: <mismatch>` とする。各 package の独立 compile だけでは PASS にしない。

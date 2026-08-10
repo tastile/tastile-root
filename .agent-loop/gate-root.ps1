@@ -58,5 +58,11 @@ foreach ($ps in $psFiles) {
     }
 }
 
+$agentEnvironmentGate = Join-Path $root "scripts/check-agent-environment.ps1"
+if (Test-Path -LiteralPath $agentEnvironmentGate) {
+    & $agentEnvironmentGate
+    if ($LASTEXITCODE -ne 0) { $ok = $false }
+}
+
 if (-not $ok) { exit 1 }
 exit 0

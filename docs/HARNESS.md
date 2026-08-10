@@ -387,7 +387,7 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile fast -KeepGoing
 
 # リリース相当。機械可読結果も保存
-pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile full -KeepGoing -ResultPath .\artifacts\workspace-check.json
+pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile full -KeepGoing -ResultPath .\.tmp\workspace-check.json
 
 # 一時的失敗だけを最大3回まで再試行
 pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile full -KeepGoing -MaxAttempts 3

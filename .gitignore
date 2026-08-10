@@ -19,6 +19,7 @@ smoke.mjs
 userdata.txt
 scratch/
 reference/
+.reference/
 *.bak
 *.log
 
@@ -37,6 +38,9 @@ reference/
 !.claude/agents/
 .codex/*
 !.codex/hooks.json
+!.codex/config.toml
+!.codex/agents/
+!.codex/agents/*.toml
 .cursor/
 .impeccable/
 .superpowers/
@@ -44,6 +48,7 @@ reference/
 # Local scratch files
 helper*.txt
 starttile_*.txt
+/verify_up_v1.py
 
 # OS
 .DS_Store
@@ -56,10 +61,15 @@ desktop.ini
 # Local scratch (transient fixture, log, and review scripts).
 .tmp/
 
-*.py
-*.ps1
-*.sh
-*.txt
+# Actual environment values (examples remain tracked)
+.env
+.env.development
+.env.production
+.env.local
+.env.*.local
+!.env.example
+!.env.development.example
+!.env.production.example
 
 # Legacy tile-create-e2e-wiring (moved to tastile-web/docs/plans and tastile-core/docs/plans on 2026-08-04)
 /tile-create-e2e-wiring/

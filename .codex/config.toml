@@ -1,0 +1,12 @@
+model = "gpt-5.6-sol"
+model_reasoning_effort = "xhigh"
+
+[mcp_servers.chrome-devtools]
+command = "bunx"
+args = [
+    "-y",
+    "chrome-devtools-mcp@1.6.0",
+    "--isolated",
+    "--no-performance-crux",
+    "--no-usage-statistics",
+]
