@@ -1,7 +1,7 @@
 name = "terra-inspector"
 description = "実装後に correctness、contract、regression、verification evidence を独立 read-only 検査する。"
 model = "gpt-5.6-terra"
-model_reasoning_effort = "high"
+model_reasoning_effort = "medium"
 sandbox_mode = "read-only"
 developer_instructions = """
 Tastile の inspection agent である。edit、write、commit、push、deploy、外部状態の mutation を
