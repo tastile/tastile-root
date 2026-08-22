@@ -1,4 +1,5 @@
 {
+  "_comment": "Bash PreToolUse guards run through .claude/hooks/hook-dispatch.mjs. It reads the event once and spawns only the guards whose subject matter appears in the command, so a plain `ls` no longer pays for two pwsh starts (~1.33s -> ~0.12s measured). Guard logic itself is unchanged and still regexes the whole command string.",
   "hooks": {
     "PreToolUse": [
       {
@@ -6,21 +7,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pwsh -NoProfile -Command \"$dir = (Get-Location).Path; while ($dir -and -not (Test-Path -LiteralPath (Join-Path $dir '.agent-loop\\Invoke-AgentHook.ps1') -PathType Leaf)) { $parent = Split-Path -Parent $dir; if ($parent -eq $dir) { exit 1 }; $dir = $parent }; & (Join-Path $dir '.agent-loop\\Invoke-AgentHook.ps1') -Caller claude\"",
+            "command": "bun",
+            "args": [
+              "./.claude/hooks/hook-dispatch.mjs"
+            ],
             "timeout": 1200,
-            "statusMessage": "Checking Tastile commit review policy"
-          },
-          {
-            "type": "command",
-            "command": "pwsh -NoProfile -Command \"$dir = (Get-Location).Path; while ($dir -and -not (Test-Path -LiteralPath (Join-Path $dir '.claude\\hooks\\tastile-command-guard.ps1') -PathType Leaf)) { $parent = Split-Path -Parent $dir; if ($parent -eq $dir) { exit 0 }; $dir = $parent }; & (Join-Path $dir '.claude\\hooks\\tastile-command-guard.ps1')\"",
-            "timeout": 5,
             "statusMessage": "Checking Tastile command policy"
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/git-guard.mjs",
-            "timeout": 10,
-            "statusMessage": "Scanning for destructive commands"
           }
         ]
       }
