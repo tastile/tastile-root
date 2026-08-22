@@ -179,10 +179,10 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
        │          │          │          │
        └──────────┴──────┬───┴──────────┘
                          │
-                    ┌────▼────┐
-                    │  認証   │  ← Cognito (アカウント認証)
-                    │         │    + API トークン (Bearer 認証)
-                    └────┬────┘
+                ┌────▼────┐
+                │  認証   │  ← BetterAuth (アカウント認証)
+                │         │    + API トークン (Bearer 認証)
+                └────┬────┘
                          │
                 ┌────────▼────────┐
                 │  tastile-core   │  ← Rust / axum / SQLx
@@ -244,20 +244,30 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 
 認証は **2 系統** あり、それぞれ **独立して** 動作する。
 
-### 7-1. アカウント認証 — AWS Cognito
+> 2026-08-22 ADR: アカウント認証を AWS Cognito から BetterAuth へ置き換え。
+> 経緯と例外承認は `docs/decisions.md` の当該エントリを参照。
+
+### 7-1. アカウント認証 — BetterAuth (tastile-web 内蔵)
 
 - ユーザーのログイン / サインアップに使用
-- Google OAuth を Cognito Hosted UI で連携
-- 認証のコールバックは Web 汎用サーバーに返る
+- better-auth を tastile-web (Next.js) の route handler で稼働
+- email+password / Google・Apple OAuth / email OTP / TOTP MFA
+- auth 用 table は同一 private RDS 内の専用 database + 最小権限 role
+  (web サーバーからの接続は本決定で承認された例外。core domain table への権限はない)
+- メール送信は SES 直接送信 (sendEmail hook)
+- identity key は better-auth user id。core 側は `v1_subject.external_subject` として保持し、
+  owner 導出 `Uuid::new_v5(NAMESPACE_OID, external_subject)` は不変
 
 ### 7-2. API 認証 — API トークン (Bearer)
 
 - **API に接続できるのは API トークンのみ**
 - API トークンはアプリのあるローカルに保存される
-- Cognito の認証トークンとは別系統
+- アカウント認証のトークンとは別系統
+- mobile / desktop は system browser で web login page を開き、better-auth bearer token を
+  取得 → `/api/mobile/api-token` 形式で検証後に core API token を mint
 
 ```
-ユーザー → Cognito Hosted UI → アカウント認証完了
+ユーザー → web login page (BetterAuth) → アカウント認証完了
                                      ↓
                               API トークン発行
                                      ↓

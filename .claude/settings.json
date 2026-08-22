@@ -9,7 +9,7 @@
             "type": "command",
             "command": "bun",
             "args": [
-              "./.claude/hooks/hook-dispatch.mjs"
+              ".claude/hooks/hook-dispatch.mjs"
             ],
             "timeout": 1200,
             "statusMessage": "Checking Tastile command policy"
