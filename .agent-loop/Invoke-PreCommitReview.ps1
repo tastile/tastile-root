@@ -128,6 +128,8 @@ function Test-UnsafeCommandBoundary {
         if ($tokens[0] -match '^[A-Za-z_][A-Za-z0-9_]*=' -or $tokens[0].StartsWith('$')) { return $true }
         if ($tokens.Count -gt 1 -and $tokens[1] -eq "commit" -and
             $executable -notin @("git", "git.exe", "echo", "write-output")) { return $true }
+        if ($tokens.Count -gt 1 -and $tokens[1] -eq "commit" -and
+            ($tokens[0] -match '[\\/]' -or $tokens[0] -match '^[A-Za-z]:')) { return $true }
     }
     return $false
 }
@@ -414,8 +416,20 @@ try {
     }
     $tarArchiveArg = $archivePath -replace '\\', '/'
     $tarDestArg = $snapshotPath -replace '\\', '/'
-    $extractResult = Invoke-Process "tar" @("--force-local", "-xf", $tarArchiveArg, "-C", $tarDestArg) $snapshotContainer 60 $null
-    if ($extractResult.ExitCode -ne 0) { Stop-Denied ("Unable to extract repository snapshot | exit={0} | err={1}" -f $extractResult.ExitCode, $extractResult.StdErr) ([string]$repository.name) }
+    $tarArguments = if ($IsWindows -or ($env:OS -eq "Windows_NT")) {
+        @("-xf", $tarArchiveArg, "-C", $tarDestArg)
+    } else {
+        @("--force-local", "-xf", $tarArchiveArg, "-C", $tarDestArg)
+    }
+    $extractResult = Invoke-Process "tar" $tarArguments $snapshotContainer 60 $null
+    if ($extractResult.ExitCode -ne 0) {
+        $fallbackResult = Invoke-Process "tar" @("-xf", $tarArchiveArg, "-C", $tarDestArg) $snapshotContainer 60 $null
+        if ($fallbackResult.ExitCode -eq 0) {
+            $extractResult = $fallbackResult
+        } else {
+            Stop-Denied ("Unable to extract repository snapshot | exit={0} | err={1}" -f $extractResult.ExitCode, $extractResult.StdErr) ([string]$repository.name)
+        }
+    }
     $applyResult = Invoke-Process $gitCommand @("-C", $snapshotPath, "apply", "--binary", "--whitespace=nowarn", "-") `
         $snapshotPath 60 $patch
     if ($applyResult.ExitCode -ne 0) { Stop-Denied "Unable to apply intended patch to isolated snapshot" ([string]$repository.name) }
