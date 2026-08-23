@@ -44,6 +44,8 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
 - `cross-repo-contract-check`: 複数 child、API / schema / auth / 共有 UI contract の変更。
 - `verify-tastile-change`: PASS、DONE、GREEN、commit / merge / ship 可能と述べる直前。
 - `tastile-precommit-review`: root 変更を agent が commit する直前の独立 review。
+- `plugin-version-audit`: pinned 依存（MCP / Bun / Node / Biome / Knip / Vitest / Playwright / Next /
+  openapi-typescript）の drift と advisory を release 前、または bump 直前に read-only で確認する。
 
 ## 検証と commit
 

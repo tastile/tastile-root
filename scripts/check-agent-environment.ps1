@@ -56,7 +56,13 @@ $requiredFiles = @(
     ".agents/skills/cross-repo-contract-check/SKILL.md",
     ".agents/skills/tastile-precommit-review/SKILL.md",
     ".agents/skills/verify-tastile-change/SKILL.md",
-    "docs/adr/0001-agent-toolchain.md"
+    ".agents/skills/plugin-version-audit/SKILL.md",
+    "CODEX_ROLES.ja.md",
+    "docs/adr/0001-agent-toolchain.md",
+    "docs/adr/0004-context7-mcp.md",
+    "scripts/audit-plugin-versions.mjs",
+    "tastile-web/.agents/skills/i18n-literal-guard/SKILL.md",
+    "tastile-web/scripts/audit-i18n-literals.mts"
 )
 foreach ($file in $requiredFiles) { Test-RequiredFile $file }
 
@@ -70,6 +76,17 @@ $configText = @(
 ) -join "`n"
 if ($configText -match '@latest') {
     Add-CheckError "Agent runtime dependencies must be pinned; found @latest"
+}
+
+$mcpJsonText = Get-Content -Raw -LiteralPath (Join-Path $root ".mcp.json")
+$codexTomlText = Get-Content -Raw -LiteralPath (Join-Path $root ".codex/config.toml")
+foreach ($probe in @("chrome-devtools", "context7")) {
+    if ($mcpJsonText -notmatch [regex]::Escape("`"$probe`"")) {
+        Add-CheckError ".mcp.json must declare mcpServer: $probe"
+    }
+    if ($codexTomlText -notmatch [regex]::Escape("mcp_servers.$probe")) {
+        Add-CheckError ".codex/config.toml must declare [mcp_servers.$probe]"
+    }
 }
 
 $claudeAdapter = Get-Content -Raw -LiteralPath (Join-Path $root "CLAUDE.md")
