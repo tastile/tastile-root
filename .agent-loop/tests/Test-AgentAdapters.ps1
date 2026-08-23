@@ -4,25 +4,33 @@ $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $adapter = Join-Path $root ".agent-loop\Invoke-AgentHook.ps1"
 $claudeSettings = Join-Path $root ".claude\settings.json"
 $codexHooks = Join-Path $root ".codex\hooks.json"
-$openCodePlugin = Join-Path $root ".opencode\plugins\tastile-precommit-review.js"
 $pwsh = (Get-Process -Id $PID).Path
 
 function Assert-True([bool]$Condition, [string]$Message) {
     if (-not $Condition) { throw $Message }
 }
 
-foreach ($path in @($adapter, $claudeSettings, $codexHooks, $openCodePlugin)) {
+foreach ($path in @($adapter, $claudeSettings, $codexHooks)) {
     Assert-True (Test-Path -LiteralPath $path) "Required adapter is missing: $path"
 }
+
+$claudeDispatcher = Join-Path $root ".claude\hooks\hook-dispatch.mjs"
 
 $claude = Get-Content -Raw -LiteralPath $claudeSettings | ConvertFrom-Json
 $claudeGroup = @($claude.hooks.PreToolUse)[0]
 $claudeHook = @($claudeGroup.hooks)[0]
+$claudeArgs = @($claudeHook.args)
 Assert-True ($claudeGroup.matcher -eq "Bash") "Claude must inspect every Bash call"
 Assert-True ($claudeHook.type -eq "command") "Claude adapter must be a command hook"
-Assert-True ($claudeHook.command -match 'Get-Location.+\.agent-loop\\Invoke-AgentHook\.ps1.+Caller claude') "Claude hook must search parent directories"
-Assert-True (-not $claudeHook.command.Contains('C:\\Users\\rebui\\Desktop\\tastile')) "Claude hook must not contain a fixed absolute path"
+Assert-True ($claudeHook.command -eq "bun") "Claude hook must launch the dispatcher through bun"
+Assert-True ($claudeArgs.Count -ge 1 -and $claudeArgs[0].EndsWith('hook-dispatch.mjs')) "Claude hook must point at hook-dispatch.mjs"
+$claudeHookCommandLine = ($claudeHook.command + " " + ($claudeArgs -join " "))
+Assert-True (-not $claudeHookCommandLine.Contains('C:\\Users\\rebui\\Desktop\\tastile')) "Claude hook must not contain a fixed absolute path"
 Assert-True ([int]$claudeHook.timeout -ge 900) "Claude hook timeout is too short for gate plus review"
+
+$dispatcherSource = Get-Content -Raw -LiteralPath $claudeDispatcher
+Assert-True ($dispatcherSource.Contains('Invoke-AgentHook.ps1')) "Dispatcher must invoke the agent hook for commit-shaped commands"
+Assert-True ($dispatcherSource.Contains('"-Caller"') -and $dispatcherSource.Contains('"claude"')) "Dispatcher must identify Claude as the caller"
 
 $codex = Get-Content -Raw -LiteralPath $codexHooks | ConvertFrom-Json
 $codexGroup = @($codex.hooks.PreToolUse)[0]
@@ -43,20 +51,13 @@ $codexHookInput = @{
 $originalLocation = Get-Location
 try {
     Push-Location (Join-Path $root "tastile-web")
-    $codexHookInput | cmd /d /c $claudeHook.command | Out-Null
+    $codexHookInput | cmd /d /c ($claudeHook.command + " " + $claudeDispatcher) | Out-Null
     Assert-True ($LASTEXITCODE -eq 0) "Claude hook must resolve the adapter when the session starts in a subdirectory"
     $codexHookInput | cmd /d /c $codexHook.commandWindows | Out-Null
     Assert-True ($LASTEXITCODE -eq 0) "Codex hook must resolve the adapter when the session starts in a subdirectory"
 } finally {
     Pop-Location
 }
-
-$plugin = Get-Content -Raw -LiteralPath $openCodePlugin
-Assert-True ($plugin.Contains('"tool.execute.before"')) "OpenCode must use tool.execute.before"
-Assert-True ($plugin.Contains('input.tool !== "bash"')) "OpenCode must route every Bash call"
-Assert-True ($plugin.Contains('"opencode"')) "OpenCode caller identity is missing"
-Assert-True ($plugin.Contains("Invoke-AgentHook.ps1")) "OpenCode must invoke the common adapter"
-Assert-True ($plugin.Contains("throw new Error")) "OpenCode must propagate denial"
 
 $allowInput = @{
     cwd = $root
