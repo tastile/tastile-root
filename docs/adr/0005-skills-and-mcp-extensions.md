@@ -1,51 +1,38 @@
-# ADR-0004: Agent toolchain extensions — Context7 MCP と追加 Skill
+# ADR-0005: Agent toolchain extensions — Skills と Codex role canonical reference
 
 - 日付: 2026-08-23
 - 状態: Accepted
 - 対象: Tastile root workspace の AI agent 構成
-- 先行 ADR: [ADR-0001](./0001-agent-toolchain.md) (revise)
+- 先行 ADR: [ADR-0001](./0001-agent-toolchain.md) (revise), [ADR-0004](./0004-context7-mcp.md) (related, Context7 採用)
 
 ## Context
 
-ADR-0001 §「選定評価」で `Context7 / Serena / RTK` は保留としていた。本 ADR は
-2026-08-23 時点で Context7 を採用に切り替え、追加で `plugin-version-audit` Skill と
-`i18n-literal-guard` Skill (tastile-web) と Codex role canonical reference を導入する。
+ADR-0001 §「選定評価」で `Context7 / Serena / RTK` は保留としていた。
+ADR-0004 (2026-08-23) で Context7 MCP を採用に切り替え、ADR-0001 §「後続 ADR」
+セクションから双方向 reference を確立した。本 ADR は 2026-08-23 時点で
+`plugin-version-audit` Skill と `i18n-literal-guard` Skill (tastile-web) と
+Codex role canonical reference を導入する。Context7 の詳細は ADR-0004 を参照。
 Serena / RTK は引き続き保留。
 
-### 2026-08-23 時点で測定した gap
+### 2026-08-23 時点で測定した gap (Context7 以外)
 
-1. **Live library documentation**: Tastile の frontend (Next.js 16 / Mantine v9 /
-   Stripe v17 / Playwright 1.62 / Biome 1.9 / Knip 6 / Vitest 4 / openapi-typescript)
-   は training data cutoff 以降に更新されており、model knowledge と実装の差分が
-   drift を生む。release 前 / bump 後の手動 `npm view` 確認は読み取り専用 audit
-   では捕捉できない skill interface 差分を拾えない。
-2. **依存 version drift の定期 audit**: `scripts/audit-plugin-versions.mjs` で
-   JS / MCP の pinning drift は検出できるが、ADR-0001 §「選定評価」の
-   `Context7 / Serena / RTK` 保留判断以降、この capability が未整備のまま
-   半年以上経過した。release 直前に audit する Skill が正本 repository に
-   存在しない。
-3. **i18n literal policy §11 の自動 enforcement**: ADR-0003 で inline literal を
+1. **依存 version drift の定期 audit**: ADR-0004 (Context7 採用) により MCP の
+   drift 検出は `scripts/audit-plugin-versions.mjs` に追加されたが、JS package
+   drift の検出と release gate 連動はまだ未整備。ADR-0001 §「選定評価」の
+   `Context7 / Serena / RTK` 保留判断以降、release 前 audit capability が
+   正本 Skill として存在しない。
+2. **i18n literal policy §11 の自動 enforcement**: ADR-0003 で inline literal を
    i18n bundle 経由へ移送する decision は確定したが、移送後の drift / 新規追加
    を定期検出する read-only audit が tastile-web にない。手動 spot check では
    scale しない。
-4. **Codex role の正本 canonical reference**: `.codex/agents/*.toml` と
+3. **Codex role の正本 canonical reference**: `.codex/agents/*.toml` と
    `.claude/agents/*.md` の role 定義は個別に正本として機能するが、role 単位の
    routing / repair protocol は ADR に集約されていなかった。role 追加 / 削除 /
    統合時の参照点が必要。
 
 ## Decision
 
-### D-1. Context7 MCP を採用
-
-- 配置: `.mcp.json` (Claude Code / OpenCode 用) と `.codex/config.toml`
-  (Codex CLI 用) の両方に `@upstash/context7-mcp@4.0.3` を pinned で追加。
-- 起動: Bun 経由 (`bunx -y @upstash/context7-mcp@4.0.3`)。`@latest` を許可しない。
-- 用途: Next.js 16 / Mantine v9 / Stripe v17 等の live library documentation を
-  resolve-id ベースで取得。`rg` / `gh` / WebFetch と役割分担し、training data
-  drift が大きい library の API signature / option 確認に限定。
-- credential: 不要 (anonymous public registry)。repository に secret を持たない。
-
-### D-2. `plugin-version-audit` Skill と audit script を追加
+### D-1. `plugin-version-audit` Skill と audit script を追加
 
 - 配置: `.agents/skills/plugin-version-audit/SKILL.md` (canonical) と
   `scripts/audit-plugin-versions.mjs` (Bun runner)。
@@ -58,7 +45,7 @@ Serena / RTK は引き続き保留。
 - 禁止: `--write` モード禁止。発見した更新を自動 commit / push しない。screenshot
   / log を commit しない (`policy §30`)。結果は `.tmp/` 配下へ。
 
-### D-3. `i18n-literal-guard` Skill と audit script (tastile-web)
+### D-2. `i18n-literal-guard` Skill と audit script (tastile-web)
 
 - 配置: `tastile-web/.agents/skills/i18n-literal-guard/SKILL.md` (canonical) と
   `tastile-web/scripts/audit-i18n-literals.mts` (Bun runner)。
@@ -71,7 +58,7 @@ Serena / RTK は引き続き保留。
 - 禁止: `--fix` モード禁止。発見した literal を自動移送しない。違反の移送は
   Skill の workflow 経由で人間 / agent が i18n bundle へ。
 
-### D-4. Codex role canonical reference を追加
+### D-3. Codex role canonical reference を追加
 
 - 配置: `CODEX_ROLES.ja.md` (repository root, role 一覧 + repair protocol)。
 - 責務: `.codex/agents/*.toml` と `.claude/agents/*.md` で定義される role unit
@@ -82,16 +69,16 @@ Serena / RTK は引き続き保留。
 - 初回対象 role: `sol-supervisor`, `terra-inspector`, `luna-implementer`,
   `tastile-verifier`, `cross-repo-contract-reviewer`。
 
-### D-5. ADR-0001 への back-reference
+### D-4. ADR-0001 への back-reference
 
-ADR-0001 §「選定評価」の Context7 行を revise し、Serena / RTK は継続保留。
-ADR-0001 §「後続 ADR」セクションに本 ADR を記載。両方向 reference を残す。
+ADR-0001 §「選定評価」の Context7 行を revise (ADR-0004 と相互参照)、Serena /
+RTK は継続保留。ADR-0001 §「後続 ADR」セクションに本 ADR と ADR-0004 を記載。
+三方向 reference を残す。
 
 ## 選定評価
 
 | 候補 | 判断 | 理由 |
 | --- | --- | --- |
-| Context7 MCP 4.0.3 | 採用 | live library documentation を resolve-id ベースで取得。Next.js 16 / Mantine v9 / Stripe v17 の training data drift を測定可能な形で補う。anonymous registry 利用で credential 不要。Apache-2.0、official 公開 |
 | plugin-version-audit Skill + script | 採用 | ADR-0001 §「選定評価」で保留以来 capability gap が半年以上未解決。release 直前の drift 検出は policy §27 (自動 quality gate) と整合 |
 | i18n-literal-guard Skill + script | 採用 | ADR-0003 の policy を enforcement する read-only audit が必要。手動 spot check では scale しない |
 | CODEX_ROLES canonical reference | 採用 | role 定義の routing / repair 一元化。新規 role 追加時の参照点として機能 |
@@ -102,26 +89,23 @@ ADR-0001 §「後続 ADR」セクションに本 ADR を記載。両方向 refer
 
 ## Security、license、再現性
 
-Context7 MCP は anonymous public registry を利用し credential を保持しない。
-version は `.mcp.json` / `.codex/config.toml` に pinned し、`@latest` を許可しない
-(ADR-0001 §「Security、license、再現性」)。`scripts/audit-plugin-versions.mjs` で
-毎回 drift を観測可能。fresh clone 後、Bun と PowerShell があれば audit script と
-Skills を再現できる。
+Context7 MCP の security / license 詳細は ADR-0004 を参照。本 ADR の追加物は
+すべて project-local で credential を持たず、fresh clone 後に Bun と PowerShell
+があれば再現できる。`scripts/audit-plugin-versions.mjs` の検出対象に追加した
+package は各 child の lockfile を正本とし、`@latest` を許可しない
+(ADR-0001 §「Security、license、再現性」継続)。
 
 ## Consequences and re-evaluation
 
 ### 直接的な影響
 
-- agent は Next.js 16 / Mantine v9 / Stripe v17 等で current API signature /
-  option を resolve-id で取得可能。誤った training data に基づく実装を防ぐ。
-- release 前 / bump 直前に drift を検出する read-only audit が稼働。
+- release 前 / bump 直前に JS / MCP drift を検出する read-only audit が稼働。
 - tastile-web の policy §11 違反を定期検出できる。
-- Codex role 定義の参照点が一元化。
+- Codex role 定義の参照点が一元化され、role 追加 / 削除 / 統合時の drift を
+  ADR と本文書で抑止できる。
 
 ### トレードオフ
 
-- Context7 MCP は library 1 件あたり外部 round-trip を発生させる。broad な query
-  ではなく、resolve-id を明示した targeted lookup に限定する (Skill 経由)。
 - `plugin-version-audit` は network 依存。offline / firewall 環境では `BLOCKED`
   (exit 2) になる。
 - `i18n-literal-guard` は heuristic (CJK pattern + line class) であり、false
@@ -130,9 +114,6 @@ Skills を再現できる。
 
 ### 再評価 trigger
 
-- Context7 MCP の security advisory / license 変更 / anonymous 利用制限 / resolve
-  API breaking change 発生時、または native MCP (Claude / Codex) の built-in
-  documentation capability で代替可能になったとき再評価。
 - `plugin-version-audit` が他言語 (Rust / Kotlin / C#) の audit 対象拡大を要求
   する段階で別 ADR。
 - `i18n-literal-guard` が false positive 率を許容できないレベルで誤検知する
@@ -142,11 +123,15 @@ Skills を再現できる。
 
 ### 関連 ADR / 関連 Skill
 
-- [ADR-0001](./0001-agent-toolchain.md): 先行 ADR (revise)。Context7 行を更新。
+- [ADR-0001](./0001-agent-toolchain.md): 先行 ADR (revise)。Context7 行を
+  ADR-0004 と関連付けて更新。
+- [ADR-0004](./0004-context7-mcp.md): Context7 採用。本 ADR の D-1 (audit script)
+  に detection target として context7-mcp を追加する。
 - [ADR-0003](./0003-i18n-inline-literal-remediation.md): i18n policy §11 の decision。
-  本 ADR の D-3 はその enforcement。
+  本 ADR の D-2 はその enforcement。
 - `.agents/skills/cross-repo-contract-check/`: 複数 child contract 変更時の検証。
 - `.agents/skills/verify-tastile-change/`: PASS / DONE / GREEN 宣言前の binding
-  verification。本 ADR の D-2 はその前段。
+  verification。本 ADR の D-1 はその前段。
 - `.agents/skills/tastile-precommit-review/`: agent-initiated commit 直前の独立
   review。本 ADR の追加 Skill 群と並列に catalog に追加。
+- `CODEX_ROLES.ja.md`: 本 ADR の D-3 が導入する canonical reference。
