@@ -10,3 +10,10 @@ args = [
     "--no-performance-crux",
     "--no-usage-statistics",
 ]
+
+[mcp_servers.context7]
+command = "bunx"
+args = [
+    "-y",
+    "@upstash/context7-mcp@4.0.3",
+]
