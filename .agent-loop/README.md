@@ -45,7 +45,6 @@ into separate tool calls.
 
 - Claude Code: `.claude/settings.json`
 - Codex: `.codex/hooks.json`
-- OpenCode: `.opencode/plugins/tastile-precommit-review.js`
 - Shared stdin adapter: `Invoke-AgentHook.ps1`
 - Review engine: `Invoke-PreCommitReview.ps1`
 - Repository catalog: `repositories.json`
@@ -53,6 +52,10 @@ into separate tool calls.
 Codex project hooks require trusting the project hook definition. Inspect and
 trust it with `/hooks`. Restart/new-session behavior may be required after
 changing hook or plugin files.
+
+The legacy OpenCode plugin (`.opencode/plugins/tastile-precommit-review.js`)
+was retired in commit `7ca1fed`; Claude Code and Codex share the same engine
+and the OpenCode caller routes through Codex's reviewer pool.
 
 ## Prerequisites
 
