@@ -15,7 +15,15 @@ function Assert-True([bool]$Condition, [string]$Message) {
 }
 
 foreach ($repository in $catalog.repositories) {
-    $skillPath = Join-Path (Join-Path $root $repository.path) $repository.skill
+    $repoPath = Join-Path $root ([string]$repository.path)
+    if (-not (Test-Path -LiteralPath $repoPath -PathType Container)) {
+        # Catalog entries whose path is not present on this host (e.g. WSL clones
+        # of the canonical repositories, which only exist inside the wslc
+        # containers) are out of scope for the local structural check. The
+        # engine still resolves them when commits happen inside the container.
+        continue
+    }
+    $skillPath = Join-Path $repoPath $repository.skill
     Assert-True (Test-Path -LiteralPath $skillPath) "Review skill is missing: $skillPath"
     $content = Get-Content -Raw -LiteralPath $skillPath
     $frontmatter = [regex]::Match($content, '(?s)^---\r?\n(.+?)\r?\n---')
