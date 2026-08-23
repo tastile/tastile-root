@@ -51,7 +51,8 @@ lockfile と workspace member による構成を定義している。既存 chil
 | postgres-mcp | 不採用 | `psql` と integration test で決定論的に代替可能。Python runtime と追加 credential surface が必要 |
 | Superpowers | 不採用 | 現在の design-first / review Skills と重複し、bundle 導入の追加価値が未確認 |
 | persistent memory | 不採用 | repository の design、ADR、Skill を project truth とし、hidden state を増やさない |
-| Context7 / Serena / RTK | 保留 | 現在の repository source、LSP、`rg`、CLI output で測定上の不足がない |
+| Context7 | 採用 → ADR-0004 | Next.js 16 / Mantine v9 / Stripe v17 等の training-data drift 対策として 2026-08-23 に採用 |
+| Serena / RTK | 保留 | 測定上の不足なし。Serena は symbol-level navigation で measured benefit が出たら再評価 |
 
 ## Security、license、再現性
 
@@ -68,3 +69,8 @@ Chrome DevTools MCP の security advisory、license、保守停止、Chrome 非�
 browser だけで同等の deterministic evidence が得られる状態になったとき再評価する。AWS / DB
 CLI で schema discovery が反復的な bottleneck と測定された場合だけ、read-only integration の
 再導入を別 ADR で検討する。
+
+## 後続 ADR
+
+- ADR-0004 (2026-08-23, Accepted): 本 ADR の `Context7` 行を revise。`@upstash/context7-mcp@4.0.3` を
+  live library documentation の正本として採用。Serena / RTK は引き続き保留。
