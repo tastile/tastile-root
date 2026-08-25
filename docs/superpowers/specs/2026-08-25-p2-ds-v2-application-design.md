@@ -71,7 +71,7 @@ P2b (Sweep: 150 tsx を 4 batch で掃討)
 P2c (Focus: A11y redesign)
   ├─ :focus-visible + --focus-ring を全 interactive に適用
   ├─ Playwright assertion: Tab 後の outline-width === '2px'
-  └─ Optional: prefer-focus-visible ESLint rule
+  └─ Optional (推奨): prefer-focus-visible ESLint rule
 ```
 
 ### Token / class mapping table（P2b で使用）
@@ -186,7 +186,7 @@ P2 固有の追加制約:
 
 | Gate | P2a | P2b (各 batch) | P2c |
 |---|---|---|---|
-| 新 ESLint 3 rules firing | 0 in own files | 0 in all tsx | 0 in all tsx |
+| 新 ESLint 3 rules firing | 0 (P2a は新規 tsx を追加しないため firing 対象なし) | 0 in all tsx | 0 in all tsx |
 | `bun run typecheck` | 0 error | 0 error | 0 error |
 | `bun run lint:ds` (`check-ds-coverage.mts`) | OK | OK | OK |
 | `bun run lint:theme` (P1 script) | OK | OK | OK |
@@ -197,7 +197,7 @@ P2 固有の追加制約:
 加えて:
 
 - 各 batch 末で main branch の `git status --short` を確認し、16 pre-existing modified files が unchanged であることを verify
-- Playwright visual smoke: dashboard / timeline / create-tile 各 page の screenshot を manual で確認（visual regression 基盤は P3 以降）
+- Playwright visual smoke: dashboard / timeline / create-tile 各 page の screenshot を manual で確認（visual smoke = owner の目視確認。visual regression フレームワーク = 自動 baseline diff、後者は P3 以降の選択肢）
 
 ## Known Risks
 
@@ -205,7 +205,7 @@ P2 固有の追加制約:
 2. **Dark mode parity** — 6 テーマセレクタ全てに `--focus-ring` 等が cascade されることを `check-theme-coverage.mts` (P1) + `check-ds-coverage.mts` (P2) で guarantee
 3. **Mantine 未監査 component** — Accordion / Tabs / Slider / Stepper / ScrollArea が内部 shadow を持つ可能性。P2a implementer が survey し、必要なら defaultProps 追加
 4. **150 files の一括 churn** — batch 分割で緩和するが、batch 4 (105 files) は大きい。途中で ESLint 違反が累積しないよう、各 batch 内は per-file commit + per-batch gate とする
-5. **focus-visible の browser 互換** — 主要 browser は `:focus-visible` を native サポート（Safari 15.4+ / Chrome 86+ / Firefox 85+）。Mantine 9 はこれを採用。問題あれば `:focus` に fallback（ただし mouse click 時に focus ring が一瞬出る a11y regression を受容）
+5. **focus-visible の browser 互換** — 主要 browser は `:focus-visible` を native サポート（Safari 15.4+ / Chrome 86+ / Firefox 85+）。Mantine 9 はこれを採用。Tastile は主要 browser のみサポート対象のため native `:focus-visible` を採用。古い browser（IE11 等）は非対応だが、Tastile の EOL browser 方針で許容
 6. **Playwright `border-width === '0px'`** — `border-width` shorthand は computed style で `'0px'` を返す。`getComputedStyle(el).borderWidth === '0px'` で assertion する
 
 ## Out of Scope (Reaffirmed)
