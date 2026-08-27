@@ -26,7 +26,6 @@ resource "aws_kms_key" "sops_env" {
         Principal = { AWS = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/aws-reserved/sso.amazonaws.com/ap-northeast-1/*" }
         Action   = ["kms:Decrypt", "kms:DescribeKey"]
         Resource = "*"
-        Condition = { StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" } }
       },
       {
         Sid    = "DecryptForEC2"
