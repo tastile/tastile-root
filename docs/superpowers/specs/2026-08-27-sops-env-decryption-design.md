@@ -350,7 +350,7 @@ AWS SSM / Secrets Manager との関係:
 | `sops` binary 不在 | `command -v sops` | exit 2 + "sops not installed; see runbook" | job 失敗 | install 手順 docs |
 | AWS credentials 不在 | `STS.GetCallerIdentity` (loader 冒頭で呼ぶ) | exit 3 + "AWS credentials not configured" | job 失敗 | `aws sso login` / IAM role 確認 |
 | KMS key policy で deny | `KMSClient.decrypt` が `AccessDeniedException` | exit 4 + KMS ARN を表示 | job 失敗 | KMS key policy 修正 / principal 追加 |
-| KMS API throttle | `KMSClient.decrypt` が `ThrottlingException` | exponential backoff (max 3 retry) | 自動 retry | 連続失敗なら key policy 確認 |
+| KMS API throttle | `KMSClient.decrypt` が `ThrottlingException` | loader relies on sops internal AWS-SDK retry (default ~3 attempts, exponential backoff); loader itself has no retry code | sops 内 retry 失敗で exit non-zero → job 失敗 | 連続失敗なら key policy 確認 / step 2 の cache を併用 |
 | `.env.<env>.sops` 不在 | loader が source file 未発見 | exit 5 + 該当 path 一覽 | job 失敗 | decrypt job の `inputs.env` 確認 |
 | decrypt 結果が空 / parse error | loader が `.env` parser で key 0 個 | exit 6 + decrypt 結果 size | job 失敗 | `.env.<env>` の中身確認 |
 | KMS Encrypt 権限不足 (developer local) | `sops --encrypt` が `AccessDeniedException` | shell exit code 透過 | N/A | IAM user / SSO role に KMS Encrypt 追加 |

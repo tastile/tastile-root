@@ -16,10 +16,14 @@ If CI fails with `ThrottlingException: KMS.Decrypt`:
    file across jobs in the same workflow run via `actions/cache@v4` keyed on
    the sops file SHA256.
 
-3. **Exponential backoff**
+3. **Reliance on sops internal retry**
 
-   The loader retries up to 3 times with exponential backoff (1s, 2s, 4s). If
-   exhausted, the job fails.
+   The loader itself has no retry code; it relies on sops's bundled AWS-SDK
+   retry (default ~3 attempts with exponential backoff) for transient
+   `ThrottlingException`. If sops's internal retry is exhausted, the loader
+   exits non-zero and the systemd unit / CI job fails. For persistent
+   throttling, follow step 4 (quota increase) or step 2 (cache the decrypted
+   file across jobs in the same workflow run via `actions/cache@v4`).
 
 4. **Quota increase**
 
