@@ -53,7 +53,7 @@ export async function assertCredentials(region: string): Promise<string> {
   }
 }
 
-export function decryptOne(source: string, target: string, cfg: SopsEnvConfig, callerArn: string): Promise<DecryptResult> {
+export function decryptOne(source: string, target: string, cfg: SopsEnvConfig, callerArn: string, cliCheck: boolean): Promise<DecryptResult> {
   return new Promise<DecryptResult>((resolvePromise, reject) => {
     const child = spawn("sops", ["--decrypt", source], { stdio: ["ignore", "pipe", "pipe"] });
     const out: Buffer[] = [];
@@ -65,7 +65,7 @@ export function decryptOne(source: string, target: string, cfg: SopsEnvConfig, c
       if (code !== 0) {
         return reject(die(4, `sops --decrypt ${source} exited ${code}; stderr=${Buffer.concat(err).toString()}`));
       }
-      if (cfg.check) {
+      if (cfg.check || cliCheck) {
         const size = Buffer.concat(out).length;
         return resolvePromise({ source, target, env: "", kmsArn: cfg.kmsKeyArn, callerArn, ts: new Date().toISOString(), size });
       }
@@ -109,7 +109,7 @@ async function main(): Promise<void> {
 
   const pairs = cfg.sourceFiles.map((src, i) => ({ src, dst: cfg.targetFiles[i] }));
   for (const { src, dst } of pairs) {
-    const result = await decryptOne(src, dst, cfg, callerArn);
+    const result = await decryptOne(src, dst, cfg, callerArn, check);
     result.env = env;
     process.stdout.write(JSON.stringify({ event: "decrypt", ...result }) + "\n");
   }

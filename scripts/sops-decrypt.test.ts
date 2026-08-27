@@ -47,7 +47,7 @@ describe("decryptOne", () => {
     const PATH_BACKUP = process.env.PATH;
     process.env.PATH = `${dir}${delimiter}${PATH_BACKUP}`;
     const cfg = loadConfig("development");
-    const result = await decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test");
+    const result = await decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test", false);
     expect(existsSync(dst)).toBe(true);
     // Unix file modes aren't honored on Windows (ACL-based); check owner r/w bit
     expect((statSync(dst).mode & 0o600)).toBe(0o600);
@@ -66,7 +66,7 @@ describe("decryptOne", () => {
     const PATH_BACKUP = process.env.PATH;
     process.env.PATH = `${dir}${delimiter}${PATH_BACKUP}`;
     const cfg = loadConfig("development");
-    await expect(decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test")).rejects.toThrow();
+    await expect(decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test", false)).rejects.toThrow();
     process.env.PATH = PATH_BACKUP;
   });
 });
