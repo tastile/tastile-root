@@ -107,8 +107,26 @@ async function main(): Promise<void> {
     await kms.send({ DescribeKeyCommand: undefined as never } as never); // placeholder; replaced in Task 3
   } catch { /* DescribeKey omitted in v1; rely on sops to surface Decrypt failures */ }
 
+  await processSourceFiles(cfg, callerArn, env, check);
+}
+
+export async function processSourceFiles(
+  cfg: SopsEnvConfig,
+  callerArn: string,
+  env: string,
+  check: boolean,
+): Promise<void> {
   const pairs = cfg.sourceFiles.map((src, i) => ({ src, dst: cfg.targetFiles[i] }));
   for (const { src, dst } of pairs) {
+    try {
+      await stat(src);
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") {
+        process.stderr.write(`[sops-decrypt] skip ${src}: file not found\n`);
+        continue;
+      }
+      throw die(4, `stat ${src} failed: ${(e as Error).message}`);
+    }
     const result = await decryptOne(src, dst, cfg, callerArn, check);
     result.env = env;
     process.stdout.write(JSON.stringify({ event: "decrypt", ...result }) + "\n");

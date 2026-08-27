@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach, mock, spyOn } from "bun:test";
-import { parseArgs, loadConfig, decryptOne } from "./sops-decrypt";
+import { parseArgs, loadConfig, decryptOne, processSourceFiles } from "./sops-decrypt";
+import type { SopsEnvConfig } from "./sops.config";
 import { mkdtempSync, writeFileSync, existsSync, statSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, delimiter } from "node:path";
@@ -68,5 +69,33 @@ describe("decryptOne", () => {
     const cfg = loadConfig("development");
     await expect(decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test", false)).rejects.toThrow();
     process.env.PATH = PATH_BACKUP;
+  });
+});
+
+describe("processSourceFiles", () => {
+  let dir: string;
+  beforeEach(() => { dir = mkdtempSync(join(tmpdir(), "sops-test-")); });
+  it("decryptOne_missing_source_emits_warning_and_continues", async () => {
+    const cfg = loadConfig("development");
+    const stub: SopsEnvConfig = {
+      ...cfg,
+      sourceFiles: [join(dir, "definitely-missing.sops")],
+      targetFiles: [join(dir, "definitely-missing.env")],
+    };
+    const stderrChunks: Buffer[] = [];
+    const originalWrite = process.stderr.write.bind(process.stderr);
+    (process.stderr as { write: (chunk: string | Uint8Array, ...args: unknown[]) => boolean }).write = (chunk) => {
+      stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      return true;
+    };
+    try {
+      await processSourceFiles(stub, "arn:aws:iam::123:role/test", "development", false);
+    } finally {
+      process.stderr.write = originalWrite;
+    }
+    const stderrOutput = Buffer.concat(stderrChunks).toString();
+    expect(stderrOutput).toContain("[sops-decrypt] skip ");
+    expect(stderrOutput).toContain("file not found");
+    expect(stderrOutput).toContain("definitely-missing.sops");
   });
 });
