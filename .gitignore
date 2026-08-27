@@ -73,3 +73,8 @@ desktop.ini
 
 # Legacy tile-create-e2e-wiring (moved to tastile-web/docs/plans and tastile-core/docs/plans on 2026-08-04)
 /tile-create-e2e-wiring/
+
+# Terraform (infra/sops/)
+infra/sops/*.tfplan
+infra/sops/.terraform/
+infra/sops/.terraform-outputs.json
