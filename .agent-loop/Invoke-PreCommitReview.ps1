@@ -223,6 +223,13 @@ function Invoke-Process {
     $startInfo.RedirectStandardOutput = $true
     $startInfo.RedirectStandardError = $true
     $startInfo.RedirectStandardInput = $true
+    # Force UTF-8 for child stdout/stderr so multi-byte content (e.g. git diff
+    # of non-ASCII files) round-trips losslessly through [string]. Without
+    # these the OS default code page (CP932 / Shift_JIS on JP Windows) is
+    # used, which silently mangles UTF-8 sequences and produces a corrupt
+    # patch when the diff is later piped back into git apply.
+    $startInfo.StandardOutputEncoding = [System.Text.Encoding]::UTF8
+    $startInfo.StandardErrorEncoding = [System.Text.Encoding]::UTF8
     foreach ($argument in $actualArguments) { [void]$startInfo.ArgumentList.Add([string]$argument) }
 
     $process = [System.Diagnostics.Process]::new()
