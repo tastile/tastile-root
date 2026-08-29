@@ -1,0 +1,3 @@
+[submodule "openapi"]
+	path = openapi
+	url = file:///c/Users/rebui/Desktop/tastile/.reference/tastile-openapi-spec.git
