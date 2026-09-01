@@ -71,6 +71,9 @@ desktop.ini
 !.env.development.example
 !.env.production.example
 
+# sops loader dev install (Task 2 left this untracked; `bun add --no-save`)
+node_modules/
+
 # Legacy tile-create-e2e-wiring (moved to tastile-web/docs/plans and tastile-core/docs/plans on 2026-08-04)
 /tile-create-e2e-wiring/
 
@@ -78,6 +81,3 @@ desktop.ini
 infra/sops/*.tfplan
 infra/sops/.terraform/
 infra/sops/.terraform-outputs.json
-
-# sops loader dev install (Task 2 left this untracked; bun add --no-save)
-node_modules/

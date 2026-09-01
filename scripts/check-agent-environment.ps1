@@ -60,6 +60,7 @@ $requiredFiles = @(
     "CODEX_ROLES.ja.md",
     "docs/adr/0001-agent-toolchain.md",
     "docs/adr/0004-context7-mcp.md",
+    "docs/adr/0005-skills-and-mcp-extensions.md",
     "scripts/audit-plugin-versions.mjs",
     "tastile-web/.agents/skills/i18n-literal-guard/SKILL.md",
     "tastile-web/scripts/audit-i18n-literals.mts"

@@ -74,3 +74,5 @@ CLI で schema discovery が反復的な bottleneck と測定された場合だ�
 
 - ADR-0004 (2026-08-23, Accepted): 本 ADR の `Context7` 行を revise。`@upstash/context7-mcp@4.0.3` を
   live library documentation の正本として採用。Serena / RTK は引き続き保留。
+- ADR-0005 (2026-08-23, Accepted): 本 ADR の `plugin-version-audit` / `i18n-literal-guard` /
+  `CODEX_ROLES` 拡張を revise。Context7 は ADR-0004 を参照し、本 ADR は Skills 拡張のみを扱う。
