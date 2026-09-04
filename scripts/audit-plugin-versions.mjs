@@ -3,14 +3,26 @@
 // Plugin / runtime version audit script.
 //
 // Read-only audit of pinned dependencies in the Tastile workspace.
-// - Reads .mcp.json, .codex/config.toml, and tastile-web/package.json
-// - Compares each pinned version against npm view <pkg> version
-// - Emits a deterministic report; never writes to any file
+// - npm ecosystem (web / MCP): reads .mcp.json, .codex/config.toml,
+//   tastile-web/package.json, and compares each pinned version against
+//   `npm view <pkg> version` (existing 11-target set)
+// - cargo ecosystem (core): reads tastile-core/crates-v1/Cargo.toml
+//   [workspace.dependencies] and dumps pinned versions (no network resolution;
+//   `cargo search` integration is deferred to CI per docs/kiban/deps-bump-log)
+// - gradle ecosystem (android): reads tastile-android/build.gradle.kts,
+//   tastile-android/app/build.gradle.kts, and
+//   tastile-android/app/lint-rules/build.gradle.kts; dumps pinned versions
+//   (Maven Central / Google Maven drift check deferred to CI)
+// - nuget ecosystem (desktop): reads tastile-desktop/**/*.csproj
+//   <PackageReference> elements and dumps pinned versions
+//   (NuGet drift check deferred to CI)
 //
 // Exit codes:
-//   0 = PASS — all pinned versions match latest, or no network resolution
-//   1 = OUTDATED — at least one pinned version is behind latest
+//   0 = PASS — all npm/MCP pinned versions match latest, or no network resolution
+//   1 = OUTDATED — at least one npm/MCP pinned version is behind latest
 //   2 = BLOCKED — external prerequisite (network, npm registry) unreachable
+//
+// The cargo/gradle/nuget sections never affect exit codes (info-only).
 //
 // Per policy §30, never writes report files into the repository root.
 // Stdout-only output. Caller can redirect to .tmp/audit-plugin-versions.json.
@@ -44,6 +56,114 @@ async function readJson(relativePath) {
 
 async function readText(relativePath) {
   return readFile(path.join(repoRoot, relativePath), "utf8");
+}
+
+// ---- cargo (tastile-core/crates-v1/Cargo.toml) ----
+//
+// Reads [workspace.dependencies] entries. Skips `path = "..."` deps
+// (workspace-internal crates; kiban-substrate, domain, storage, api,
+// worker, cli — they have no external latest to compare against).
+async function readCargoWorkspaceDeps() {
+  const file = "tastile-core/crates-v1/Cargo.toml";
+  const text = await readText(file).catch(() => null);
+  if (!text) return { source: file, deps: [] };
+  const lines = text.split(/\r?\n/);
+  let inSection = false;
+  const deps = [];
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (line.startsWith("[") && line.endsWith("]")) {
+      inSection = line === "[workspace.dependencies]";
+      continue;
+    }
+    if (!inSection || !line || line.startsWith("#")) continue;
+    // Match either `<name> = "X.Y.Z"` or `<name> = { version = "X.Y.Z", ... }`
+    const simple = line.match(/^([a-zA-Z0-9_-]+)\s*=\s*"([^"]+)"\s*$/);
+    if (simple) {
+      deps.push({ name: simple[1], version: simple[2] });
+      continue;
+    }
+    const inline = line.match(/^([a-zA-Z0-9_-]+)\s*=\s*\{([^}]+)\}\s*$/);
+    if (inline) {
+      const inner = inline[2];
+      const verMatch = inner.match(/version\s*=\s*"([^"]+)"/);
+      const pathMatch = inner.match(/path\s*=\s*"([^"]+)"/);
+      if (pathMatch && !verMatch) continue; // workspace-internal
+      if (verMatch) {
+        const featuresMatch = inner.match(/features\s*=\s*\[([^\]]*)\]/);
+        const features = featuresMatch
+          ? Array.from(featuresMatch[1].matchAll(/"([^"]+)"/g)).map((m) => m[1])
+          : [];
+        deps.push({ name: inline[1], version: verMatch[1], features });
+      }
+    }
+  }
+  return { source: file, deps };
+}
+
+// ---- gradle (tastile-android/**/*.gradle.kts) ----
+//
+// Walks the listed build files and extracts literal version strings of the
+// shape `"X.Y.Z"`, `"X.Y"`, or `"X.Y.Z-rcN"`. Keeps the first literal per
+// `group:name = "..."` token; treats everything else as a comment / config
+// block. Drift check is deferred to Maven Central / Google Maven via CI.
+async function readGradleVersions() {
+  const files = [
+    "tastile-android/build.gradle.kts",
+    "tastile-android/app/build.gradle.kts",
+    "tastile-android/app/lint-rules/build.gradle.kts",
+  ];
+  const out = [];
+  for (const rel of files) {
+    const text = await readText(rel).catch(() => null);
+    if (!text) {
+      out.push({ source: rel, deps: [], note: "missing" });
+      continue;
+    }
+    const deps = [];
+    // Match `group = "x.y.z"`, `version = "x.y.z"`, `"group:artifact:x.y.z"`
+    const seen = new Set();
+    const literalRe = /"([0-9]+(?:\.[0-9]+){0,2}(?:-[a-zA-Z0-9.-]+)?)"/g;
+    for (const match of text.matchAll(literalRe)) {
+      const v = match[1];
+      if (seen.has(v)) continue;
+      // Heuristic: only record versions that look like a stable/pre-release
+      // semantic version with at least two numeric segments.
+      if (!/^\d+\.\d+/.test(v)) continue;
+      seen.add(v);
+      deps.push({ name: "literal", version: v });
+    }
+    out.push({ source: rel, deps });
+  }
+  return out;
+}
+
+// ---- nuget (tastile-desktop/**/*.csproj) ----
+//
+// Extracts <PackageReference Include="..." Version="..." /> from listed
+// .csproj files. Skips project references and Version-less refs.
+// Drift check deferred to NuGet API via CI.
+async function readNuGetReferences() {
+  const out = [];
+  const csprojFiles = [
+    "tastile-desktop/src/TastileDesktop/TastileDesktop.csproj",
+    "tastile-desktop/tests/TastileDesktop.Tests/TastileDesktop.Tests.csproj",
+  ];
+  for (const rel of csprojFiles) {
+    const text = await readText(rel).catch(() => null);
+    if (!text) {
+      out.push({ source: rel, deps: [], note: "missing" });
+      continue;
+    }
+    const deps = [];
+    const pkgRe =
+      /<PackageReference\s+Include="([^"]+)"\s+Version="([^"]+)"\s*\/>/g;
+    for (const match of text.matchAll(pkgRe)) {
+      deps.push({ name: match[1], version: match[2] });
+    }
+    out.push({ source: rel, deps });
+  }
+  return out;
 }
 
 function extractMcpPinnedVersion(mcpJson, packageName) {
@@ -145,6 +265,20 @@ async function main() {
   let outdatedCount = 0;
   let blockedCount = 0;
 
+  // Info-only pinned dumps (cargo / gradle / nuget). These never affect exit
+  // codes; they exist so the audit output doubles as a baseline inventory.
+  const cargo = await readCargoWorkspaceDeps().catch((err) => ({
+    source: "tastile-core/crates-v1/Cargo.toml",
+    deps: [],
+    error: String(err?.message ?? err),
+  }));
+  const gradle = await readGradleVersions().catch((err) => ({
+    error: String(err?.message ?? err),
+  }));
+  const nuget = await readNuGetReferences().catch((err) => ({
+    error: String(err?.message ?? err),
+  }));
+
   for (const target of targets) {
     const pinnedRaw = await resolvePinned(target).catch(() => null);
     const pinned = stripRange(pinnedRaw);
@@ -180,6 +314,11 @@ async function main() {
     auditedAt: now,
     repoRoot,
     targets: results,
+    pinnedInventory: {
+      cargo,
+      gradle,
+      nuget,
+    },
     summary: {
       total: targets.length,
       current: targets.length - outdatedCount - blockedCount,
