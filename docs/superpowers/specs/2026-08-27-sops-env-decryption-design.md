@@ -1,11 +1,13 @@
+<!-- 日本語訳 / Translation -->
+
 # sops + AWS KMS による .env 復号とデフォルトブランチ develop 移行
 
-- **Date**: 2026-08-27
-- **Status**: Draft (awaiting user review)
-- **Scope**: tastile-root workspace (4 child repos + workspace contract)
-- **Bundled**: default branch `main` → `develop` migration
+- **日付**: 2026-08-27
+- **ステータス**: Draft (awaiting user review)
+- **スコープ**: tastile-root workspace (4 child repos + workspace contract)
+- **バンドル**: default branch `main` → `develop` migration
 
-## Context
+## 背景
 
 `AGENTS.md` の規約は「実値は `.env`、`.env.development`、`.env.production` のみへ置き、commit しない。schema は対応する `*.example` に置く」と定めている。現在、production は AWS SSM Parameter Store / Secrets Manager + systemd EnvironmentFile で運用されており、developer 手元と CI は平文 `.env.*` ファイルに依存している (memory: `tastile-web required env vars`, `TASTILE_WEB_BRIDGE_SECRET drift`)。
 
@@ -17,7 +19,7 @@
 
 本 design は sops + AWS KMS による file-level envelope encryption を dev / CI / production に導入し、AWS SSM / Secrets Manager と並列運用する。さらに bundled scope として default branch を `main` → `develop` へ移行する。
 
-## Goals
+## 目標
 
 - `.env.<env>.sops` を canonical とし、plain text `.env.<env>` は gitignore して loader が起動時に復元する
 - AWS KMS を per-environment で分離し、blast radius を env で閉じる
@@ -31,14 +33,14 @@
 - 平文 `.env.<env>` は引き続き gitignore (AGENTS.md 不変条件と一致)
 - 本 design 後に AGENTS.md に「暗号化された canonical は `.env.<env>.sops`、loader で復号した plain の `.env.<env>` は一時物として `.tmp/` または gitignore 配下に置く」旨を追記するかは別途 user と判断
 
-## Non-Goals
+## 非目標
 
 - AWS SSM Parameter Store / Secrets Manager の撤廃 (production hot path として並列維持)
 - KMS key の on-demand rotation policy 自動化 (将来 ADR で扱う)
 - `tastile-android` の `.env` 化 (Gradle BuildConfig / `local.properties` 経由のため scope 外)
 - `@sops/sdk` (experimental) の採用 — 安定性優先で v1 は `sops` CLI
 
-## In-Scope
+## 対象範囲
 
 - `tastile-core` / `tastile-web` / `tastile-desktop` の `.env.*.sops` 化
 - `scripts/sops-decrypt.ts` + `scripts/sops.config.ts` を各 repo に配置
@@ -50,14 +52,14 @@
 - CI workflow の branch filter 更新
 - ADR を各 repo に `docs/adr/000N-default-branch-develop.md` として作成
 
-## Out-of-Scope
+## 対象外
 
 - production deploy 経路の変更 (systemd EnvironmentFile は引き続き AWS SSM が source of truth、`.env.<env>` は補助)
 - `tastile-android` の BuildConfig 統合
 - KMS key の cross-region replication
 - audit log の長期保存 (CloudTrail 既定の 90 日を超える保持は別 ticket)
 
-## Confirmed Decisions
+## 確定した決定事項
 
 | # | 項目 | 選択 |
 |---|---|---|
@@ -71,9 +73,9 @@
 | 8 | bundled scope | main → develop デフォルトブランチ移行 |
 | 9 | file 形式 | file-level envelope (Candidate A) |
 
-## Design
+## 設計
 
-### 1. Architecture & File Layout
+### 1. アーキテクチャとファイル配置
 
 #### 全体像
 
@@ -125,24 +127,29 @@ export const config: Record<string, SopsEnvConfig> = {
     awsRegion: "ap-northeast-1",
     kmsKeyArn:
       "arn:aws:kms:ap-northeast-1:111111111111:key/<development-key-id>",
-    sourceFiles: [".env.development.sops", ".env.dev.sops"],
-    targetFiles: [".env.development", ".env.dev"],
+    pairs: [
+      { source: ".env.development.sops", target: ".env.development" },
+      { source: ".env.dev.sops", target: ".env.dev" },
+    ],
     identityHint: "sso",
   },
   staging: {
     awsRegion: "ap-northeast-1",
     kmsKeyArn:
       "arn:aws:kms:ap-northeast-1:111111111111:key/<staging-key-id>",
-    sourceFiles: [".env.staging.sops"],
-    targetFiles: [".env.staging"],
+    pairs: [
+      { source: ".env.staging.sops", target: ".env.staging" },
+    ],
     identityHint: "oidc",
   },
   production: {
     awsRegion: "ap-northeast-1",
     kmsKeyArn:
       "arn:aws:kms:ap-northeast-1:111111111111:key/<production-key-id>",
-    sourceFiles: [".env.production.sops", ".env.product.sops"],
-    targetFiles: [".env.production", ".env.product"],
+    pairs: [
+      { source: ".env.production.sops", target: ".env.production" },
+      { source: ".env.product.sops", target: ".env.product" },
+    ],
     identityHint: "instance-profile",
   },
 };
@@ -156,7 +163,7 @@ export const config: Record<string, SopsEnvConfig> = {
 2. AWS SDK for JavaScript v3 (`@aws-sdk/client-kms`) で `KMSClient` を作成、default credential provider chain を使う
 3. `sops` CLI を child process として spawn
 4. `.env.*.sops` を読み、復号結果を `.env.*` へ書き出す (mode 0600)
-5. 復号成功時に stdout へ audit log (`{ timestamp, env, keyArn tail, source, target }`) を出力
+5. 復号成功時に stdout へ audit log (`{ ts, event: "decrypt", env, source, target, kms_arn, aws_caller_arn }`) を出力
 6. 失敗時は非 0 exit + 人間可読 error (どの source / target / KMS call が失敗したか)
 7. `--check` モード (decrypt せず復号可能性だけ検証) を CI dry-run で使う
 
@@ -187,7 +194,7 @@ KMS key policy は以下を allow:
 - encrypt 結果は PR として review されて merge (`.env.<env>.sops` の diff だけで変更箇所が分かる)
 - KMS Encrypt 権限は developer IAM user / SSO role にのみ付与、CI には渡さない
 
-### 3. CI Integration + Rotation Procedure
+### 3. CI 統合とローテーション手順
 
 #### GitHub Actions workflow
 
@@ -268,7 +275,7 @@ jobs:
 
 運用ルール: `docs/runbooks/sops-rotation.md` に「cross-repo secret は producer repo が canonical、変更 PR は consumer repo へも同時に出す」と記載。
 
-#### Rotation procedure
+#### ローテーション手順
 
 1. developer が手元で `.env.<env>` を更新 (plain)
 2. `sops --encrypt --in-place --kms<KMS_ARN> .env.<env>` で `.env.<env>.sops` を再生成
@@ -277,7 +284,7 @@ jobs:
 5. merge 後、default branch (新 default は `develop`) で decrypt job が artifact を upload
 6. production は systemd `EnvironmentFile` 更新のため deploy job が新しい `.env` を EC2 へ送り、systemd が再起動
 
-### 4. Branch Migration (main → develop)
+### 4. ブランチ移行 (main → develop)
 
 #### 目的
 
@@ -313,7 +320,7 @@ default branch を `main` から `develop` へ移し、production 昇格用の `
 - `main` は **production release 専用 branch**。release tag (`v0.x.y`) を打つ直前に develop から cherry-pick または merge で同期
 - 通常の開発作業 (feature branch → develop → release 時 main 同期) のフロー
 
-### 4a. Production Boot-Time Decrypt (systemd)
+### 4a. 本番ブート時復号 (systemd)
 
 `.env.<env>.sops` は repo に commit されるが、`.env.<env>` (plain) は gitignore で EC2 上にも commit されない。production では systemd が **boot 時に loader を実行** し `.env.production` を生成する。
 
@@ -341,9 +348,9 @@ AWS SSM / Secrets Manager との関係:
 - AWS SSM は `CLOUD_API_BASE` / `RUST_API_URL` 等の **sops scope 外** の値を引き続き systemd EnvironmentFile 経由で配信
 - `.env.production` (sops復号) と systemd の AWS SSM 由来値が衝突した場合、systemd は後勝ち (後の EnvironmentFile が上書き)。これを避けるため、`.sops.yaml` で encrypt する key を application secret (STRIPE_*, BETTER_*, GOOGLE_*, APPLE_*, BRIDGE_SECRET, RDS password 等) に限定し、infra URL 類は AWS SSM 側に残す
 
-### 5. Error Handling + Testing + Rollback
+### 5. エラーハンドリング・テスト・ロールバック
 
-#### Failure modes
+#### 失敗モード
 
 | Failure | 検出 | loader の挙動 | CI 挙動 | 手動復旧 |
 |---|---|---|---|---|
@@ -351,11 +358,11 @@ AWS SSM / Secrets Manager との関係:
 | AWS credentials 不在 | `STS.GetCallerIdentity` (loader 冒頭で呼ぶ) | exit 3 + "AWS credentials not configured" | job 失敗 | `aws sso login` / IAM role 確認 |
 | KMS key policy で deny | `KMSClient.decrypt` が `AccessDeniedException` | exit 4 + KMS ARN を表示 | job 失敗 | KMS key policy 修正 / principal 追加 |
 | KMS API throttle | `KMSClient.decrypt` が `ThrottlingException` | loader relies on sops internal AWS-SDK retry (default ~3 attempts, exponential backoff); loader itself has no retry code | sops 内 retry 失敗で exit non-zero → job 失敗 | 連続失敗なら key policy 確認 / step 2 の cache を併用 |
-| `.env.<env>.sops` 不在 | loader が source file 未発見 | exit 5 + 該当 path 一覽 | job 失敗 | decrypt job の `inputs.env` 確認 |
+| `.env.<env>.sops` 不在 | loader が source file 未発見 | stderr へ警告書き出し + skip (exit 0) | job は失敗しない | decrypt job の `inputs.env` 確認 |
 | decrypt 結果が空 / parse error | loader が `.env` parser で key 0 個 | exit 6 + decrypt 結果 size | job 失敗 | `.env.<env>` の中身確認 |
 | KMS Encrypt 権限不足 (developer local) | `sops --encrypt` が `AccessDeniedException` | shell exit code 透過 | N/A | IAM user / SSO role に KMS Encrypt 追加 |
 
-#### Audit logging
+#### 監査ログ
 
 loader は各復号で **stdout に 1 行 JSON** を出力:
 
@@ -365,7 +372,7 @@ loader は各復号で **stdout に 1 行 JSON** を出力:
 
 CI では GitHub Actions log に出る (artifact には含めない)。AWS CloudTrail 側にも KMS Decrypt call の記録が残るため cross-check 可能。
 
-#### Testing strategy
+#### テスト戦略
 
 | Test | 目的 | 頻度 | 場所 |
 |---|---|---|---|
@@ -375,7 +382,7 @@ CI では GitHub Actions log に出る (artifact には含めない)。AWS Cloud
 | manual rotation drill | 1 secret を rotate して end-to-end を通す (PR → merge → decrypt → artifact → build → deploy) | 四半期 | runbook に手順化 |
 | rollback drill | sops 復号を切って AWS SSM / Secrets Manager のみで production が動くことを確認 | 四半期 + sops incident 後 | runbook |
 
-#### Rollback plan (sops 全体)
+#### ロールバック計画 (sops 全体)
 
 1. loader を旧版へ戻す (旧 commit を deploy tag として打ち直す)
 2. `.env.<env>` を AWS SSM Parameter Store から `aws ssm get-parameters --query 'Parameters[*].Value'` で復元し、systemd EnvironmentFile を上書き
@@ -385,7 +392,7 @@ CI では GitHub Actions log に出る (artifact には含めない)。AWS Cloud
 
 `.env.<env>.sops` の commit 自体は無害 (暗号文) なので、緊急時に repo から消さず KMS 側だけで遮断できる。
 
-#### Rollback plan (branch migration)
+#### ロールバック計画 (ブランチ移行)
 
 1. `gh api -X PATCH repos/{owner}/{repo} -f default_branch=main` で default を戻す
 2. develop の branch protection を削除
@@ -394,15 +401,15 @@ CI では GitHub Actions log に出る (artifact には含めない)。AWS Cloud
 5. CI workflow の `branches:` を `main` へ戻す commit
 6. ADR を撤回 (`Status: Deprecated`)
 
-## Risks
+## リスク
 
 1. **KMS API quota** — region 全体で `KMS Decrypt` が throttle すると CI 全体が止まる。CI region 選定 (ap-northeast-1) と service quota (default 5500 req/s) は十分余裕があるが、incident response として KMS quota 増を AWS サポートに申請する path を runbook に残す。
 2. **sops binary 脆弱性** — `sops` CLI は Go 製だが release を supply chain 検証する手段 (sha256 + signature) を CI install step に追加する。
 3. **cross-repo rotation drift** — `TASTILE_WEB_BRIDGE_SECRET` のような cross-repo secret は同期更新が必要。runbook に「producer repo が canonical、変更 PR は consumer repo へも同時」を明記するが、人手のため drift の可能性は残る。**長期**: producer repo の webhook で consumer repo の `*.sops` を自動再暗号化する仕組みを別 ADR で検討。
-4. **branch 移行時の CI matrix 不整合** — `on.push.branches: [main]` を `[develop]` へ書き換える際、release 用 workflow (tag trigger) は `main` 維持を忘れやすい。preflight で list し、postflight で trigger 履歴を確認する。
+4. **ブランチ移行時の CI matrix 不整合** — `on.push.branches: [main]` を `[develop]` へ書き換える際、release 用 workflow (tag trigger) は `main` 維持を忘れやすい。preflight で list し、postflight で trigger 履歴を確認する。
 5. **EC2 instance profile の KMS Decrypt 権限漏れ** — production decrypt で EC2 が KMS Decrypt を呼べないと systemd 起動が失敗する。production 切替前に dry-run test を staging で通す。
 
-## References
+## 参考資料
 
 - AGENTS.md (workspace canonical contract): `C:/Users/rebui/Desktop/tastile/AGENTS.md`
 - 関連 memory:
@@ -414,6 +421,6 @@ CI では GitHub Actions log に出る (artifact には含めない)。AWS Cloud
   - `Docs in child repos not root` — 実装時の runbook は `tastile-{web,core,desktop}/docs/runbooks/` 配下
 - 既存 spec の参考: `docs/superpowers/specs/2026-08-25-p1-ds-token-plumbing-design.md`
 
-## Open Questions
+## 未解決の論点
 
 (現時点で none — すべての clarifying question は確定済み)

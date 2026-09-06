@@ -1,31 +1,32 @@
-# KMS Throttling Incident Response
+<!-- 日本語訳 / Translation -->
+# KMS スロットリングインシデント対応
 
-If CI fails with `ThrottlingException: KMS.Decrypt`:
+CI が `ThrottlingException: KMS.Decrypt` で失敗した場合:
 
-1. **Confirm region + service quota**
+1. **リージョンとサービスクォータを確認する**
 
    ```bash
    aws service-quotas get-service-quota --service-code kms --quota-code L-C2DCB1FB --region ap-northeast-1
    ```
 
-   Default: 5500 req/s. If traffic is below quota, contact AWS support.
+   デフォルト: 5500 req/s。トラフィックがクォータを下回っていれば AWS サポートに連絡する。
 
-2. **Reduce decrypt frequency**
+2. **復号頻度を下げる**
 
-   sops decrypts each `.env.<env>.sops` once per CI job. Cache the decrypted
-   file across jobs in the same workflow run via `actions/cache@v4` keyed on
-   the sops file SHA256.
+   sops は各 `.env.<env>.sops` を CI ジョブごとに 1 回ずつ復号する。
+   同一ワークフロー実行内のジョブ間で、復号済みファイルを `actions/cache@v4` を使い
+   sops ファイルの SHA256 をキーにしてキャッシュする。
 
-3. **Reliance on sops internal retry**
+3. **sops 内部リトライへの依存**
 
-   The loader itself has no retry code; it relies on sops's bundled AWS-SDK
-   retry (default ~3 attempts with exponential backoff) for transient
-   `ThrottlingException`. If sops's internal retry is exhausted, the loader
-   exits non-zero and the systemd unit / CI job fails. For persistent
-   throttling, follow step 4 (quota increase) or step 2 (cache the decrypted
-   file across jobs in the same workflow run via `actions/cache@v4`).
+   loader 自体にはリトライコードはなく、sops 同梱の AWS-SDK リトライ
+   (デフォルトで指数バックオフで約 3 回) を通じて一時的な `ThrottlingException` を
+   処理する。sops の内部リトライを使い切った場合、loader は非ゼロで終了し、
+   systemd ユニット / CI ジョブは失敗する。スロットリングが継続する場合は、
+   ステップ 4 (クォータ引き上げ) またはステップ 2 (同一ワークフロー実行内の
+   ジョブ間で復号済みファイルを `actions/cache@v4` でキャッシュする) に従う。
 
-4. **Quota increase**
+4. **クォータの引き上げ**
 
-   File via AWS Support Center; expected turnaround 24-48 hours. Provide
-   workload description and region.
+   AWS Support Center 経由で申請する。想定 turnaround は 24〜48 時間。
+   ワークロードの説明とリージョンを添えて提出する。

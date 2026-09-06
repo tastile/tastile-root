@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "scope": ["core", "web", "android"],
+  "policyRevision": "9081339e95264c3205553208c2f55fbf23c9745b",
+  "versionSource": "Pinned manifests/lockfiles at planningBaseline in 2026-09-19-tickets.json; resolve again into task snapshot at dispatch, never silently change them during validation.",
+  "officialReferences": [
+    "https://github.com/rebuildup/project-init/tree/9081339e95264c3205553208c2f55fbf23c9745b",
+    "https://doc.rust-lang.org/cargo/commands/cargo-test.html",
+    "https://playwright.dev/docs/test-cli",
+    "https://developer.android.com/studio/test/command-line",
+    "https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax"
+  ],
+  "testTaxonomy": {"unit": "isolated domain / client logic", "integration": "real PostgreSQL / API / provider contract", "e2e": "real browser or installed signed device against deployed candidate"},
+  "changeToGates": {
+    "root-docs-or-agent-policy": ["release-plan", "agent-environment", "root-fast-gate"],
+    "core-domain-api-storage": ["core-fast", "core-full", "real-postgres", "cross-repo-contract"],
+    "web-ui-auth": ["web-fast", "web-full", "real-browser"],
+    "android": ["android-fast", "android-full", "signed-device"],
+    "openapi": ["cross-repo-contract", "web-full", "android-full"],
+    "release": ["core-full", "web-full", "android-full", "android-release", "cross-repo-contract", "signed-device", "real-browser", "restore", "advisory-audit", "web-advisory-audit", "independent-review"]
+  },
+  "commands": {
+    "release-plan": "bun scripts/check-release-plan.ts",
+    "agent-environment": "pwsh -NoProfile -File scripts/check-agent-environment.ps1",
+    "root-fast-gate": "pwsh -NoProfile -File .agent-loop/gate-root.ps1",
+    "core-fast": "cargo test --manifest-path crates-v1/Cargo.toml -p domain",
+    "core-full": "bash .wslc/verify-up.sh && bash .wslc/verify-run.sh 'cargo test --manifest-path crates-v1/Cargo.toml --workspace --no-fail-fast'",
+    "web-fast": "bun run check",
+    "web-full": "bun run check:release",
+    "web-advisory-audit": "bun audit --production",
+    "android-fast": "./gradlew verify",
+    "android-full": "./gradlew verify assembleDebug --no-daemon",
+    "android-release": "./gradlew bundleRelease",
+    "release-workspace": "pwsh -NoProfile -Command \"& ./scripts/check-workspace.ps1 -Repository @('core','web','android') -Profile full -KeepGoing -ResultPath .tmp/release-check.json\""
+  },
+  "ciNames": {"root": ["quality"], "web": ["quality"], "android": ["Verify", "release"], "core": ["resolve exact current required checks at dispatch; absence is a blocker, not a fabricated green check"]},
+  "platformMatrix": {"browser": ["Chromium desktop", "mobile viewport", "Google OAuth callback in real browser"], "android": ["API 26 emulator where supported by repository tests", "physical device with signed candidate and real FCM"], "database": ["clean PostgreSQL", "restored current-schema backup"]},
+  "requiredArtifacts": ["input and result SHA/digest", "generation", "command and exit code", "full CI URL", "browser trace", "APK/AAB SHA and signing metadata", "DB migration/restore evidence", "review verdict"],
+  "failurePolicy": {"codeFailure": 1, "externalBlocked": 2, "allowSkipAsPass": false, "allowMockOnlyIntegration": false, "allowStaleEvidence": false, "allowSuppressionForGreen": false},
+  "note": "This is a release routing profile, not proof that gates passed. Existing child instructions remain authoritative. Shell commands run from the owning repository; Rust uses WSL/wslc on this host. Web check:release currently includes advisory ignores; the release must also collect unsuppressed bun audit --production evidence and resolve applicable findings. No runner integration is claimed until R03 is merged."
+}

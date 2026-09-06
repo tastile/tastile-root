@@ -1,4 +1,6 @@
-# P1: Design System v2 Token Plumbing — Design
+<!-- 日本語訳 / Translation -->
+
+# P1: Design System v2 Token Plumbing — 設計
 
 | | |
 |---|---|
@@ -9,7 +11,7 @@
 | Repository 状態 | main ブランチ、uncommitted diff 多数（他タスク由来、本 PR では触らない） |
 | 完了基準 | `bun run check:release` を 0 error / 0 actionable warning で通過 |
 
-## Background / Motivation
+## 背景 / 動機
 
 `docs/DESIGN-SYSTEM.md` v2.0 は **「フラット：影禁止・ボーダー禁止・円中心整列の入れ子 radius」** を
 明言する。一方、`src/app/globals.css` の現行 token は:
@@ -43,7 +45,7 @@
 - Visual regression 基盤（**P2 以降**）
 - `src/lib/vendored/mantine-schedule` への介入（Knip ガード対象）
 
-## Architecture（Section 1 で承認済み）
+## アーキテクチャ（Section 1 で承認済み）
 
 ### 3 層 token 解決モデル
 
@@ -82,7 +84,7 @@ Layer 2 (Consumer)
 | `scripts/check-theme-coverage.mts` | **新規** | `globals.css` の 4 テーマ + :root セレクタ全存在確認 |
 | `docs/superpowers/specs/2026-08-25-p1-ds-token-plumbing-design.md` | **新規** | 本ファイル |
 
-## Components（Section 2 で承認済み）
+## コンポーネント（Section 2 で承認済み）
 
 ### `src/lib/theme/tokens.ts`
 
@@ -191,7 +193,7 @@ export const mantineTheme = createTheme({
    ============================================ */
 ```
 
-## Data Flow（Section 3 で承認済み）
+## データフロー（Section 3 で承認済み）
 
 ### 不変条件
 
@@ -214,7 +216,7 @@ export const mantineTheme = createTheme({
 
 `globals.css` のこの表が **正本**。`tokens.ts` は `var(--xxx)` への参照のみ。
 
-## Error Handling（Section 4 で承認済み）
+## エラーハンドリング（Section 4 で承認済み）
 
 | 失敗 | 検出 | 防御 |
 |---|---|---|
@@ -228,7 +230,7 @@ export const mantineTheme = createTheme({
 
 P1 PR 失敗時は **revert 1 commit** で全 token 巻き戻し。単一 PR / 単一 commit を厳守する。
 
-## Testing（Section 5 で承認済み）
+## テスト（Section 5 で承認済み）
 
 ### 検証マトリクス
 
@@ -349,7 +351,7 @@ describe('mantineTheme', () => {
 - `src/lib/vendored/mantine-schedule` の介入
 - package.json の dependency 追加（必要 ESLint パッケージは確認の上、最小限）
 
-## Risk & Rollback
+## リスクとロールバック
 
 | リスク | 確率 | 影響 | 対応 |
 |---|---|---|---|
@@ -363,7 +365,7 @@ describe('mantineTheme', () => {
 
 単一 PR / 単一 commit を厳守。`git revert <commit-sha>` で 30 秒以内に復旧可能。
 
-## Reference
+## 参考資料
 
 - `docs/DESIGN-SYSTEM.md` v2.0（正本）
 - `tastile-web/AGENTS.md` repo-local contract
@@ -375,6 +377,6 @@ describe('mantineTheme', () => {
 - Mantine v9 cssVariablesResolver: https://mantine.dev/theming/css-variables/
 - Tailwind v4 `@theme`: https://tailwindcss.com/docs/theme
 
-## Open Questions
+## 未解決の論点
 
 なし（全 5 セクションでユーザー承認済み）。

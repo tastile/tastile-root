@@ -22,11 +22,12 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
 ## 常時適用する不変条件
 
 - 開始時に対象ごとの branch、`git status --short`、既存差分を確認し、無関係な変更を
-  reset、checkout、stash、revert、stage、commit しない。worktree は作らない。
+  reset、checkout、stash、revert、stage、commit しない。共有 host 上に並列実装用の
+  worktree は作らない。Supervisor が隔離を保証する runtime 内でのみ使用できる。
 - design / specification がある変更は、最終状態の design をユーザーと確定してから
   実装する。履歴は ADR に置く。
-- source code、識別子、code comment、Git / GitHub message は英語、内部開発文書と
-  project agent instruction は日本語で書く。
+- source code、識別子、code comment、commit message は英語。Issue、PR、review、
+  内部開発文書、project agent instruction は日本語で書く。
 - frontend と script-side の package manager は Bun とする。新規 Python script は
   作らない。検索は `rg` / `rg --files` を優先する。
 - business logic は `tastile-core` が所有し、client は thin client とする。v1 の語彙と
@@ -34,8 +35,15 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
 - 実値は `.env`、`.env.development`、`.env.production` のみへ置き、commit しない。
   schema は対応する `*.example` に置く。一時物は root の `.tmp/`、外部参照 clone は
   `.reference/` に置き、どちらも dependency にしない。
-- 権限と利用可能な機能が許す場合、独立した作業だけを明示的な file ownership で
-  並列化する。同一 file の並列編集と、subagent による自己承認は禁止する。
+- Sol は調査・分解・統合判断、Luna は限定した実装、Terra は独立検査を担当する。
+  model 名は要求値と実際の実行情報を区別し、subagent の自己承認は禁止する。
+- 並列実装は外部 Supervisor が workspace、process、port、DB、queue、成果物、
+  credential、budget を worker ごとに隔離し、停止と回収を保証できる場合だけ行う。
+  file ownership だけでは隔離とみなさない。未整備時は read-only 調査の並列化と
+  WIP 1 の直列実装に限定する。詳細は ADR 0007 と次の Skills を読む。
+- 作業状態の正本は GitHub Issue。release branch は `release-x-y-z`、実装 branch は
+  対象 repository の Issue 番号だけとする。入力と成果物を SHA / digest に固定し、
+  generation が古い結果を統合しない。最初の意味ある commit で Draft PR を作る。
 
 ## Agent Skills
 
@@ -46,6 +54,8 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
 - `tastile-precommit-review`: root 変更を agent が commit する直前の独立 review。
 - `plugin-version-audit`: pinned 依存（MCP / Bun / Node / Biome / Knip / Vitest / Playwright / Next /
   openapi-typescript）の drift と advisory を release 前、または bump 直前に read-only で確認する。
+- `parallel-orchestration`: worker への実装委譲、並列化、再割当、停止、成果物統合。
+- `github-delivery`: Issue の着手、Draft PR、release branch、検証証跡、明示的な完了処理。
 
 ## 検証と commit
 

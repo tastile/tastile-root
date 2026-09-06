@@ -1,6 +1,8 @@
-# r3: Android TaskRun Producer Implementation Plan
+<!-- 日本語訳 / Translation -->
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+# r3: Android TaskRun Producer 実装計画
+
+> **For agentic workers:** 必須サブスキル: `superpowers:subagent-driven-development` (推奨) または `superpowers:executing-plans` を使用し、本計画をタスク単位で実装すること。各ステップはチェックボックス (`- [ ]`) 形式で進捗追跡する。
 
 **Goal:** `RECORD_TASK_RUN` v1 Command を `tastile-core` に追加し、`tastile-android` の `ExecuteScreen` から `TaskDefinition` チェックを end-to-end で送れる producer 経路を完成する。
 

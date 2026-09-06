@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "runtime": "wslc",
+  "image": "tastile-agent-runtime:2026-09-06",
+  "tools": {
+    "node": "24.15.0",
+    "bun": "1.3.14",
+    "claudeCode": "2.1.261",
+    "openCode": "1.18.29"
+  },
+  "resources": {
+    "cpus": 2,
+    "memory": "4G",
+    "pids": 512,
+    "wallMinutes": 240
+  },
+  "worker": {
+    "uid": 10001,
+    "hostWorkspaceMounted": false,
+    "githubCredentialAvailable": false,
+    "implementationWipUntilValidated": 1
+  },
+  "network": {
+    "mode": "internal-per-run",
+    "modelGatewayOnly": true,
+    "allowedProviderPaths": [
+      "/minimax/v1/messages",
+      "/minimax/v1/messages/count_tokens",
+      "/openai/v1/responses",
+      "/openai/v1/chat/completions"
+    ]
+  },
+  "result": {
+    "requiresCommitSha": true,
+    "requiresTaskDigest": true,
+    "requiresGeneration": true,
+    "requiresIndependentReview": true,
+    "workerMayPush": false
+  }
+}

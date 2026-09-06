@@ -23,7 +23,7 @@
 - sops CLI install path: `/usr/local/bin/sops` on CI runners and EC2 AMIs. Version pin: `v3.9.0`. SHA256 verified at install time (spec §Risks-2).
 - KMS key policy: `kms:Decrypt` allowed for developer SSO principal + GitHub OIDC role + EC2 instance profile. `kms:Encrypt` is developer-only — CI never encrypts.
 - KMS region: `ap-northeast-1`. KMS key shape: per-environment (development / staging / production); same env across repos shares the same key (cross-repo secret simplification, spec §1 File layout).
-- bun loader: `bun run scripts/sops-decrypt.ts --env=<dev|staging|prod>` or `--check`. CLI fallback: `TASTILE_ENV=<env>` env var. Exit codes: 0=PASS / 1=generic / 2=sops missing / 3=credentials missing / 4=KMS access denied / 5=source file missing / 6=parse error / 7=KMS throttle exhausted.
+- bun loader: `bun run scripts/sops-decrypt.ts --env=<dev|staging|prod>` or `--check`. CLI fallback: `TASTILE_ENV=<env>` env var. Exit codes: 0=PASS / 1=generic / 2=sops missing / 3=credentials missing / 4=KMS access denied / 5=reserved (source file missing is non-fatal: stderr warn + skip, see Post-implementation amendments) / 6=parse error / 7=KMS throttle exhausted.
 - Audit format (stdout, one JSON line per decrypt): `{"ts":"...","event":"decrypt","env":"...","source":"...","target":"...","kms_arn":"...","aws_caller_arn":"..."}`. CloudTrail is the second cross-check.
 - IAM principal naming (canonical): `tastile-sso-developers` (developer SSO), `tastile-gh-oidc-<env>` (GitHub Actions OIDC, three roles), `tastile-ec2-instance-profile` (production EC2).
 - GitHub repo list (4 child repos): `tastile-core`, `tastile-web`, `tastile-desktop`, `tastile-brands`. `tastile-android` is out of scope per spec Non-Goals.
@@ -147,7 +147,6 @@ resource "aws_kms_key" "sops_env" {
         Principal = { AWS = "arn:${data.aws_partition.current.partition}:iam::${data.aws_caller_identity.current.account_id}:role/aws-reserved/sso.amazonaws.com/ap-northeast-1/*" }
         Action   = ["kms:Decrypt", "kms:DescribeKey"]
         Resource = "*"
-        Condition = { StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" } }
       },
       {
         Sid    = "DecryptForEC2"
@@ -332,7 +331,7 @@ git commit -m "feat(sops): terraform for per-env KMS keys + IAM principals"
 **Interfaces:**
 - Consumes: `TASTILE_ENV` env var OR `--env=<dev|staging|prod>` CLI flag, `--check` flag
 - Produces: writes `0600` plain `.env.<env>` files next to `.env.<env>.sops`; emits one audit JSON line to stdout per decrypt
-- Exports (for tests): `decryptOne(sopsPath, targetPath, config): Promise<DecryptResult>`, `parseArgs(argv): ParsedArgs`, `loadConfig(env): SopsEnvConfig`
+- Exports (for tests): `decryptOne(source, target, cfg, callerArn, cliCheck, env): Promise<DecryptResult>`, `parseArgs(argv): ParsedArgs`, `loadConfig(env): SopsEnvConfig`
 
 - [ ] **Step 1: Write the loader script**
 
@@ -355,7 +354,6 @@ export type DecryptResult = {
   kmsArn: string;
   callerArn: string;
   ts: string;
-  size: number;
 };
 
 export function parseArgs(argv: string[]): { env: string; check: boolean } {
@@ -394,7 +392,7 @@ export async function assertCredentials(region: string): Promise<string> {
   }
 }
 
-export function decryptOne(source: string, target: string, cfg: SopsEnvConfig, callerArn: string): Promise<DecryptResult> {
+export function decryptOne(source: string, target: string, cfg: SopsEnvConfig, callerArn: string, cliCheck: boolean, env: string): Promise<DecryptResult> {
   return new Promise<DecryptResult>((resolve, reject) => {
     const child = spawn("sops", ["--decrypt", source], { stdio: ["ignore", "pipe", "pipe"] });
     const out: Buffer[] = [];
@@ -407,15 +405,13 @@ export function decryptOne(source: string, target: string, cfg: SopsEnvConfig, c
         return reject(die(4, `sops --decrypt ${source} exited ${code}; stderr=${Buffer.concat(err).toString()}`));
       }
       if (cfg.check) {
-        const size = Buffer.concat(out).length;
-        return resolve({ source, target, env: "", kmsArn: cfg.kmsKeyArn, callerArn, ts: new Date().toISOString(), size });
+        return resolve({ source, target, env: "", kmsArn: cfg.kmsKeyArn, callerArn, ts: new Date().toISOString() });
       }
       try {
         await mkdir(dirname(resolve(target)), { recursive: true });
         await writeFile(resolve(target), Buffer.concat(out), { mode: 0o600 });
         await chmod(resolve(target), 0o600);
-        const size = (await stat(resolve(target))).size;
-        resolve({ source, target, env: "", kmsArn: cfg.kmsKeyArn, callerArn, ts: new Date().toISOString(), size });
+        resolve({ source, target, env: "", kmsArn: cfg.kmsKeyArn, callerArn, ts: new Date().toISOString() });
       } catch (e) {
         reject(die(6, `write ${target} failed: ${(e as Error).message}`));
       }
@@ -439,9 +435,9 @@ async function main(): Promise<void> {
     await kms.send({ DescribeKeyCommand: undefined as never } as never); // placeholder; replaced in Task 3
   } catch { /* DescribeKey omitted in v1; rely on sops to surface Decrypt failures */ }
 
-  const pairs = cfg.sourceFiles.map((src, i) => ({ src, dst: cfg.targetFiles[i] }));
-  for (const { src, dst } of pairs) {
-    const result = await decryptOne(src, dst, cfg, callerArn);
+  const pairs = cfg.pairs;
+  for (const { source: src, target: dst } of pairs) {
+    const result = await decryptOne(src, dst, cfg, callerArn, check, env);
     result.env = env;
     process.stdout.write(JSON.stringify({ event: "decrypt", ...result }) + "\n");
   }
@@ -509,11 +505,10 @@ describe("decryptOne", () => {
     const PATH_BACKUP = process.env.PATH;
     process.env.PATH = `${dir}:${PATH_BACKUP}`;
     const cfg = loadConfig("development");
-    const result = await decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test");
+    const result = await decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test", false, "development");
     expect(existsSync(dst)).toBe(true);
     expect((statSync(dst).mode & 0o777).toString(8)).toBe("600");
     expect(readFileSync(dst, "utf8")).toContain("KEY=value");
-    expect(result.size).toBeGreaterThan(0);
     process.env.PATH = PATH_BACKUP;
   });
   it("rejects when sops exits non-zero", async () => {
@@ -525,7 +520,7 @@ describe("decryptOne", () => {
     const PATH_BACKUP = process.env.PATH;
     process.env.PATH = `${dir}:${PATH_BACKUP}`;
     const cfg = loadConfig("development");
-    await expect(decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test")).rejects.toThrow();
+    await expect(decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test", false, "development")).rejects.toThrow();
     process.env.PATH = PATH_BACKUP;
   });
 });
@@ -581,7 +576,7 @@ git commit -m "feat(sops): add bun loader with KMS resolver and unit tests"
 - Modify: `.gitignore` (append `.env` family)
 
 **Interfaces:**
-- `SopsEnvConfig`: `{ awsRegion: string; kmsKeyArn: string; sourceFiles: string[]; targetFiles: string[]; identityHint: "sso" | "oidc" | "instance-profile" }`
+- `SopsEnvConfig`: `{ awsRegion: string; kmsKeyArn: string; pairs: { source: string; target: string }[]; identityHint: "sso" | "oidc" | "instance-profile" }`
 - `.sops.yaml` `creation_rules`: keyed by file name regex → KMS ARN (same env's key)
 
 - [ ] **Step 1: Write per-repo `scripts/sops.config.ts`**
@@ -596,22 +591,27 @@ export const config: Record<string, SopsEnvConfig> = {
   development: {
     awsRegion: "ap-northeast-1",
     kmsKeyArn: "arn:aws:kms:ap-northeast-1:<account>:key/<dev-key-id>",
-    sourceFiles: [".env.development.sops", ".env.dev.sops"],
-    targetFiles: [".env.development", ".env.dev"],
+    pairs: [
+      { source: ".env.development.sops", target: ".env.development" },
+      { source: ".env.dev.sops", target: ".env.dev" },
+    ],
     identityHint: "sso",
   },
   staging: {
     awsRegion: "ap-northeast-1",
     kmsKeyArn: "arn:aws:kms:ap-northeast-1:<account>:key/<staging-key-id>",
-    sourceFiles: [".env.staging.sops"],
-    targetFiles: [".env.staging"],
+    pairs: [
+      { source: ".env.staging.sops", target: ".env.staging" },
+    ],
     identityHint: "oidc",
   },
   production: {
     awsRegion: "ap-northeast-1",
     kmsKeyArn: "arn:aws:kms:ap-northeast-1:<account>:key/<production-key-id>",
-    sourceFiles: [".env.production.sops", ".env.product.sops"],
-    targetFiles: [".env.production", ".env.product"],
+    pairs: [
+      { source: ".env.production.sops", target: ".env.production" },
+      { source: ".env.product.sops", target: ".env.product" },
+    ],
     identityHint: "instance-profile",
   },
 };
@@ -1441,10 +1441,13 @@ If CI fails with `ThrottlingException: KMS.Decrypt`:
    file across jobs in the same workflow run via `actions/cache@v4` keyed on
    the sops file SHA256.
 
-3. **Exponential backoff**
+3. **Loader surfaces sops failures directly**
 
-   The loader retries up to 3 times with exponential backoff (1s, 2s, 4s). If
-   exhausted, the job fails.
+   The loader has no retry/backoff code. When `sops --decrypt` exits non-zero
+   (including `ThrottlingException`), the loader rejects with `SopsError` code 4
+   and the CI job / systemd unit fails. Operator response on a code 4 is
+   documented in `docs/runbooks/sops-throttle.md` (Step 3 covers the human-side
+   action).
 
 4. **Quota increase**
 
@@ -1478,3 +1481,24 @@ After completing all tasks, verify against the spec checklist:
    - `DecryptResult` shape used in Task 2's loader and tests.
 
 If anything is missing, add the task before handoff.
+
+---
+
+## 実装後変更 (Post-implementation amendments)
+
+- 2026-08-27 commit [`882541b`](https://github.com/rebuildup/tastile/commit/882541b) にて、
+  Task 1 Step 2 の `infra/sops/kms.tf` `DecryptForSSO` statement から
+  `Condition = { StringEquals = { "kms:ViaService" = "s3.${var.region}.amazonaws.com" } }`
+  を削除した。本ファイル上の同 HCL 例も同条件に揃える(既にコードに投入されない)。
+- 詳細な rationale は ADR [`docs/adr/0006-kms-viaservice-removal.md`](../../adr/0006-kms-viaservice-removal.md)
+  に分離した(Accepted、2026-09-05 retroactive)。
+- As-built な HCL は `infra/sops/kms.tf` HEAD と一致しており、SSO developer / GitHub OIDC /
+  EC2 instance profile から直接 `kms:Decrypt` を呼べる状態 — つまり SOPS loader design の
+  primary contract を満たす。
+- WHY: SOPS loader は S3 を経由せず直接 `kms:Decrypt` を呼ぶため、`kms:ViaService`
+  condition が SSO 直 decrypt を `AccessDenied` で遮断していた。condition を外すことで
+  design contract (SSO + OIDC + EC2 直 decrypt) を満たせる。
+- 附随して、`scripts/sops-decrypt.ts` は source file 不在時に `exit 5` で停止する
+  旧仕様から「stderr warn + skip + continue」挙動へ変更された(同上 ADR)。同 loader の
+  `decryptOne` は `pairs: { source, target }[]` を直接 iterate する実装に揃っている
+  (本ファイル Task 2 / Task 3 の例も `pairs` ベースに更新済み)。

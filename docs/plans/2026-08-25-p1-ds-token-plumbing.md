@@ -1,8 +1,10 @@
-# P1: Design System v2 Token Plumbing Implementation Plan
+<!-- 日本語訳 / Translation -->
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+# P1: Design System v2 Token Plumbing 実装計画
 
-**Goal:** DS v2 規約（影/ボーダーのコア最小限・shell 完全撤廃・円中心整列）に整合する token plumbing を `tastile-web` に敷設し、P2 以降の widget / feature 適用が token 揺れなしで進められる土台を作る。
+> **For agentic workers:** 必須サブスキル: `superpowers:subagent-driven-development` (推奨) または `superpowers:executing-plans` を使用し、本計画をタスク単位で実装すること。各ステップはチェックボックス (`- [ ]`) 形式で進捗追跡する。
+
+**Goal:** `tastile-web` に DS v2 規約（影/ボーダーのコア最小限・shell 完全撤廃・円中心整列）に整合する token plumbing を敷設し、P2 以降の widget / feature 適用が token 揺れなしで進められる土台を作る。
 
 **Architecture:** 3 層 token 解決モデル（Layer 0: `globals.css` の CSS 変数定義 / Layer 1: Tailwind v4 `@theme` + Mantine v9 `cssVariablesResolver` + 新規 `tokens.ts` / Layer 2: React component）。Mantine core には最小限の border を残し、shell / card / section 層は完全撤廃（方針 B）。
 
@@ -13,7 +15,7 @@
 ## Global Constraints
 
 - **Repository invariants (AGENTS.md):** 開始時に branch + `git status --short` を確認。`main` 以外では作業しない。worktree を作らない。他タスク由来の uncommitted diff には触れない。
-- **Existing uncommitted diff は触らない**: `src/app/dashboard/**`, `src/widgets/app-shell/**`, `src/shared/**` 等の modified / deleted ファイルは別タスク由来。本 PR で reset / checkout / stash / revert / amend しない。
+- **既存 uncommitted diff は触らない**: `src/app/dashboard/**`, `src/widgets/app-shell/**`, `src/shared/**` 等の modified / deleted ファイルは別タスク由来。本 PR で reset / checkout / stash / revert / amend しない。
 - **依存追加は最小**: 新規 npm package を追加しない。既存 devDeps（postcss-preset-mantine, postcss-simple-vars, tailwind-merge, clsx 等）で完結する。ESLint custom rule は .mjs ファイルとして local 配置。
 - **i18n hardcoded literal を新規追加しない**: P1 で生成する comment / identifier / doc-comment はすべて英語。
 - **完了基準**: `bun run check:release` が 0 error / 0 actionable warning で通過。`bun audit` の 4 ignore（`GHSA-qx2v-qp2m-jg93` / `GHSA-6g55-p6wh-862q` / `GHSA-r28c-9q8g-f849` / `GHSA-f88m-g3jw-g9cj`）は変更禁止。
@@ -382,7 +384,7 @@ describe('mantineTheme', () => {
 - [ ] **Step 2: test を走らせ、FAIL を確認**
 
 Run: `cd tastile-web && bun test src/lib/theme/__tests__/mantine-theme.test.ts`
-Expected: FAIL — most assertions fail because `components` is undefined on the current theme.
+Expected: FAIL — 現在の theme では `components` が undefined のため、ほとんどのアサーションが失敗する。
 
 - [ ] **Step 3: mantine-theme.ts を編集**
 

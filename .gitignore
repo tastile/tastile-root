@@ -81,3 +81,8 @@ node_modules/
 infra/sops/*.tfplan
 infra/sops/.terraform/
 infra/sops/.terraform-outputs.json
+
+# Additional SOPS-decrypted secret targets (project-wide; covered by
+# the loader's spec at docs/superpowers/specs/2026-08-27-sops-env-decryption-design.md)
+.env.dev
+.env.product

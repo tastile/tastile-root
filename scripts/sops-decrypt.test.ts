@@ -1,10 +1,9 @@
-import { describe, expect, it, beforeEach, mock, spyOn } from "bun:test";
+import { describe, expect, it, beforeEach } from "bun:test";
 import { parseArgs, loadConfig, decryptOne, processSourceFiles } from "./sops-decrypt";
 import type { SopsEnvConfig } from "./sops.config";
 import { mkdtempSync, writeFileSync, existsSync, statSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, delimiter } from "node:path";
-import { spawn } from "node:child_process";
 
 describe("parseArgs", () => {
   it("parses --env=development", () => {
@@ -27,6 +26,8 @@ describe("loadConfig", () => {
   it("returns entry for known env", () => {
     const cfg = loadConfig("development");
     expect(cfg.kmsKeyArn).toContain("arn:aws:kms:");
+    expect(cfg.identityHint).toBe("sso");
+    expect(cfg.pairs.length).toBeGreaterThan(0);
   });
   it("throws for unknown env", () => {
     expect(() => loadConfig("nope" as never)).toThrow();
@@ -48,12 +49,14 @@ describe("decryptOne", () => {
     const PATH_BACKUP = process.env.PATH;
     process.env.PATH = `${dir}${delimiter}${PATH_BACKUP}`;
     const cfg = loadConfig("development");
-    const result = await decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test", false);
+    const result = await decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test", false, "development");
     expect(existsSync(dst)).toBe(true);
     // Unix file modes aren't honored on Windows (ACL-based); check owner r/w bit
     expect((statSync(dst).mode & 0o600)).toBe(0o600);
     expect(readFileSync(dst, "utf8")).toContain("KEY=value");
-    expect(result.size).toBeGreaterThan(0);
+    expect(result.kms_arn).toBe("PLACEHOLDER-DEV");
+    expect(result.aws_caller_arn).toBe("arn:aws:iam::123:role/test");
+    expect(result.env).toBe("development");
     process.env.PATH = PATH_BACKUP;
   });
   it("rejects when sops exits non-zero", async () => {
@@ -67,7 +70,7 @@ describe("decryptOne", () => {
     const PATH_BACKUP = process.env.PATH;
     process.env.PATH = `${dir}${delimiter}${PATH_BACKUP}`;
     const cfg = loadConfig("development");
-    await expect(decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test", false)).rejects.toThrow();
+    await expect(decryptOne(src, dst, cfg, "arn:aws:iam::123:role/test", false, "development")).rejects.toThrow();
     process.env.PATH = PATH_BACKUP;
   });
 });
@@ -79,8 +82,7 @@ describe("processSourceFiles", () => {
     const cfg = loadConfig("development");
     const stub: SopsEnvConfig = {
       ...cfg,
-      sourceFiles: [join(dir, "definitely-missing.sops")],
-      targetFiles: [join(dir, "definitely-missing.env")],
+      pairs: [{ source: join(dir, "definitely-missing.sops"), target: join(dir, "definitely-missing.env") }],
     };
     const stderrChunks: Buffer[] = [];
     const originalWrite = process.stderr.write.bind(process.stderr);

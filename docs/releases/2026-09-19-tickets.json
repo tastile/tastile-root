@@ -1,0 +1,1121 @@
+{
+  "schemaVersion": 1,
+  "releaseDate": "2026-09-19",
+  "scope": [
+    "free production",
+    "web",
+    "android"
+  ],
+  "implementationWip": 1,
+  "planningBaseline": {
+    "root": "ba622fc01fb8964d137936b039b3dafa684b66a6",
+    "core": "dcc1d013cfc038581c77b9b112cb358cbcee518f",
+    "web": "21902ed3fefb426883ab6643108a7b4e3989c12a",
+    "android": "0c92e808c78b0016098a0ca6abd5ddd45f4b9e2c"
+  },
+  "releaseBranches": {
+    "root": "release-0-2-0",
+    "core": "release-0-7-0",
+    "web": "release-0-6-0",
+    "android": "release-0-5-0"
+  },
+  "tickets": [
+    {
+      "id": "R01",
+      "repo": "root",
+      "existing": 1,
+      "priority": "P0",
+      "estimateHours": 4,
+      "dependencies": [
+        "R03"
+      ],
+      "external": [],
+      "title": "OpenAPI の正本を clean clone から取得可能にする",
+      "ownership": [
+        ".gitmodules",
+        "openapi"
+      ],
+      "acceptance": [
+        "GitHub 上の到達可能な正本と40桁SHAを固定し、ローカル file:// 参照を除去する",
+        "空の環境で recursive clone と Web / Android codegen が成功する",
+        "consumer CI の変更は W04 / A04 に分ける"
+      ],
+      "validation": [
+        "clean recursive clone",
+        "Web / Android の codegen"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-root/issues/1"
+    },
+    {
+      "id": "W01",
+      "repo": "web",
+      "existing": 76,
+      "priority": "P0",
+      "estimateHours": 2,
+      "dependencies": [
+        "R03"
+      ],
+      "external": [],
+      "title": "quality workflow の入力型を修正する",
+      "ownership": [
+        ".github/workflows/sops-decrypt.yml",
+        ".github/workflows/quality.yml"
+      ],
+      "acceptance": [
+        "workflow_call の env を string にし許可値を検証する",
+        "quality が jobs を開始し bun run check:release を実行する",
+        "全必須 job の成功 URL を記録する"
+      ],
+      "validation": [
+        "bun run check:release",
+        "GitHub Actions quality"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-web/issues/76"
+    },
+    {
+      "id": "R02",
+      "repo": "root",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 2,
+      "dependencies": [],
+      "external": [
+        "operator"
+      ],
+      "title": "本番相当環境と Android 配布の前提を確認する",
+      "ownership": [
+        "docs/releases",
+        "docs/runbooks"
+      ],
+      "acceptance": [
+        "9/6中にDB、backup、KMS/OIDC、OAuth、FCM/配送provider、署名鍵、Play権限、実機の利用可否を確認し、公開boardには状態だけを記録する。実値・account識別子・操作証跡は非公開の運用記録へ置く",
+        "secret 値を Issue / repository に書かず、secret manager の参照名もアクセス制御された非公開運用記録だけに保存する",
+        "Android 公開経路と Play 審査の所要見込みを確認し、9/12判断に間に合わない場合は人間へ期限判断を求める"
+      ],
+      "validation": [
+        "認証済み環境への接続確認",
+        "署名済み Android の実機導入"
+      ],
+      "status": "Ready",
+      "releaseBlocking": true,
+      "role": "Sol read-only coordination / operator provisioning / Terra review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-root/issues/3"
+    },
+    {
+      "id": "A01",
+      "repo": "android",
+      "existing": 4,
+      "priority": "P0",
+      "estimateHours": 2,
+      "dependencies": [
+        "R03"
+      ],
+      "external": [
+        "google-oauth"
+      ],
+      "title": "Verify と release に必要な Google 設定を供給する",
+      "ownership": [
+        ".github/workflows/verify.yml",
+        ".github/workflows/release.yml",
+        "app/build.gradle.kts"
+      ],
+      "acceptance": [
+        "両 workflow が GOOGLE_ANDROID_CLIENT_ID を安全に受け取る",
+        "Gradle configuration guard を通過する",
+        "OpenAPI 由来の失敗は A04 に切り分けるが、release 完了には Verify 全体の成功が必要"
+      ],
+      "validation": [
+        "./gradlew verify",
+        "GitHub Actions Verify"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-android/issues/4"
+    },
+    {
+      "id": "R03",
+      "repo": "root",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 4,
+      "dependencies": [],
+      "external": [],
+      "title": "チケット実行契約を導入し WIP 1 で着手可能にする",
+      "ownership": [
+        "AGENTS.md",
+        ".agents/skills/parallel-orchestration",
+        ".agents/skills/github-delivery",
+        "docs/adr/0007-ticket-driven-isolated-agent-delivery.md",
+        "docs/releases",
+        "scripts/check-release-plan.ts"
+      ],
+      "acceptance": [
+        "ADR、task/result schema、release backlog、quality profile を整合させる",
+        "既存 staged / unstaged 差分を保持し対象変更だけを独立 review する",
+        "共有 runtime の並列実装を禁止し、実装WIP1・read-only並列調査を明示する",
+        "GitHub Project 未接続を明示し root#2/status labels で運用可能にする"
+      ],
+      "validation": [
+        "bun scripts/check-release-plan.ts",
+        "pwsh -NoProfile -File scripts/check-agent-environment.ps1",
+        "pwsh -NoProfile -File .agent-loop/gate-root.ps1"
+      ],
+      "status": "Ready",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-root/issues/4"
+    },
+    {
+      "id": "C01",
+      "repo": "core",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 4,
+      "dependencies": [
+        "R03"
+      ],
+      "external": [],
+      "title": "非公開リリース条件 C01",
+      "ownership": [
+        "非公開 Issue に記載"
+      ],
+      "acceptance": [
+        "非公開 Issue の確定済み受入条件を満たす",
+        "固定した成果物に対する独立検査と必須 gate の証跡を記録する"
+      ],
+      "validation": [
+        "非公開 Issue の実行手順を使用する"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1
+    },
+    {
+      "id": "C02",
+      "repo": "core",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 6,
+      "dependencies": [
+        "R03",
+        "C01",
+        "C00"
+      ],
+      "external": [],
+      "title": "非公開リリース条件 C02",
+      "ownership": [
+        "非公開 Issue に記載"
+      ],
+      "acceptance": [
+        "非公開 Issue の確定済み受入条件を満たす",
+        "固定した成果物に対する独立検査と必須 gate の証跡を記録する"
+      ],
+      "validation": [
+        "非公開 Issue の実行手順を使用する"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1
+    },
+    {
+      "id": "C03",
+      "repo": "core",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 8,
+      "dependencies": [
+        "R03",
+        "R01"
+      ],
+      "external": [
+        "postgres"
+      ],
+      "title": "非公開リリース条件 C03",
+      "ownership": [
+        "非公開 Issue に記載"
+      ],
+      "acceptance": [
+        "非公開 Issue の確定済み受入条件を満たす",
+        "固定した成果物に対する独立検査と必須 gate の証跡を記録する"
+      ],
+      "validation": [
+        "非公開 Issue の実行手順を使用する"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1
+    },
+    {
+      "id": "C04",
+      "repo": "core",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 6,
+      "dependencies": [
+        "R03",
+        "C03"
+      ],
+      "external": [
+        "postgres"
+      ],
+      "title": "非公開リリース条件 C04",
+      "ownership": [
+        "非公開 Issue に記載"
+      ],
+      "acceptance": [
+        "非公開 Issue の確定済み受入条件を満たす",
+        "固定した成果物に対する独立検査と必須 gate の証跡を記録する"
+      ],
+      "validation": [
+        "非公開 Issue の実行手順を使用する"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1
+    },
+    {
+      "id": "C05",
+      "repo": "core",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 6,
+      "dependencies": [
+        "R03",
+        "R02",
+        "C00"
+      ],
+      "external": [
+        "delivery-provider",
+        "postgres"
+      ],
+      "title": "非公開リリース条件 C05",
+      "ownership": [
+        "非公開 Issue に記載"
+      ],
+      "acceptance": [
+        "非公開 Issue の確定済み受入条件を満たす",
+        "固定した成果物に対する独立検査と必須 gate の証跡を記録する"
+      ],
+      "validation": [
+        "非公開 Issue の実行手順を使用する"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1
+    },
+    {
+      "id": "C06",
+      "repo": "core",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 6,
+      "dependencies": [
+        "R03",
+        "C02",
+        "C00"
+      ],
+      "external": [
+        "postgres"
+      ],
+      "title": "非公開リリース条件 C06",
+      "ownership": [
+        "非公開 Issue に記載"
+      ],
+      "acceptance": [
+        "非公開 Issue の確定済み受入条件を満たす",
+        "固定した成果物に対する独立検査と必須 gate の証跡を記録する"
+      ],
+      "validation": [
+        "非公開 Issue の実行手順を使用する"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1
+    },
+    {
+      "id": "W02",
+      "repo": "web",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 4,
+      "dependencies": [
+        "R03",
+        "W01",
+        "C02",
+        "R02",
+        "W04"
+      ],
+      "external": [
+        "staging-auth"
+      ],
+      "title": "Web の認証 lifecycle を本番相当環境で検証する",
+      "ownership": [
+        "src/app/api/auth",
+        "src/app/api/proxy",
+        "src/shared/lib",
+        "e2e"
+      ],
+      "acceptance": [
+        "現在の修正済み proxy を前提に email / Google login、期限切れ、logout、再login を実APIで通す",
+        "失効後の旧credentialが再利用できないことを private gate と照合する",
+        "core の確定contractに必要な変更だけ行い本人以外のデータを表示しない"
+      ],
+      "validation": [
+        "bun run test:e2e",
+        "bun run check:release",
+        "実 browser の認証 smoke"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-web/issues/77"
+    },
+    {
+      "id": "A02",
+      "repo": "android",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 4,
+      "dependencies": [
+        "R03",
+        "A01",
+        "C02",
+        "R02",
+        "A04"
+      ],
+      "external": [
+        "google-oauth",
+        "signed-device"
+      ],
+      "title": "Android の署名済み認証 lifecycle を検証する",
+      "ownership": [
+        "app/src/main/java/app/tastile/android/ui/login",
+        "app/src/main/java/app/tastile/android/di/AuthModule.kt",
+        "app/src/main/java/app/tastile/android/MainActivity.kt",
+        "app/src/main/AndroidManifest.xml"
+      ],
+      "acceptance": [
+        "release署名で native Google / web fallback / tastile callback を通す",
+        "logout、旧credential失効、cold start復元、期限切れ後の再認証を実機で通す",
+        "core contractを採用しclient独自business logicを追加しない"
+      ],
+      "validation": [
+        "./gradlew verify",
+        "./gradlew connectedDebugAndroidTest",
+        "署名済み実機 smoke"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-android/issues/5"
+    },
+    {
+      "id": "W03",
+      "repo": "web",
+      "existing": null,
+      "priority": "P1",
+      "estimateHours": 3,
+      "dependencies": [
+        "R03",
+        "W04",
+        "C04"
+      ],
+      "external": [],
+      "title": "Web 通知の response contract と表示を揃える",
+      "ownership": [
+        "src/shared/hooks/use-notifications.ts",
+        "src/shared/hooks/use-notifications.test.ts",
+        "src/shared/api/endpoints.ts"
+      ],
+      "acceptance": [
+        "現行 /read/execution-view の実responseを使用する",
+        "active / pending prompt / no active / API error の表示を検証する",
+        "古い /v1/active-tile 前提のコメントとmockを除去する"
+      ],
+      "validation": [
+        "bun run typecheck",
+        "bun run test -- run src/shared/hooks/use-notifications.test.ts",
+        "実API browser smoke"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-web/issues/78"
+    },
+    {
+      "id": "A03",
+      "repo": "android",
+      "existing": null,
+      "priority": "P1",
+      "estimateHours": 6,
+      "dependencies": [
+        "R03",
+        "A02",
+        "C05",
+        "A04"
+      ],
+      "external": [
+        "firebase",
+        "signed-device"
+      ],
+      "title": "Android の push endpoint lifecycle を実装する",
+      "ownership": [
+        "app/build.gradle.kts",
+        "app/src/main/AndroidManifest.xml",
+        "app/src/main/java/app/tastile/android/data/notification",
+        "app/src/main/java/app/tastile/android/TastileApp.kt"
+      ],
+      "acceptance": [
+        "NoOp provider を実 FCM provider とtoken rotation処理へ置換する",
+        "login時登録、logout時解除、権限拒否と再許可を扱う",
+        "background / cold start で通知から対象実行を開き二重通知を防ぐ"
+      ],
+      "validation": [
+        "./gradlew verify",
+        "./gradlew testDebugUnitTest",
+        "実FCM・実機で配送確認"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-android/issues/6"
+    },
+    {
+      "id": "W04",
+      "repo": "web",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 2,
+      "dependencies": [
+        "R01",
+        "W01",
+        "C07",
+        "R03"
+      ],
+      "external": [],
+      "title": "Web CI で固定 OpenAPI を生成検証する",
+      "ownership": [
+        ".github/workflows",
+        "scripts",
+        "src/shared/api/generated"
+      ],
+      "acceptance": [
+        "R01 の正本SHAを clean CI で取得する",
+        "generated types の再生成差分がゼロで quality が成功する",
+        "同時に未実装APIを追加しない"
+      ],
+      "validation": [
+        "bun run check:release",
+        "clean CI codegen"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-web/issues/79"
+    },
+    {
+      "id": "A04",
+      "repo": "android",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 2,
+      "dependencies": [
+        "R01",
+        "A01",
+        "C07",
+        "R03"
+      ],
+      "external": [],
+      "title": "Android CI で固定 OpenAPI を生成検証する",
+      "ownership": [
+        ".github/workflows",
+        "app/build.gradle.kts",
+        "app/src"
+      ],
+      "acceptance": [
+        "R01 の正本SHAを clean CI で取得する",
+        "codegenとVerifyを developer固有pathなしで通す",
+        "同時に未実装APIを追加しない"
+      ],
+      "validation": [
+        "./gradlew verify",
+        "clean CI codegen"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-android/issues/7"
+    },
+    {
+      "id": "W05",
+      "repo": "web",
+      "existing": null,
+      "priority": "P1",
+      "estimateHours": 4,
+      "dependencies": [
+        "R03",
+        "W02",
+        "C04",
+        "W03"
+      ],
+      "external": [
+        "staging"
+      ],
+      "title": "Web の作成から実行完了までを実APIで固定する",
+      "ownership": [
+        "e2e",
+        "src/features"
+      ],
+      "acceptance": [
+        "sign in→tile作成→配置→開始→状態確認→完了→履歴を実browser+実APIで通す",
+        "reloadと再送で二重作成しないこと、時刻境界、エラーからの復帰を確認する",
+        "失敗箇所だけ修正しscreenshots/traceと対象SHAを保存する"
+      ],
+      "validation": [
+        "bun run check:release",
+        "Playwright 実APIシナリオ"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-web/issues/80"
+    },
+    {
+      "id": "A05",
+      "repo": "android",
+      "existing": null,
+      "priority": "P1",
+      "estimateHours": 4,
+      "dependencies": [
+        "R03",
+        "A02",
+        "A04",
+        "C04"
+      ],
+      "external": [
+        "signed-device",
+        "staging"
+      ],
+      "title": "Android の作成から実行完了までを実機で固定する",
+      "ownership": [
+        "app/src/main",
+        "app/src/androidTest"
+      ],
+      "acceptance": [
+        "sign in→QuickCreate→配置→開始→完了→履歴を同じCoreで通す",
+        "process再起動、通信失敗、再送後にUIとサーバ状態が一致する",
+        "現行contractに存在しないMarkTaskを推測で追加しない"
+      ],
+      "validation": [
+        "./gradlew verify",
+        "./gradlew connectedDebugAndroidTest",
+        "署名済み実機シナリオ"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-android/issues/8"
+    },
+    {
+      "id": "W06",
+      "repo": "web",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 3,
+      "dependencies": [
+        "R03",
+        "W01"
+      ],
+      "external": [],
+      "title": "無料公開へ表示と課金入口を統一する",
+      "ownership": [
+        "src/shared",
+        "src/features",
+        "src/app/api"
+      ],
+      "acceptance": [
+        "LP/pricing/settings/全localeの価格・上限・対応platformを単一の公開仕様へ揃える",
+        "9/19は無料公開と明示し、未提供のMac/iOS/Desktop同期/無制限/offlineを約束しない",
+        "checkout/upgradeのUIとserver入口を無効化し、既存有料利用者がいれば管理/解約を妨げない"
+      ],
+      "validation": [
+        "bun run check:release",
+        "実browserの全導線と直接API要求"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-web/issues/81"
+    },
+    {
+      "id": "W07",
+      "repo": "web",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 3,
+      "dependencies": [
+        "R03",
+        "C06",
+        "W02",
+        "W04"
+      ],
+      "external": [],
+      "title": "アカウント削除とデータ取得を Web から提供する",
+      "ownership": [
+        "src/features/settings",
+        "src/app/api/account",
+        "e2e"
+      ],
+      "acceptance": [
+        "Core contractに従った取得/削除導線と明示的な確認を提供する",
+        "成功/失敗/再送を表示し削除後にsessionを終了する",
+        "未認証操作と別ownerの操作を拒否する"
+      ],
+      "validation": [
+        "bun run check:release",
+        "実API account E2E"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-web/issues/82"
+    },
+    {
+      "id": "A06",
+      "repo": "android",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 2,
+      "dependencies": [
+        "R03",
+        "W07",
+        "A02",
+        "A04"
+      ],
+      "external": [
+        "signed-device"
+      ],
+      "title": "Android からアカウント削除導線を提供する",
+      "ownership": [
+        "app/src/main"
+      ],
+      "acceptance": [
+        "設定から認証を維持した正式な削除導線へ到達する",
+        "削除完了後のclient credentialとpush endpointを除去する",
+        "公開予定の配布要件と実機挙動を照合する",
+        "最小導線はWeb削除画面を使用するためW07に依存する。native削除UIを別途作らない"
+      ],
+      "validation": [
+        "./gradlew verify",
+        "実機で削除 smoke"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-android/issues/9"
+    },
+    {
+      "id": "R04",
+      "repo": "root",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 4,
+      "dependencies": [
+        "R03",
+        "R02",
+        "C04",
+        "C05",
+        "C06"
+      ],
+      "external": [
+        "staging",
+        "backup"
+      ],
+      "title": "migration と restore を本番相当 DB で演習する",
+      "ownership": [
+        "docs/runbooks",
+        "docs/releases"
+      ],
+      "acceptance": [
+        "clean DBと現行backup双方から対象migrationまで適用する",
+        "backupから隔離DBへrestoreし件数/整合性/主要APIを確認する",
+        "APIとworkerの切替・停止・roll forward/rollback判断・ownerを手順化する",
+        "異常時に新規書込みを止める条件と復旧手順を実行証跡で示す"
+      ],
+      "validation": [
+        "Core full gate（実DB）",
+        "backup/restore 実行証跡"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-root/issues/5"
+    },
+    {
+      "id": "A07",
+      "repo": "android",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 3,
+      "dependencies": [
+        "R03",
+        "A03",
+        "A05",
+        "A06",
+        "R02"
+      ],
+      "external": [
+        "play-signing",
+        "play-review"
+      ],
+      "title": "Android 0.5.0 を署名し配布経路で検証する",
+      "ownership": [
+        "app/build.gradle.kts",
+        ".github/workflows/release.yml",
+        "release docs"
+      ],
+      "acceptance": [
+        "versionName0.5.0 / versionCode34 が未使用であることを確認し固定する",
+        "Verify→signed AAB→internal track→実機 install/update を通す",
+        "mappingと署名証跡を保存し公開審査の状態と担当者を記録する"
+      ],
+      "validation": [
+        "./gradlew verify",
+        "./gradlew bundleRelease",
+        "Play internal track 実機 install"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-android/issues/10"
+    },
+    {
+      "id": "R05",
+      "repo": "root",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 4,
+      "dependencies": [
+        "R03",
+        "W05",
+        "W06",
+        "W07",
+        "A07",
+        "R04",
+        "C01",
+        "C02",
+        "W04",
+        "A04",
+        "R07"
+      ],
+      "external": [
+        "staging",
+        "signed-device"
+      ],
+      "title": "9月19日 RC の独立検証と公開判定を行う",
+      "ownership": [
+        "docs/releases"
+      ],
+      "acceptance": [
+        "Core0.7.0/Web0.6.0/Android0.5.0 の候補versionと各SHA・specSHAを固定しTerraが独立検証する",
+        "選択したcore/web/androidのfull gate、実browser/DB/device、dependency advisory、monitoring/alertを確認する",
+        "security・data loss・minimum loop failure・未配布Androidが残れば公開を止める",
+        "停止条件ごとにownerとredacted evidenceを対応付ける: private C01/C02の本番auth negative test、R04のrestore、実通知/実行E2E、monitoring alert試験",
+        "Web check:release に既存のadvisory ignoreが含まれるため、未抑制のbun audit --production結果を別証跡にする。既存ignoreを理由にreleaseをgreenにせず、未解決の適用対象advisoryはblockerとして処理する"
+      ],
+      "validation": [
+        "pwsh -NoProfile -Command \"& ./scripts/check-workspace.ps1 -Repository @('core','web','android') -Profile full -KeepGoing -ResultPath .tmp/release-check.json\"",
+        "plugin-version-audit",
+        "本番相当 smoke",
+        "tastile-web: bun audit --production（ignoreを付けない）"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-root/issues/6"
+    },
+    {
+      "id": "R06",
+      "repo": "root",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 2,
+      "dependencies": [
+        "R03",
+        "R05"
+      ],
+      "external": [
+        "release-approval"
+      ],
+      "title": "無料本番公開と公開後確認を実施する",
+      "ownership": [
+        "docs/releases",
+        "docs/runbooks"
+      ],
+      "acceptance": [
+        "公開対象SHAと配布物を確認し release ticket の人間承認後に実施する",
+        "Web本番/Core API+worker/Android公開配布を確認し登録→実行→完了を再検証する",
+        "監視・問合せ・rollback ownerを明示し24時間の観測担当を引き継ぐ",
+        "release branch統合、tag/release、Issue明示close、board更新を証跡付きで行う"
+      ],
+      "validation": [
+        "本番 smoke",
+        "公開配布物とrelease SHAの照合"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-root/issues/7"
+    },
+    {
+      "id": "B01",
+      "repo": "root",
+      "existing": null,
+      "priority": "P2",
+      "estimateHours": 8,
+      "dependencies": [],
+      "external": [],
+      "title": "外部 Supervisor と隔離 runtime を評価する",
+      "ownership": [
+        ".agents",
+        "docs/adr"
+      ],
+      "acceptance": [
+        "既存runtime候補を比較しworkspace/process/network/DB/output/credentialの強制隔離を実証する",
+        "parent crash・stale generation・未知write結果・cleanupをfailure injectionで検証する",
+        "有効なpolicy IDとschema準拠結果を取得できるまで並列実装を有効化しない"
+      ],
+      "validation": [
+        "isolation/recovery smoke"
+      ],
+      "status": "Backlog",
+      "releaseBlocking": false,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-root/issues/8"
+    },
+    {
+      "id": "B02",
+      "repo": "core",
+      "existing": null,
+      "priority": "P2",
+      "estimateHours": 8,
+      "dependencies": [],
+      "external": [],
+      "title": "非公開リリース条件 B02",
+      "ownership": [
+        "非公開 Issue に記載"
+      ],
+      "acceptance": [
+        "非公開 Issue の確定済み受入条件を満たす",
+        "固定した成果物に対する独立検査と必須 gate の証跡を記録する"
+      ],
+      "validation": [
+        "非公開 Issue の実行手順を使用する"
+      ],
+      "status": "Backlog",
+      "releaseBlocking": false,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1
+    },
+    {
+      "id": "B03",
+      "repo": "root",
+      "existing": null,
+      "priority": "P2",
+      "estimateHours": 4,
+      "dependencies": [],
+      "external": [],
+      "title": "Desktop・iOS・Mac と次期体験を再計画する",
+      "ownership": [
+        "docs/releases"
+      ],
+      "acceptance": [
+        "Desktop PR15と未実装commandを再評価する",
+        "iOS/Mac/offline/AI/design刷新を9/19必須から分離して優先順位を決める"
+      ],
+      "validation": [
+        "read-only product/architecture review"
+      ],
+      "status": "Backlog",
+      "releaseBlocking": false,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-root/issues/9"
+    },
+    {
+      "id": "B04",
+      "repo": "root",
+      "existing": null,
+      "priority": "P2",
+      "estimateHours": 2,
+      "dependencies": [],
+      "external": [
+        "github-project"
+      ],
+      "title": "GitHub Projects を接続し Issue 状態を同期する",
+      "ownership": [
+        "docs/releases"
+      ],
+      "acceptance": [
+        "Projects権限を持つoperatorがboardを作成/選択する",
+        "repository横断Issueを取り込みPriority/Status/Iterationを対応付ける",
+        "root#2と既存stateを失わずDone定義を同期する"
+      ],
+      "validation": [
+        "Projects API readback"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": false,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-root/issues/10"
+    },
+    {
+      "id": "R07",
+      "repo": "root",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 2,
+      "dependencies": [
+        "R03"
+      ],
+      "external": [
+        "operator-decision"
+      ],
+      "title": "9月7日と12日にリリース実現性を判定する",
+      "ownership": [
+        "docs/releases"
+      ],
+      "acceptance": [
+        "9/7に完了実績・残工数・外部待ち・review容量を再見積もりし、確保容量を超える場合はscope/date/runtimeの判断を人間へ求める",
+        "9/12にWeb+Androidの実行体験と署名済み配布の証跡を確認し、未完了Issueを隠さずgo/no-goを記録する",
+        "この判断は未完了ticketがあっても実施する。Androidを無断で対象外へ落とさない",
+        "残るP0/P1を9/16RC入り・9/17-18修正/再検査・9/19公開へ収める工数とownerを記録する",
+        "9/7 18:00 JSTと9/12 18:00 JSTを判断cutoffとする。残worker-hours、1日あたり確保時間、review担当/時間、operator応答期限、外部待ち、再検査bufferを数値で記録する。必要容量を確保できなければgoを出さない"
+      ],
+      "validation": [
+        "当日の GitHub state/CI/device/残工数の照合"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Sol coordination / human decision / Terra independent review",
+      "generation": 1,
+      "issueUrl": "https://github.com/tastile/tastile-root/issues/11"
+    },
+    {
+      "id": "C00",
+      "repo": "core",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 3,
+      "dependencies": [
+        "R03",
+        "R02"
+      ],
+      "external": [
+        "design-decision"
+      ],
+      "title": "非公開リリース条件 C00",
+      "ownership": [
+        "非公開 Issue に記載"
+      ],
+      "acceptance": [
+        "非公開 Issue の確定済み受入条件を満たす"
+      ],
+      "validation": [
+        "非公開 Issue の実行手順を使用する"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Sol coordination / human design decision / Terra independent review",
+      "generation": 1
+    },
+    {
+      "id": "C07",
+      "repo": "core",
+      "existing": null,
+      "priority": "P0",
+      "estimateHours": 1,
+      "dependencies": [
+        "C02",
+        "C04",
+        "C05",
+        "C06",
+        "R01",
+        "R03"
+      ],
+      "external": [],
+      "title": "非公開リリース条件 C07",
+      "ownership": [
+        "非公開 Issue に記載"
+      ],
+      "acceptance": [
+        "非公開 Issue の確定済み受入条件を満たす"
+      ],
+      "validation": [
+        "非公開 Issue の実行手順を使用する"
+      ],
+      "status": "Blocked",
+      "releaseBlocking": true,
+      "role": "Luna implementation / Sol coordination / Terra independent review",
+      "generation": 1
+    }
+  ],
+  "trackingIssue": "https://github.com/tastile/tastile-root/issues/2",
+  "visibilityPolicy": "Public artifacts contain opaque Core gate IDs only. Full Core briefs and evidence are private. External readiness records contain status only; credentials and operations evidence stay access-controlled.",
+  "statusMapping": {
+    "Ready": "status:ready",
+    "Blocked": "status:blocked",
+    "Backlog": "status:backlog",
+    "In Progress": "status:in-progress",
+    "Review": "status:review",
+    "Done": "status:done"
+  },
+  "estimatePolicy": "Initial worker effort only, excluding external wait and independent review; estimate is not a release promise. Tickets over 4h need bounded sub-runs and pinned checkpoints, not unbounded retries.",
+  "capacity": {
+    "implementationWip": 1,
+    "estimatedWorkerHours": 106,
+    "reviewHours": "not yet allocated; record by 2026-09-07 18:00 JST",
+    "securedDailyHours": null,
+    "rcTarget": "2026-09-16",
+    "decisionCutoffs": [
+      "2026-09-07T18:00:00+09:00",
+      "2026-09-12T18:00:00+09:00"
+    ],
+    "goRule": "No date commitment until secured capacity, review time, external readiness and buffer cover remaining work."
+  }
+}

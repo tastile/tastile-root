@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Tastile immutable task and result contract",
+  "oneOf": [{ "$ref": "#/$defs/task" }, { "$ref": "#/$defs/result" }],
+  "$defs": {
+    "snapshot": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "string", "pattern": "^([a-f0-9]{40}|sha256:[a-f0-9]{64})$" }
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "issue_or_task_id", "objective", "acceptance_criteria", "base_snapshot", "spec_digest", "affected_repositories", "execution_generation", "role", "allowed_tools", "filesystem_policy", "network_policy", "budget", "expected_result", "runtime"],
+      "properties": {
+        "kind": { "const": "task" },
+        "issue_or_task_id": { "type": "string", "minLength": 1 },
+        "objective": { "type": "string", "minLength": 1 },
+        "acceptance_criteria": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 } },
+        "base_snapshot": { "$ref": "#/$defs/snapshot" },
+        "spec_digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "affected_repositories": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[^/]+/[^/]+$" } },
+        "execution_generation": { "type": "integer", "minimum": 1 },
+        "role": { "enum": ["coordinator", "implementer", "reviewer"] },
+        "allowed_tools": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "filesystem_policy": { "type": "string", "minLength": 1 },
+        "network_policy": { "type": "string", "minLength": 1 },
+        "budget": {
+          "type": "object", "additionalProperties": false,
+          "required": ["wall_minutes", "max_retries"],
+          "properties": { "wall_minutes": { "type": "integer", "minimum": 1, "maximum": 240 }, "max_retries": { "type": "integer", "minimum": 0, "maximum": 2 } }
+        },
+        "expected_result": { "type": "string", "minLength": 1 },
+        "runtime": {
+          "type": "object", "additionalProperties": false,
+          "required": ["mode", "supervisor", "policy_ids"],
+          "properties": {
+            "mode": { "enum": ["serial", "isolated"] },
+            "supervisor": { "type": "string", "minLength": 1 },
+            "policy_ids": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+          },
+          "allOf": [{ "if": { "properties": { "mode": { "const": "isolated" } } }, "then": { "properties": { "policy_ids": { "minItems": 1 } } } }]
+        }
+      }
+    },
+    "result": {
+      "type": "object", "additionalProperties": false,
+      "required": ["kind", "agent_id", "actual_model", "task_digest", "issue_or_task_id", "base_snapshot", "execution_generation", "result_commit_or_ref", "resolved_result_digest", "runtime_evidence", "checkpoint_digest", "review", "summary", "validation_results", "known_issues", "external_write_journal"],
+      "properties": {
+        "kind": { "const": "result" },
+        "agent_id": { "type": "string", "minLength": 1 },
+        "actual_model": { "type": ["string", "null"], "description": "Use observed execution metadata only; null means unavailable." },
+        "task_digest": { "type": "string", "pattern": "^sha256:[a-f0-9]{64}$" },
+        "runtime_evidence": { "type": "string", "minLength": 1, "description": "Reference to observed execution mode, supervisor, and effective policies. A claim alone is not enforcement evidence." },
+        "checkpoint_digest": { "type": ["string", "null"], "pattern": "^sha256:[a-f0-9]{64}$", "description": "Required non-null when returning a continuation; exclude secrets." },
+        "review": {
+          "oneOf": [
+            { "type": "null" },
+            {
+              "type": "object", "additionalProperties": false,
+              "required": ["candidate_digest", "implementation_agent_id", "verdict"],
+              "properties": {
+                "candidate_digest": { "type": "string", "pattern": "^([a-f0-9]{40}|sha256:[a-f0-9]{64})$" },
+                "implementation_agent_id": { "type": "string", "minLength": 1 },
+                "verdict": { "enum": ["approved", "changes_required", "blocked"] }
+              }
+            }
+          ]
+        },
+        "issue_or_task_id": { "type": "string", "minLength": 1 },
+        "base_snapshot": { "$ref": "#/$defs/snapshot" },
+        "execution_generation": { "type": "integer", "minimum": 1 },
+        "result_commit_or_ref": { "type": "string", "minLength": 1 },
+        "resolved_result_digest": { "type": "string", "pattern": "^([a-f0-9]{40}|sha256:[a-f0-9]{64})$" },
+        "summary": { "type": "string", "minLength": 1 },
+        "validation_results": {
+          "type": "array", "minItems": 1,
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["command", "status", "exit_code", "artifact"],
+            "properties": {
+              "command": { "type": "string", "minLength": 1 },
+              "status": { "enum": ["VERIFIED", "FAILED", "BLOCKED", "NOT_RUN"] },
+              "exit_code": { "type": ["integer", "null"] },
+              "artifact": { "type": "string", "minLength": 1 }
+            },
+            "allOf": [
+              { "if": { "properties": { "status": { "const": "VERIFIED" } } }, "then": { "properties": { "exit_code": { "const": 0 } } } },
+              { "if": { "properties": { "status": { "const": "FAILED" } } }, "then": { "properties": { "exit_code": { "type": "integer", "not": { "const": 0 } } } } },
+              { "if": { "properties": { "status": { "const": "NOT_RUN" } } }, "then": { "properties": { "exit_code": { "type": "null" } } } },
+              { "if": { "properties": { "status": { "const": "BLOCKED" } } }, "then": { "properties": { "exit_code": { "enum": [2, null] } } } }
+            ]
+          }
+        },
+        "known_issues": { "type": "array", "items": { "type": "string" } },
+        "external_write_journal": {
+          "type": "array",
+          "items": {
+            "type": "object", "additionalProperties": false,
+            "required": ["operation_id", "generation", "intent", "remote_result", "state"],
+            "properties": {
+              "operation_id": { "type": "string", "minLength": 1 },
+              "generation": { "type": "integer", "minimum": 1 },
+              "intent": { "type": "string", "minLength": 1 },
+              "remote_result": { "type": ["string", "null"] },
+              "state": { "enum": ["confirmed", "uncertain", "reconciled", "failed"] }
+            }
+          }
+        }
+      }
+    }
+  }
+}

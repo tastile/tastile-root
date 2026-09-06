@@ -1,7 +1,9 @@
-# r3: Android TaskRun Producer — Design Spec
+<!-- 日本語訳 / Translation -->
 
-> **Status:** design freeze 待ち (brainstorm 経由、Q1-Q3 + §0 TDD 承認済)
-> **Date:** 2026-08-30
+# r3: Android TaskRun Producer — 設計仕様
+
+> **ステータス:** design freeze 待ち (brainstorm 経由、Q1-Q3 + §0 TDD 承認済)
+> **日付:** 2026-08-30
 > **Spec target:** `tastile-core` + `tastile-android` の実行時 TaskRun 経路
 > **Plan target:** `docs/plans/2026-08-30-r3-android-task-run.md` (本 spec を入力に作成)
 > **Required sub-skill (plan 実行時):** `superpowers:test-driven-development` + `superpowers:executing-plans` (or `superpowers:subagent-driven-development`)
@@ -34,7 +36,7 @@ Step 7: commit
 
 RED → GREEN → REFACTOR を 1 commit にまとめない。
 
-## §1. Background & Goal
+## §1. 背景と目標
 
 ### 1-1. 背景
 
@@ -42,11 +44,11 @@ v1 Phase A が完了し、Execution lifecycle (`START_EXECUTION` / `PAUSE_EXECUT
 
 直近の `tastile-core` commits (`c3af9b9` / `3e4d608` / `23ac72d` / `a90ee5a` / `1f839c7`) は v1/13 closed-loop / source optimizer を構築中であり、これは TaskRun accumulation を input にする。TaskRun を正確に溜める **producer 側** (Android 実機能) を固めることが closed-loop の前提となる。
 
-### 1-2. Goal
+### 1-2. 目標
 
 `RECORD_TASK_RUN` を v1 Command に追加し、`tastile-android` の ExecuteScreen から `TaskDefinition` の check を送れる経路を実装する。`tastile-web` は openapi codegen 経由で追従する follow-up PR とし、本 spec の scope 外とする (Q5 参照)。
 
-### 1-3. Non-goals
+### 1-3. 非目標
 
 - Now screen (`ui/now/NowScreen.kt`) は触らない
 - Decision / Session 経路 (`SessionRepository.submitFeedback`) は触らない
@@ -368,7 +370,7 @@ fun recordTask(
 - Step 3: GREEN impl
 - Step 4-7: standard
 
-## §7. Data flow
+## §7. データフロー
 
 ```
 [user] tap Checkbox on ExecuteScreen
@@ -410,7 +412,7 @@ ServerError(5xx)   → snackbar "更新に失敗しました (Retry)" + 再 tap 
 NetworkError       → snackbar "通信エラー (Retry)" + 再 tap で retry
 ```
 
-## §8. Error handling
+## §8. エラーハンドリング
 
 | 状況 | HTTP | Android `RecordTaskRunResult` | UI 反応 |
 | --- | --- | --- | --- |
@@ -424,7 +426,7 @@ NetworkError       → snackbar "通信エラー (Retry)" + 再 tap で retry
 
 すべての error path は sealed interface で網羅する。`null` や `Throwable` を直接 UI に伝播させない。
 
-## §9. Testing (refs §0)
+## §9. テスト (refs §0)
 
 §0 の discipline を **そのまま** chunk ごとの test 構造に適用する。test-only commit は OK、RED → GREEN → REFACTOR を 1 commit にまとめない。
 
@@ -443,7 +445,7 @@ NetworkError       → snackbar "通信エラー (Retry)" + 再 tap で retry
 
 test 命名規約: `<method>_<scenario>_<expected>` (例: `recordTaskRun_409_returnsRevisionConflict`)。
 
-## §10. Acceptance criteria
+## §10. 完了基準
 
 §0 の 7 step を全 chunk で通過 + 下記:
 
@@ -469,7 +471,7 @@ test 命名規約: `<method>_<scenario>_<expected>` (例: `recordTaskRun_409_ret
 
 **Decision:** Android 先行的。`tastile-web` は openapi codegen (`pnpm codegen`) で自動追従する follow-up PR とする。本 PR では web 側に新規 file を作らないが、`bun run check:release` で openapi drift が 0 になることを確認する。
 
-## §12. Risks & Rollback
+## §12. リスクとロールバック
 
 | Risk | Mitigation | Rollback |
 | --- | --- | --- |
