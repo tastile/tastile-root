@@ -235,8 +235,9 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 ### 6-4. env 管理
 
 - `.env` に含まれる項目すべてを **`.env.example`** として残す (値は空)
-- 実際の値は `.env` (ローカル) と **GitHub Secrets** (CI) に保存
-- `.env` ファイルは `.gitignore` で除外
+- canonical として **`.env.<env>.sops`** (AWS KMS で暗号化された ciphertext) を commit し、起動時に bun loader (`scripts/sops-decrypt.ts`) が KMS Decrypt で `.env.<env>` へ復号する。KMS key policy は developer SSO / GitHub Actions OIDC role / EC2 instance profile の 3 principal category を allow する (旧 `kms:ViaService` condition は SSO 直接復号を誤って遮断していたため除去済み — 経緯は `docs/adr/0006-kms-viaservice-removal.md`、設計は `docs/superpowers/specs/2026-08-27-sops-env-decryption-design.md` を参照)
+- production の hot path は **AWS SSM Parameter Store / Secrets Manager** を並列維持し、systemd `EnvironmentFile=` 経由で配信する (SOPS 復号値と衝突しないよう、infra URL 類は SSM 側 / application secret は `.sops` 側で分担)
+- 平文 `.env` / `.env.<env>` は `.gitignore` で除外 (loader が起動時に書き出す)
 
 ---
 
@@ -371,14 +372,14 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 - **Docker を使わない**: 開発でも本番でも Linux バイナリ直接実行
 - **PostgreSQL の enum 型を使わない**: `smallint` + アプリ Registry
 - **JSONB を正本に保存しない**: 子テーブルへ正規化
-- **env の値をリポジトリにコミットしない**: `.env.example` に項目のみ残す
+- **env の値をリポジトリにコミットしない**: `.env.example` に項目のみ残す (`.env.<env>.sops` は KMS で暗号化された ciphertext であり例外 — §6-4 参照)
 - **存在しない外部ドキュメントを参照しない**: `pomodoroom/CORE_POLICY.md` / `tastile_docs_bundle/` 等の旧参照は禁止
 
 ---
 
 ## 13. 現在のステータスと次のマイルストーン
 
-### 13-1. リポジトリ別ステータス (2026-07-10 時点)
+### 13-1. リポジトリ別ステータス (2026-09-05 時点 — 最新は `check-workspace.ps1 -Profile full` で確認)
 
 | リポジトリ | fast gate | full gate | 備考 |
 | --- | --- | --- | --- |
@@ -416,6 +417,7 @@ Claude Code、Codex、OpenCode は `tastile` 直下から起動する。各agent
 - Git hookではない。人間の通常commitには作用しない
 - fast gateと別CLI agent reviewの両方が必須
 - gate、skill、reviewerはHEADへcommit予定patchだけを適用した一時snapshot上で動く
+  - 例外: `root` repository は sibling 配置の child repo を `git archive HEAD` に取り込めず、snapshot 内に `.git` も無いため snapshot 化が成立しない。代わりに live workspace を対象にgateを走らせ、HEAD からの差分(staged patch)は reviewer prompt にだけ渡す。root gate は workspace 構造のみを検証するため、staged content の混入経路がない
 - Claude→Codex、Codex→Claude、OpenCode→Codexとして自己レビューを禁止
 - project固有基準は各child repoの `.agents/skills/tastile-precommit-review/SKILL.md`
 - Critical / Important のみblocking。approvalはキャッシュしない

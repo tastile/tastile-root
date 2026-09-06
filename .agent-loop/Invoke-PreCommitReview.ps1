@@ -412,34 +412,50 @@ try {
     $patch = $diffResult.StdOut
     if ([string]::IsNullOrWhiteSpace($patch)) { Stop-Denied "The intended commit patch is empty" ([string]$repository.name) }
 
-    $snapshotContainer = Join-Path $env:TEMP ("tastile-review-" + [guid]::NewGuid().ToString("N"))
-    $snapshotPath = Join-Path $snapshotContainer "snapshot"
-    $archivePath = Join-Path $snapshotContainer "head.tar"
-    New-Item -ItemType Directory -Force -Path $snapshotPath | Out-Null
-    $archiveResult = Invoke-Process $gitCommand @("-C", $repositoryPath, "archive", "--format=tar", "--output", $archivePath, "HEAD") `
-        $repositoryPath 60 $null
-    if ($archiveResult.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $archivePath)) {
-        Stop-Denied "Unable to archive repository HEAD" ([string]$repository.name)
-    }
-    $tarArchiveArg = $archivePath -replace '\\', '/'
-    $tarDestArg = $snapshotPath -replace '\\', '/'
-    $tarArguments = if ($IsWindows -or ($env:OS -eq "Windows_NT")) {
-        @("-xf", $tarArchiveArg, "-C", $tarDestArg)
+    # The root repository's gate validates workspace structure (config files,
+    # ignore policy, child-repo presence). `git archive HEAD` cannot capture
+    # the child repos because they live in sibling git repositories, not as
+    # subdirectories tracked by root. The extracted snapshot also lacks a
+    # `.git`, so `git ls-files` / `git check-ignore` inside the gate error
+    # out. Skip the tar snapshot for root and run the gate against the live
+    # workspace instead; the staged patch is passed only to the reviewer
+    # prompt. See `docs/HARNESS.md` §13-3 and
+    # `.agents/skills/tastile-precommit-review/SKILL.md` for the documented
+    # exception.
+    if ($repository.name -eq "root") {
+        $snapshotContainer = $null
+        $snapshotPath = $repositoryPath
     } else {
-        @("--force-local", "-xf", $tarArchiveArg, "-C", $tarDestArg)
-    }
-    $extractResult = Invoke-Process "tar" $tarArguments $snapshotContainer 60 $null
-    if ($extractResult.ExitCode -ne 0) {
-        $fallbackResult = Invoke-Process "tar" @("-xf", $tarArchiveArg, "-C", $tarDestArg) $snapshotContainer 60 $null
-        if ($fallbackResult.ExitCode -eq 0) {
-            $extractResult = $fallbackResult
-        } else {
-            Stop-Denied ("Unable to extract repository snapshot | exit={0} | err={1}" -f $extractResult.ExitCode, $extractResult.StdErr) ([string]$repository.name)
+        $snapshotContainer = Join-Path $env:TEMP ("tastile-review-" + [guid]::NewGuid().ToString("N"))
+        $snapshotPath = Join-Path $snapshotContainer "snapshot"
+        $archivePath = Join-Path $snapshotContainer "head.tar"
+        New-Item -ItemType Directory -Force -Path $snapshotPath | Out-Null
+        $archiveResult = Invoke-Process $gitCommand @("-C", $repositoryPath, "archive", "--format=tar", "--output", $archivePath, "HEAD") `
+            $repositoryPath 60 $null
+        if ($archiveResult.ExitCode -ne 0 -or -not (Test-Path -LiteralPath $archivePath)) {
+            Stop-Denied "Unable to archive repository HEAD" ([string]$repository.name)
         }
+        $tarArchiveArg = $archivePath -replace '\\', '/'
+        $tarDestArg = $snapshotPath -replace '\\', '/'
+        # Try GNU tar without `--force-local` first; that works for archive paths
+        # that don't start with a drive letter / colon. On Windows the archive
+        # path is `C:/...`, which GNU tar 1.35 (Git for Windows) mis-parses as a
+        # `user@host:` remote spec and fails with "Cannot connect to C: resolve
+        # failed". When that happens, retry with `--force-local` to disable the
+        # remote-spec heuristic.
+        $extractResult = Invoke-Process "tar" @("-xf", $tarArchiveArg, "-C", $tarDestArg) $snapshotContainer 60 $null
+        if ($extractResult.ExitCode -ne 0) {
+            $fallbackResult = Invoke-Process "tar" @("--force-local", "-xf", $tarArchiveArg, "-C", $tarDestArg) $snapshotContainer 60 $null
+            if ($fallbackResult.ExitCode -eq 0) {
+                $extractResult = $fallbackResult
+            } else {
+                Stop-Denied ("Unable to extract repository snapshot | exit={0} | err={1}" -f $extractResult.ExitCode, $extractResult.StdErr) ([string]$repository.name)
+            }
+        }
+        $applyResult = Invoke-Process $gitCommand @("-C", $snapshotPath, "apply", "--binary", "--whitespace=nowarn", "-") `
+            $snapshotPath 60 $patch
+        if ($applyResult.ExitCode -ne 0) { Stop-Denied "Unable to apply intended patch to isolated snapshot" ([string]$repository.name) }
     }
-    $applyResult = Invoke-Process $gitCommand @("-C", $snapshotPath, "apply", "--binary", "--whitespace=nowarn", "-") `
-        $snapshotPath 60 $patch
-    if ($applyResult.ExitCode -ne 0) { Stop-Denied "Unable to apply intended patch to isolated snapshot" ([string]$repository.name) }
 
     if ($repository.PSObject.Properties.Name -contains "prepare") {
         $prepare = $repository.prepare
@@ -520,6 +536,20 @@ $patch
         if ($firstBrace -gt 0) { $clean = $clean.Substring($firstBrace) }
 
         $obj = $clean | ConvertFrom-Json
+
+        # Normalize verdict: reviewers occasionally emit synonyms or alternate
+        # casing (e.g. GitHub-style "request_changes", uppercase "DENY"). Map
+        # every recognized synonym to the canonical "approve" / "block" pair
+        # and lowercase the result so Test-ReviewResult accepts the payload.
+        if ($obj.PSObject.Properties.Name -contains "verdict") {
+            $raw = ([string]$obj.verdict).Trim().ToLowerInvariant()
+            switch ($raw) {
+                { $_ -in @("approve", "approved", "ok", "lgtm", "allow") } { $obj.verdict = "approve" }
+                { $_ -in @("block", "blocked", "deny", "denied", "request_changes",
+                            "reject", "rejected", "disapprove", "disapproved") } { $obj.verdict = "block" }
+                default { $obj.verdict = $raw }
+            }
+        }
 
         if (-not ($obj.PSObject.Properties.Name -contains "verdict")) {
             if ($obj.PSObject.Properties.Name -contains "decision") {

@@ -17,6 +17,8 @@ gate は catalog / schema JSON、PowerShell 構文、project-local agent environ
 `.agent-loop/repositories.json` には `core`、`web`、`android`、`desktop`、`brands` の全 entry
 が必要であり、追加 entry がこれらを置換してはならない。
 
+例外: `root` repository の commit だけは snapshot 化が成立しない (sibling 配置の child repo が `git archive HEAD` に取り込めず、snapshot 内に `.git` も作れないため)。root gate は workspace 構造のみを検証する設計のため、live workspace を対象にgateを走らせ、staged patch は reviewer prompt にだけ渡すことで等価性を保つ。child repo の pre-commit review ではこの例外は適用しない。
+
 ## Blocking review
 
 Do not approve when any Critical or Important finding remains.
