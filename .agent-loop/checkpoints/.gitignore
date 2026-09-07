@@ -1,0 +1,4 @@
+# Runtime checkpoint objects are intentionally local and untracked.
+*
+!.gitignore
+!.gitkeep

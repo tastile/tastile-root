@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.local/schemas/checkpoint.schema.json",
+  "title": "Tastile agent execution checkpoint",
+  "description": "Structured snapshot of an in-flight agent task. Re-usable for both soft (local) and hard (remote-durable) checkpoint boundaries. See ADR-0008.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "issue_id",
+    "target_release",
+    "ticket_branch",
+    "base_sha",
+    "checkpoint_sha_or_snapshot",
+    "execution_generation",
+    "status",
+    "completed_steps",
+    "next_steps",
+    "pending_validation",
+    "active_children",
+    "integrated_child_results",
+    "external_side_effects",
+    "blockers",
+    "decision_refs",
+    "artifact_refs",
+    "updated_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "description": "Schema version (semver-like). Older checkpoints accept schema_version <= backward_compat.",
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.]+)?$"
+    },
+    "backward_compat": {
+      "description": "Optional array of older schema_version strings this checkpoint is still readable against.",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "issue_id": {
+      "description": "GitHub Issue number (positive integer) as a string. Empty string only when the task is pre-Issue (planning, design freeze).",
+      "type": "string",
+      "pattern": "^[0-9]*$"
+    },
+    "target_release": {
+      "description": "Canonical release branch ADR-0007 defines. Empty when ticket targets main directly.",
+      "type": "string",
+      "pattern": "^(release-[0-9]+-[0-9]+-[0-9]+|-?)$"
+    },
+    "ticket_branch": {
+      "description": "Per ADR-0007 the ticket branch name is the GitHub Issue number only (digits). Empty when no Issue yet.",
+      "type": "string",
+      "pattern": "^[0-9]*$"
+    },
+    "pr_number": {
+      "description": "GitHub PR number when one exists, otherwise omitted.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "base_sha": {
+      "description": "40-character hex commit SHA the agent started from.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "checkpoint_sha_or_snapshot": {
+      "description": "40-character hex commit SHA, or an absolute filesystem path of a tar / tar.gz soft-checkpoint blob.",
+      "type": "string",
+      "minLength": 1
+    },
+    "execution_generation": {
+      "description": "Monotonic counter incremented on every recovery. 1 for the first attempt.",
+      "type": "integer",
+      "minimum": 1
+    },
+    "status": {
+      "description": "Checkpoint lifecycle status. This enum is distinct from child result verdict, external operation result, and recovery report STATUS.",
+      "enum": [
+        "pending",
+        "in_progress",
+        "awaiting_review",
+        "integrated",
+        "failed",
+        "abandoned"
+      ]
+    },
+    "completed_steps": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "next_steps": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "pending_validation": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "active_children": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "agent_id", "fencing_token", "last_heartbeat"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "sol-supervisor",
+              "luna-implementer",
+              "terra-inspector",
+              "tastile-verifier",
+              "cross-repo-contract-reviewer",
+              "research",
+              "custom"
+            ]
+          },
+          "agent_id": { "type": "string", "minLength": 1 },
+          "fencing_token": {
+            "description": "Opaque token issued by the parent. Must NOT be reused across siblings.",
+            "type": "string",
+            "minLength": 16
+          },
+          "last_heartbeat": {
+            "description": "RFC 3339 timestamp of the most recent heartbeat from the child.",
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "integrated_child_results": {
+      "type": "array",
+      "items": { "$ref": "agent-result.schema.json" }
+    },
+    "external_side_effects": {
+      "description": "Side effects whose retry semantics need an idempotency key. Required for any state mutation that survives process death.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "target", "idempotency_key", "observed_state"],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "gh_release",
+              "gh_pr_comment",
+              "gh_issue_state",
+              "git_push",
+              "play_console_upload",
+              "sops_decrypt",
+              "github_project_field",
+              "custom"
+            ]
+          },
+          "target": {
+            "description": "Stable identifier for the external resource (e.g. release tag, PR number, file path).",
+            "type": "string",
+            "minLength": 1
+          },
+          "idempotency_key": {
+            "type": "string",
+            "minLength": 8
+          },
+          "observed_state": {
+            "description": "Snapshot of the remote state at last observation (tag SHA, PR head SHA, build number, etc.).",
+            "type": "string",
+            "minLength": 1
+          },
+          "last_attempt_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "blockers": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "decision_refs": {
+      "description": "Paths to ADRs / design docs / Skills referenced by this checkpoint. ADRs are preferred.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "artifact_refs": {
+      "description": "Relative or absolute file paths or remote URLs to artifacts the task produced.",
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "rpo_seconds": {
+      "description": "Hard-checkpoint recovery point objective (only set on hard checkpoints).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "rto_seconds": {
+      "description": "Hard-checkpoint recovery time objective (only set on hard checkpoints).",
+      "type": "integer",
+      "minimum": 0
+    },
+    "last_hard_at": {
+      "description": "RFC 3339 timestamp of the most recent successful hard checkpoint.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated_at": {
+      "description": "RFC 3339 timestamp of the most recent edit to this checkpoint.",
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "description": "Hard-checkpoint extension fields must be set together.",
+      "if": {
+        "required": ["last_hard_at"]
+      },
+      "then": {
+        "required": ["rpo_seconds", "rto_seconds", "last_hard_at"]
+      }
+    }
+  ]
+}
