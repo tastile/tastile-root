@@ -23,7 +23,8 @@ $claudeArgs = @($claudeHook.args)
 Assert-True ($claudeGroup.matcher -eq "Bash") "Claude must inspect every Bash call"
 Assert-True ($claudeHook.type -eq "command") "Claude adapter must be a command hook"
 Assert-True ($claudeHook.command -eq "bun") "Claude hook must launch the dispatcher through bun"
-Assert-True ($claudeArgs.Count -ge 1 -and $claudeArgs[0].EndsWith('hook-dispatch.mjs')) "Claude hook must point at hook-dispatch.mjs"
+Assert-True ($claudeArgs.Count -ge 2 -and $claudeArgs[0] -eq '${CLAUDE_PROJECT_DIR}/.claude/hooks/hook-dispatch.mjs') "Claude hook must use the project-root dispatcher path"
+Assert-True ($claudeArgs[1] -eq 'claude') "Claude hook must identify Claude as the caller"
 $claudeHookCommandLine = ($claudeHook.command + " " + ($claudeArgs -join " "))
 Assert-True (-not $claudeHookCommandLine.Contains('C:\\Users\\rebui\\Desktop\\tastile')) "Claude hook must not contain a fixed absolute path"
 Assert-True ([int]$claudeHook.timeout -ge 900) "Claude hook timeout is too short for gate plus review"
@@ -37,8 +38,8 @@ $codexGroup = @($codex.hooks.PreToolUse)[0]
 $codexHook = @($codexGroup.hooks)[0]
 Assert-True ($codexGroup.matcher -eq "Bash") "Codex must inspect every Bash call"
 Assert-True ($codexHook.type -eq "command") "Codex adapter must be a command hook"
-Assert-True ($codexHook.command -match 'Get-Location.+\.agent-loop\\Invoke-AgentHook\.ps1.+Caller codex') "Codex hook must search parent directories"
-Assert-True ($codexHook.commandWindows -match 'Invoke-AgentHook\.ps1.+Caller codex') "Codex Windows command is missing"
+Assert-True ($codexHook.command -match 'hook-dispatch\.mjs.+codex') "Codex hook must route through the shared dispatcher"
+Assert-True ($codexHook.commandWindows -match 'hook-dispatch\.mjs.+codex') "Codex Windows command is missing"
 Assert-True (-not $codexHook.command.Contains('C:\\Users\\rebui\\Desktop\\tastile')) "Codex hook must not contain a fixed absolute path"
 Assert-True ([int]$codexHook.timeout -ge 900) "Codex hook timeout is too short for gate plus review"
 

@@ -326,6 +326,14 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 - Linux バイナリが直接動く
 - Docker は使わない
 
+### 9-5. macOS / Apple Silicon host と host portability
+
+現時点で primary support は Windows + WSLC (本節 9-3) とする。
+macOS / Apple Silicon / Linux / cloud sandbox からの contribution は
+wslc / Linux runtime 経由で同等検証する。host-specific な hidden state
+への依存は禁止 (AGENTS.md 「常時適用する不変条件」)。並列開発時の
+host portability 契約は `docs/agent-orchestration.md` §1-1 を参照。
+
 ---
 
 ## 10. 正本の所在 (Source of Truth)
@@ -333,6 +341,7 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 | 対象 | 正本の場所 |
 | --- | --- |
 | プロジェクト全体方針・全体設計 | **tastile-root/docs/HARNESS.md** (本ドキュメント) |
+| 並行開発・recovery・外部副作用の運用契約 | `docs/agent-orchestration.md`、`docs/adr/0007-release-branch-and-ticket-workflow.md`、`docs/adr/0008-structured-recovery-checkpoint.md`、`docs/adr/0009-github-projects-work-state.md` |
 | ドメインモデル・不変条件・仕様 | tastile-core/v1/*.md (16 ファイル) |
 | 実装ハーネス (バックエンド詳細) | tastile-core/HARNESS.md |
 | API 仕様 | tastile-core/v1/14-read-model-and-endpoint.md |

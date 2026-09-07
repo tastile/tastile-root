@@ -36,6 +36,25 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
   `.reference/` に置き、どちらも dependency にしない。
 - 権限と利用可能な機能が許す場合、独立した作業だけを明示的な file ownership で
   並列化する。同一 file の並列編集と、subagent による自己承認は禁止する。
+- **branch workflow (ADR-0007)** — `main` は released / integrated state。active
+  sprint は `release-<major>-<minor>-<patch>` branch、ticket branch は GitHub Issue
+  番号のみ。`feature/*`、`fix-*` 等の prefix / slug 入り branch は禁止。
+- **durable checkpoint (ADR-0008)** — agent 実行の soft / hard checkpoint は
+  `.agent-loop/checkpoint.schema.json` / `.agent-loop/agent-result.schema.json` を正本とする。
+  fresh agent は conversation 履歴ではなく canonical policy + durable remote
+  state のみから再構成する。
+- **Project work state (ADR-0009)** — durable work item は GitHub Issue とし、
+  Project v2 の必須 field (`priority / size / target_version / execution_generation`)
+  を満たすまで status を `Ready` へ遷移しない。
+
+## 並行開発と orchestration policy
+
+sprint branch 規約、engineering decision precedence、user escalation
+boundary、subagent mode taxonomy、worker lease / fencing、recovery
+checkpoint schema、external side-effect journal は
+`docs/agent-orchestration.md` を参照。**通常 task では AGENTS.md /
+HARNESS.md / CODEX_ROLES.ja.md の pointer のみ参照し、本文書は初回
+init / orchestration 再構成時に全文を読む**。
 
 ## Agent Skills
 
@@ -46,6 +65,14 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
 - `tastile-precommit-review`: root 変更を agent が commit する直前の独立 review。
 - `plugin-version-audit`: pinned 依存（MCP / Bun / Node / Biome / Knip / Vitest / Playwright / Next /
   openapi-typescript）の drift と advisory を release 前、または bump 直前に read-only で確認する。
+- `release-branch-workflow`: sprint planning、Issue 起票、PR 開始、release 統合の直前
+  (ADR-0007)。
+- `recover-task`: agent context / session / sandbox 消失後、または fresh agent が前
+  タスクを引き継ぐとき (ADR-0008)。
+- `project-board`: Issue status 遷移、Project field 操作、WIP 確認 (ADR-0009)。
+- `subagent-coordination`: sub-agent を spawn / integrate / 監視 / cancel /
+  recover-task するとき、Codex trio (Sol / Luna / Terra) と Claude role catalog を
+  参照する (ADR-0005 + ADR-0008)。
 
 ## 検証と commit
 

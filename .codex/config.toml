@@ -5,7 +5,7 @@ model_reasoning_effort = "xhigh"
 command = "bunx"
 args = [
     "-y",
-    "chrome-devtools-mcp@1.6.0",
+    "chrome-devtools-mcp@1.8.0",
     "--isolated",
     "--no-performance-crux",
     "--no-usage-statistics",
@@ -15,5 +15,5 @@ args = [
 command = "bunx"
 args = [
     "-y",
-    "@upstash/context7-mcp@4.0.3",
+    "@upstash/context7-mcp@4.0.5",
 ]

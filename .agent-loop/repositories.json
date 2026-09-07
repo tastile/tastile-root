@@ -17,7 +17,7 @@
       "name": "android",
       "path": "tastile-android",
       "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
-      "gate": { "command": ".\\gradlew.bat", "arguments": ["verify", "--no-daemon"] }
+      "gate": { "command": "./gradlew", "arguments": ["verify", "--no-daemon"] }
     },
     {
       "name": "desktop",
@@ -48,7 +48,7 @@
       "name": "root",
       "path": ".",
       "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
-      "gate": { "command": "pwsh", "arguments": ["-NoProfile", "-File", ".agent-loop/gate-root.ps1"] }
+      "gate": { "command": "bash", "arguments": [".agent-loop/gate-root.sh"] }
     }
   ]
 }

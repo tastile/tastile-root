@@ -4,16 +4,14 @@
 // WHY THIS EXISTS
 // ---------------
 // The three Bash guards used to be registered as three separate hooks, so
-// every Bash tool call paid for all three process spawns. Measured on this
-// host: Invoke-AgentHook.ps1 ~690ms + tastile-command-guard.ps1 ~540ms +
-// git-guard.mjs ~100ms = ~1.33s of latency on *every* command, including
-// `ls`, `cat`, and `rg`. Over a long build session that is minutes of dead
-// time.
+// every Bash tool call paid for all three process spawns. The dispatcher keeps
+// routine policy checks on Bun and starts PowerShell only when a command may
+// publish repository state.
 //
 // This dispatcher reads the PreToolUse event once and runs only the guards
-// whose subject matter actually appears in the command string. The guards
-// themselves are unmodified and keep their own full-string regex checks, so
-// routing here narrows *how often* a guard runs, never *what it decides*.
+// whose subject matter actually appears in the command string. Each selected
+// guard still checks the full command string, so routing narrows how often a
+// guard runs, never what it decides.
 //
 // SAFETY PROPERTIES
 // -----------------
@@ -35,6 +33,12 @@ import { fileURLToPath } from "node:url";
 
 const HOOK_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HOOK_DIR, "..", "..");
+const caller = process.argv[2];
+
+if (caller !== "claude" && caller !== "codex") {
+  process.stderr.write("hook-dispatch requires a claude or codex caller argument\n");
+  process.exit(2);
+}
 
 // `spawn` with shell:false does no PATHEXT resolution, so a bare "bun" or
 // "pwsh" is ENOENT on Windows. Resolve against PATH once, keeping shell:false
@@ -82,9 +86,10 @@ const unparseable = event === null;
 // The pre-commit review gate cares about commands that publish work.
 const PUBLISHES = /\bgit(?:\.exe)?\b[\s\S]*\b(?:commit|push|merge|tag|revert|cherry-pick)\b|\bgh(?:\.exe)?\b[\s\S]*\b(?:pr|release|api)\b/i;
 
-// The command-policy guard cares about package managers, cargo, and gradle,
-// plus root-level git add/commit.
-const POLICY = /(?:^|[^\w.-])(?:npm|npx|yarn|pnpm|cargo|gradlew(?:\.bat)?)\b|\bgit(?:\.exe)?\s+(?:add|commit)\b/i;
+// The command-policy guard cares about package managers, cargo, Gradle, and
+// root-level child-repository mutations. Route every git command because `-C`
+// and command chaining make action-only routing easy to bypass.
+const POLICY = /(?:^|[^\w.-])(?:npm|npx|yarn|pnpm|cargo|gradlew(?:\.bat)?|git(?:\.exe)?)\b/i;
 
 const GUARDS = [
   {
@@ -99,26 +104,31 @@ const GUARDS = [
   {
     name: "tastile-command-guard",
     when: () => unparseable || POLICY.test(command),
-    exec: "pwsh",
-    args: [
-      "-NoProfile",
-      "-File",
-      join(REPO_ROOT, ".claude", "hooks", "tastile-command-guard.ps1"),
-    ],
-    requires: join(REPO_ROOT, ".claude", "hooks", "tastile-command-guard.ps1"),
+    exec: "bun",
+    args: [join(REPO_ROOT, ".claude", "hooks", "tastile-command-guard.mjs")],
+    requires: join(REPO_ROOT, ".claude", "hooks", "tastile-command-guard.mjs"),
   },
   {
     name: "agent-loop-precommit-review",
     when: () => unparseable || PUBLISHES.test(command),
-    exec: "pwsh",
-    args: [
-      "-NoProfile",
-      "-File",
-      join(REPO_ROOT, ".agent-loop", "Invoke-AgentHook.ps1"),
-      "-Caller",
-      "claude",
-    ],
-    requires: join(REPO_ROOT, ".agent-loop", "Invoke-AgentHook.ps1"),
+    exec: process.platform === "win32"
+      ? "pwsh"
+      : (existsSync(join(REPO_ROOT, ".agent-loop", "Invoke-AgentHook.sh")) ? "bash" : "pwsh"),
+    args: process.platform === "win32"
+      ? [
+          "-NoProfile",
+          "-File",
+          join(REPO_ROOT, ".agent-loop", "Invoke-AgentHook.ps1"),
+          "-Caller",
+          caller,
+        ]
+      : [
+          join(REPO_ROOT, ".agent-loop", "Invoke-AgentHook.sh"),
+          caller,
+        ],
+    requires: process.platform === "win32"
+      ? join(REPO_ROOT, ".agent-loop", "Invoke-AgentHook.ps1")
+      : join(REPO_ROOT, ".agent-loop", "Invoke-AgentHook.sh"),
   },
 ];
 
@@ -130,6 +140,16 @@ const guardCwd =
 
 function runGuard(guard) {
   return new Promise((done) => {
+    if (!existsSync(guard.requires)) {
+      done({
+        guard,
+        code: 2,
+        out: "",
+        err: `${guard.name} required file is missing: ${guard.requires}`,
+      });
+      return;
+    }
+
     const child = spawn(resolveExecutable(guard.exec), guard.args, {
       cwd: guardCwd,
       stdio: ["pipe", "pipe", "pipe"],
@@ -149,11 +169,7 @@ function runGuard(guard) {
   });
 }
 
-const selected = GUARDS.filter((g) => {
-  // A guard whose script is missing is a broken install, not a pass.
-  if (!existsSync(g.requires)) return false;
-  return g.when();
-});
+const selected = GUARDS.filter((guard) => guard.when());
 
 const results = await Promise.all(selected.map(runGuard));
 
@@ -164,8 +180,12 @@ const results = await Promise.all(selected.map(runGuard));
 let exitCode = 0;
 for (const r of results) {
   if (r.out.trim()) process.stdout.write(r.out.endsWith("\n") ? r.out : `${r.out}\n`);
-  if (r.code === 2) {
-    if (r.err.trim()) process.stderr.write(r.err.endsWith("\n") ? r.err : `${r.err}\n`);
+  if (r.code !== 0) {
+    const error = r.err.trim() || `${r.guard.name} failed with exit ${r.code}`;
+    process.stderr.write(error.endsWith("\n") ? error : `${error}\n`);
+    if (!error.includes(`exit ${r.code}`)) {
+      process.stderr.write(`${r.guard.name} failed with exit ${r.code}\n`);
+    }
     exitCode = 2;
   }
 }

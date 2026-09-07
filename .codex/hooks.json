@@ -6,19 +6,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "pwsh -NoProfile -Command \"$dir = (Get-Location).Path; while ($dir -and -not (Test-Path -LiteralPath (Join-Path $dir '.agent-loop\\Invoke-AgentHook.ps1') -PathType Leaf)) { $parent = Split-Path -Parent $dir; if ($parent -eq $dir) { exit 1 }; $dir = $parent }; & (Join-Path $dir '.agent-loop\\Invoke-AgentHook.ps1') -Caller codex\"",
-            "commandWindows": "pwsh -NoProfile -Command \"$dir = (Get-Location).Path; while ($dir -and -not (Test-Path -LiteralPath (Join-Path $dir '.agent-loop\\Invoke-AgentHook.ps1') -PathType Leaf)) { $parent = Split-Path -Parent $dir; if ($parent -eq $dir) { exit 1 }; $dir = $parent }; & (Join-Path $dir '.agent-loop\\Invoke-AgentHook.ps1') -Caller codex\"",
+            "command": "dir=\"$PWD\"; while [ \"$dir\" != \"/\" ] && [ ! -f \"$dir/.claude/hooks/hook-dispatch.mjs\" ]; do dir=\"$(dirname \"$dir\")\"; done; if [ ! -f \"$dir/.claude/hooks/hook-dispatch.mjs\" ]; then echo \"Tastile hook dispatcher not found\" >&2; exit 2; fi; exec bun \"$dir/.claude/hooks/hook-dispatch.mjs\" codex",
+            "commandWindows": "pwsh -NoProfile -Command '& { $dir = (Get-Location).Path; while ($dir -and -not (Test-Path -LiteralPath (Join-Path $dir \".claude\\hooks\\hook-dispatch.mjs\") -PathType Leaf)) { $parent = Split-Path -Parent $dir; if ($parent -eq $dir) { $dir = $null; break }; $dir = $parent }; if (-not $dir) { [Console]::Error.WriteLine(\"Tastile hook dispatcher not found\"); exit 2 }; & bun (Join-Path $dir \".claude\\hooks\\hook-dispatch.mjs\") codex; exit $LASTEXITCODE }'",
             "timeout": 1200,
-            "statusMessage": "Checking Tastile commit review policy"
+            "statusMessage": "Checking Tastile command policy"
           }
         ]
-      },
-	{ "matcher": "local_shell|shell|shell_command|exec_command|Bash|Shell|apply_patch|Edit|Write|grep_files|ctx_execute|ctx_execute_file|ctx_batch_execute|ctx_fetch_and_index|ctx_search|ctx_index|mcp__", "hooks": [{ "type": "command", "command": "context-mode hook codex pretooluse" }] }],
-    "PostToolUse": [{ "hooks": [{ "type": "command", "command": "context-mode hook codex posttooluse" }] }],
-    "SessionStart": [{ "hooks": [{ "type": "command", "command": "context-mode hook codex sessionstart" }] }],
-    "PreCompact": [{ "hooks": [{ "type": "command", "command": "context-mode hook codex precompact" }] }],
-    "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "context-mode hook codex userpromptsubmit" }] }],
-    "Stop": [{ "hooks": [{ "type": "command", "command": "context-mode hook codex stop" }] }
+      }
     ]
   }
 }

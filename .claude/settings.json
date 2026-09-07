@@ -1,5 +1,5 @@
 {
-  "_comment": "Bash PreToolUse guards run through .claude/hooks/hook-dispatch.mjs. It reads the event once and spawns only the guards whose subject matter appears in the command, so a plain `ls` no longer pays for two pwsh starts (~1.33s -> ~0.12s measured). Guard logic itself is unchanged and still regexes the whole command string.",
+  "_comment": "Bash PreToolUse guards run through .claude/hooks/hook-dispatch.mjs. Routine policy checks use Bun; PowerShell is selected only for commands that may publish repository state.",
   "hooks": {
     "PreToolUse": [
       {
@@ -9,7 +9,8 @@
             "type": "command",
             "command": "bun",
             "args": [
-              ".claude/hooks/hook-dispatch.mjs"
+              "${CLAUDE_PROJECT_DIR}/.claude/hooks/hook-dispatch.mjs",
+              "claude"
             ],
             "timeout": 1200,
             "statusMessage": "Checking Tastile command policy"
