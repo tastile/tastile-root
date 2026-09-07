@@ -5,7 +5,7 @@ description: Tastile の worker 委譲、並列化、再割当、停止、成果
 
 # Worker の実行契約
 
-まず `docs/adr/0007-ticket-driven-isolated-agent-delivery.md` を読む。
+まず `docs/adr/0007-release-branch-and-ticket-workflow.md` を読む。
 現状の fallback は read-only 調査の並列化、実装 WIP 1。共有 filesystem の native
 subagent に実装を並列委譲しない。既存の staged / unstaged 差分を保持する。
 
