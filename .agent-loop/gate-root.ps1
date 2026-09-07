@@ -9,6 +9,8 @@ $ErrorActionPreference = "Stop"
 $root = (Get-Location).Path
 $catalogPath = Join-Path $root ".agent-loop/repositories.json"
 $schemaPath = Join-Path $root ".agent-loop/review-result.schema.json"
+$checkpointSchemaPath = Join-Path $root ".agent-loop/checkpoint.schema.json"
+$agentResultSchemaPath = Join-Path $root ".agent-loop/agent-result.schema.json"
 
 function Test-JsonFile {
     param([string]$Path)
@@ -47,6 +49,11 @@ function Test-PowerShellFile {
 $ok = $true
 if (-not (Test-JsonFile $catalogPath)) { $ok = $false }
 if (-not (Test-JsonFile $schemaPath)) { $ok = $false }
+# ADR-0008: checkpoint and agent-result schemas gate workspace-wide recovery.
+# Fail closed when either schema is missing or non-parsable so a corrupt gate
+# never silently downgrades the recovery surface.
+if (-not (Test-JsonFile $checkpointSchemaPath)) { $ok = $false }
+if (-not (Test-JsonFile $agentResultSchemaPath)) { $ok = $false }
 
 $psFiles = @(
     Join-Path $root ".agent-loop/Invoke-PreCommitReview.ps1"

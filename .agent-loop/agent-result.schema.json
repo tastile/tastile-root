@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.local/schemas/agent-result.schema.json",
+  "title": "Tastile child agent immutable result",
+  "description": "Immutable result object returned by a child agent to its parent. See ADR-0008 §D-4. Re-uses the finding shape from review-result.schema.json for findings.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "agent_id",
+    "role",
+    "issue_or_task_id",
+    "base_snapshot",
+    "execution_generation",
+    "result_commit_or_ref",
+    "summary",
+    "validation_results",
+    "artifacts",
+    "known_issues",
+    "verdict",
+    "fencing_token"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[A-Za-z0-9.]+)?$"
+    },
+    "agent_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "sol-supervisor",
+        "luna-implementer",
+        "terra-inspector",
+        "tastile-verifier",
+        "cross-repo-contract-reviewer",
+        "research",
+        "custom"
+      ]
+    },
+    "issue_or_task_id": {
+      "description": "GitHub Issue number (digits only) or short task slug. Empty strings are rejected.",
+      "type": "string",
+      "minLength": 1
+    },
+    "base_snapshot": {
+      "description": "base_sha / snapshot identifier the child started from. Must equal or descend from the parent's base_sha.",
+      "type": "string",
+      "minLength": 1
+    },
+    "execution_generation": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "fencing_token": {
+      "description": "Opaque token issued by the parent. Parent rejects results whose token does not match the active generation.",
+      "type": "string",
+      "minLength": 16
+    },
+    "result_commit_or_ref": {
+      "description": "40-character hex commit SHA, immutable tag, or an absolute soft-snapshot path.",
+      "type": "string",
+      "minLength": 1
+    },
+    "verdict": {
+      "description": "Terminal child result classification, not checkpoint lifecycle status: pass, fail, blocked, or abandoned.",
+      "enum": ["pass", "fail", "blocked", "abandoned"]
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "validation_results": {
+      "description": "Convergence evidence the child claims. parent re-runs the minimum subset before integration.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "command", "exit_code", "observed_at"],
+        "properties": {
+          "kind": {
+            "enum": [
+              "unit_test",
+              "integration_test",
+              "smoke",
+              "build",
+              "lint",
+              "typecheck",
+              "contract",
+              "manual"
+            ]
+          },
+          "command": { "type": "string", "minLength": 1 },
+          "exit_code": { "type": "integer" },
+          "stderr_excerpt": { "type": "string" },
+          "duration_ms": { "type": "integer", "minimum": 0 },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "ref"],
+        "properties": {
+          "kind": {
+            "enum": [
+              "diff",
+              "commit",
+              "file",
+              "screenshot",
+              "log",
+              "report",
+              "binary",
+              "remote_url"
+            ]
+          },
+          "ref": { "type": "string", "minLength": 1 },
+          "description": { "type": "string" }
+        }
+      }
+    },
+    "findings": {
+      "description": "Optional findings list, reusing review-result.schema.json severity/file/line/message shape (so the parent's reviewer engine can validate without re-shaping).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "file", "line", "message"],
+        "properties": {
+          "severity": { "enum": ["critical", "important", "info"] },
+          "file": { "type": "string", "minLength": 1 },
+          "line": { "type": "integer", "minimum": 1 },
+          "message": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "known_issues": {
+      "description": "Open defects the child explicitly accepts. Parent inspects them before integration.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["description"],
+        "properties": {
+          "description": { "type": "string", "minLength": 1 },
+          "tracking": {
+            "description": "Optional reference to a follow-up Issue / ADR / doc.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  }
+}

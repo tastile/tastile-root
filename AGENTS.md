@@ -35,15 +35,27 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
 - 実値は `.env`、`.env.development`、`.env.production` のみへ置き、commit しない。
   schema は対応する `*.example` に置く。一時物は root の `.tmp/`、外部参照 clone は
   `.reference/` に置き、どちらも dependency にしない。
-- Sol は調査・分解・統合判断、Luna は限定した実装、Terra は独立検査を担当する。
-  model 名は要求値と実際の実行情報を区別し、subagent の自己承認は禁止する。
-- 並列実装は外部 Supervisor が workspace、process、port、DB、queue、成果物、
-  credential、budget を worker ごとに隔離し、停止と回収を保証できる場合だけ行う。
-  file ownership だけでは隔離とみなさない。未整備時は read-only 調査の並列化と
-  WIP 1 の直列実装に限定する。詳細は ADR 0007 と次の Skills を読む。
-- 作業状態の正本は GitHub Issue。release branch は `release-x-y-z`、実装 branch は
-  対象 repository の Issue 番号だけとする。入力と成果物を SHA / digest に固定し、
-  generation が古い結果を統合しない。最初の意味ある commit で Draft PR を作る。
+- 権限と利用可能な機能が許す場合、独立した作業だけを明示的な file ownership で
+  並列化する。同一 file の並列編集と、subagent による自己承認は禁止する。
+- **branch workflow (ADR-0007)** — `main` は released / integrated state。active
+  sprint は `release-<major>-<minor>-<patch>` branch、ticket branch は GitHub Issue
+  番号のみ。`feature/*`、`fix-*` 等の prefix / slug 入り branch は禁止。
+- **durable checkpoint (ADR-0008)** — agent 実行の soft / hard checkpoint は
+  `.agent-loop/checkpoint.schema.json` / `.agent-loop/agent-result.schema.json` を正本とする。
+  fresh agent は conversation 履歴ではなく canonical policy + durable remote
+  state のみから再構成する。
+- **Project work state (ADR-0009)** — durable work item は GitHub Issue とし、
+  Project v2 の必須 field (`priority / size / target_version / execution_generation`)
+  を満たすまで status を `Ready` へ遷移しない。
+
+## 並行開発と orchestration policy
+
+sprint branch 規約、engineering decision precedence、user escalation
+boundary、subagent mode taxonomy、worker lease / fencing、recovery
+checkpoint schema、external side-effect journal は
+`docs/agent-orchestration.md` を参照。**通常 task では AGENTS.md /
+HARNESS.md / CODEX_ROLES.ja.md の pointer のみ参照し、本文書は初回
+init / orchestration 再構成時に全文を読む**。
 
 ## Agent Skills
 
@@ -56,6 +68,14 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
   openapi-typescript）の drift と advisory を release 前、または bump 直前に read-only で確認する。
 - `parallel-orchestration`: worker への実装委譲、並列化、再割当、停止、成果物統合。
 - `github-delivery`: Issue の着手、Draft PR、release branch、検証証跡、明示的な完了処理。
+- `release-branch-workflow`: sprint planning、Issue 起票、PR 開始、release 統合の直前
+  (ADR-0007)。
+- `recover-task`: agent context / session / sandbox 消失後、または fresh agent が前
+  タスクを引き継ぐとき (ADR-0008)。
+- `project-board`: Issue status 遷移、Project field 操作、WIP 確認 (ADR-0009)。
+- `subagent-coordination`: sub-agent を spawn / integrate / 監視 / cancel /
+  recover-task するとき、Codex trio (Sol / Luna / Terra) と Claude role catalog を
+  参照する (ADR-0005 + ADR-0008)。
 
 ## 検証と commit
 
