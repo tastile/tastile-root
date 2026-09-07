@@ -156,7 +156,7 @@
         "AGENTS.md",
         ".agents/skills/parallel-orchestration",
         ".agents/skills/github-delivery",
-        "docs/adr/0007-ticket-driven-isolated-agent-delivery.md",
+        "docs/adr/0007-release-branch-and-ticket-workflow.md",
         "docs/releases",
         "scripts/check-release-plan.ts"
       ],
