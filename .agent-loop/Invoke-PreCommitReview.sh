@@ -242,6 +242,7 @@ REPOSITORY_GATE_CMD=""
 REPOSITORY_GATE_ARGS=""
 REPOSITORY_PREPARE_CMD=""
 REPOSITORY_PREPARE_ARGS=""
+REPOSITORY_SKIP_REVIEWER=false
 
 CATALOG_ENTRIES=$(bun -e "const c=require('fs').readFileSync('$REPOSITORIES_PATH','utf8'); const j=JSON.parse(c); j.repositories.forEach(r => console.log(JSON.stringify(r)));")
 
@@ -262,6 +263,10 @@ while IFS= read -r entry; do
     REPOSITORY_GATE_ARGS_RAW=$(echo "$entry" | bun -e "const d=require('fs').readFileSync(0,'utf8'); const j=JSON.parse(d); console.log(JSON.stringify(j.gate?.arguments || []));")
     REPOSITORY_PREPARE_CMD=$(echo "$entry" | bun -e "const d=require('fs').readFileSync(0,'utf8'); const j=JSON.parse(d); console.log(j.prepare?.command || '');")
     REPOSITORY_PREPARE_ARGS_RAW=$(echo "$entry" | bun -e "const d=require('fs').readFileSync(0,'utf8'); const j=JSON.parse(d); console.log(JSON.stringify(j.prepare?.arguments || []));")
+    SKIP_REVIEWER_RAW=$(echo "$entry" | bun -e "const d=require('fs').readFileSync(0,'utf8'); const j=JSON.parse(d); console.log(String(j.skip_reviewer ?? false));")
+    if [[ "$SKIP_REVIEWER_RAW" == "true" ]]; then
+      REPOSITORY_SKIP_REVIEWER=true
+    fi
 
     # Resolve gate command: prefer bash .sh version if pwsh not available
     if [[ "$GATE_CMD_RAW" == "pwsh" ]]; then
@@ -445,6 +450,12 @@ $PATCH
 REVIEWER="claude"
 REVIEWER_CMD="claude"
 REVIEWER_ARGS=(--print --permission-mode plan --output-format text --disallowedTools "Edit,Write,NotebookEdit,Bash")
+
+# Skip reviewer when catalog opts in (e.g. environments without a working AI CLI)
+if [[ "$REPOSITORY_SKIP_REVIEWER" == "true" ]]; then
+  write_decision true "Fast gate passed; cross-agent reviewer skipped via catalog opt-in" "$REPOSITORY_NAME" "skipped"
+  exit 0
+fi
 
 # Check for reviewer override
 if [[ "$TEST_MODE" == "true" && -n "${AGENT_LOOP_REVIEWER_COMMAND:-}" ]]; then

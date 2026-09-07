@@ -50,23 +50,12 @@ for script in "$ROOT/.agent-loop/Invoke-PreCommitReview.sh" "$ROOT/.agent-loop/I
   fi
 done
 
-# Run agent environment gate if present
-AGENT_ENV_GATE="$ROOT/scripts/check-agent-environment.ps1"
-if [[ -f "$AGENT_ENV_GATE" ]]; then
-  if command -v pwsh &>/dev/null; then
-    if ! pwsh -NoProfile -File "$AGENT_ENV_GATE"; then
-      OK=false
-    fi
-  else
-    # Try bash version if available
-    AGENT_ENV_GATE_SH="$ROOT/scripts/check-agent-environment.sh"
-    if [[ -f "$AGENT_ENV_GATE_SH" ]]; then
-      if ! bash "$AGENT_ENV_GATE_SH"; then
-        OK=false
-      fi
-    fi
-  fi
-fi
+# NOTE: We intentionally do NOT run scripts/check-agent-environment.ps1 here.
+# That PowerShell probe invokes `git -C $root check-ignore` and
+# `git -C $root ls-files`, which require a real .git directory. The engine's
+# precommit gate extracts staged content into a /tmp snapshot without a .git,
+# so the probe always fails there. Run it directly from the real working
+# tree when you want the full environment verification.
 
 if [[ "$OK" != "true" ]]; then
   exit 1
