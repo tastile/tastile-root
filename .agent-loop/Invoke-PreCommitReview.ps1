@@ -278,9 +278,15 @@ function Test-ReviewResult {
 }
 
 $segments = @(Split-CommandSegments $Command)
+Add-Content -Path "C:/Users/rebui/Desktop/tastile/.tmp/hook-trace.log" -Value "Command=[$Command] segments.Count=$($segments.Count)"
+foreach ($s in $segments) {
+    Add-Content -Path "C:/Users/rebui/Desktop/tastile/.tmp/hook-trace.log" -Value "  segment=[$s]"
+}
 if (Test-UnsafeCommandBoundary $Command $segments) {
+    Add-Content -Path "C:/Users/rebui/Desktop/tastile/.tmp/hook-trace.log" -Value "  REJECTED at Test-UnsafeCommandBoundary"
     Stop-Denied "Only simple direct executable commands are permitted through the commit boundary"
 }
+Add-Content -Path "C:/Users/rebui/Desktop/tastile/.tmp/hook-trace.log" -Value "  passed Test-UnsafeCommandBoundary"
 $intent = Get-CommitIntent $Command
 $wrappedCommit = $Command -match '(?is)^\s*(?:cmd|pwsh|powershell|bash|sh)(?:\.exe)?\b.*\bgit(?:\.exe)?\b.*\bcommit\b'
 $substitutedCommit = $Command -match '(?s)(?:\$\(|`|<\().*\bgit(?:\.exe)?\b.*\bcommit\b'
