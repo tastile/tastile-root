@@ -61,11 +61,21 @@ $requiredFiles = @(
     "docs/adr/0001-agent-toolchain.md",
     "docs/adr/0004-context7-mcp.md",
     "docs/adr/0005-skills-and-mcp-extensions.md",
-    "scripts/audit-plugin-versions.mjs",
-    "tastile-web/.agents/skills/i18n-literal-guard/SKILL.md",
-    "tastile-web/scripts/audit-i18n-literals.mts"
+    "scripts/audit-plugin-versions.mjs"
 )
 foreach ($file in $requiredFiles) { Test-RequiredFile $file }
+
+$tastileWebRoot = Join-Path $root "tastile-web"
+if (Test-Path -LiteralPath $tastileWebRoot -PathType Container) {
+    foreach ($file in @(
+        "tastile-web/.agents/skills/i18n-literal-guard/SKILL.md",
+        "tastile-web/scripts/audit-i18n-literals.mts"
+    )) {
+        Test-RequiredFile $file
+    }
+} else {
+    Write-Host "Skipping tastile-web agent checks: child repository is not present."
+}
 
 foreach ($file in @(".mcp.json", ".codex/hooks.json", ".claude/settings.json")) {
     if (Test-Path -LiteralPath (Join-Path $root $file)) { Test-JsonDocument $file }
