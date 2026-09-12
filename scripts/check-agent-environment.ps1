@@ -61,9 +61,14 @@ $requiredFiles = @(
     "docs/adr/0001-agent-toolchain.md",
     "docs/adr/0004-context7-mcp.md",
     "docs/adr/0005-skills-and-mcp-extensions.md",
-    "scripts/audit-plugin-versions.mjs",
-    "tastile-web/.agents/skills/i18n-literal-guard/SKILL.md",
-    "tastile-web/scripts/audit-i18n-literals.mts"
+    "scripts/audit-plugin-versions.mjs"
+    # NOTE: child repositories (tastile-web / tastile-core / tastile-android /
+    # tastile-desktop / tastile-brands) are independent git repositories and
+    # NOT submodules of tastile-root (the only submodule is `openapi`). Their
+    # files are therefore not present in a standalone root checkout. This
+    # root-local quality gate must work in such a checkout. Child-local
+    # contract (Skills, scripts, namespaces) is verified by the child repo's
+    # own CI and by cross-repo orchestration (.agent-loop/), not here.
 )
 foreach ($file in $requiredFiles) { Test-RequiredFile $file }
 
