@@ -1,1 +1,6 @@
-{"dependencies": {}}
+{
+  "dependencies": {},
+  "devDependencies": {
+    "yaml": "^2.9.1"
+  }
+}
