@@ -1,5 +1,15 @@
 # Decisions
 
+## 2026-09-23 — Infisical を workspace secret SoT に採用 (ADR-0012)
+
+Tastile 全 repository の secret 正本をユーザー管理のセルフホスト Infisical に統一する。公開ホスト名は汎用ドメインとし、Tastile の文字列を含めない。同一環境の local / CI /
+production は同じ project / environment / service path を参照する。開発者は Infisical CLI
+対話認証、GitHub Actions は OIDC machine identity、EC2 は AWS IAM machine identity で認証する。
+`.env*`、SOPS ciphertext、GitHub Actions の長期 secret、AWS Parameter Store / Secrets Manager
+のアプリ secret copy を撤去し、Cloudflare / Android / desktop 配信等に必要な値は Infisical
+から各 runtime へ同期する。詳細と cutover 条件は
+`docs/adr/0012-infisical-secrets-source-of-truth.md`。
+
 ## 2026-08-22 — Cognito → BetterAuth 認証置き換え
 
 アカウント認証を AWS Cognito Hosted UI から BetterAuth へ置き換える。

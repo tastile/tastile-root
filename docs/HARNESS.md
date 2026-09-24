@@ -234,10 +234,11 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 
 ### 6-4. env 管理
 
-- `.env` に含まれる項目すべてを **`.env.example`** として残す (値は空)
-- canonical として **`.env.<env>.sops`** (AWS KMS で暗号化された ciphertext) を commit し、起動時に bun loader (`scripts/sops-decrypt.ts`) が KMS Decrypt で `.env.<env>` へ復号する。KMS key policy は developer SSO / GitHub Actions OIDC role / EC2 instance profile の 3 principal category を allow する (旧 `kms:ViaService` condition は SSO 直接復号を誤って遮断していたため除去済み — 経緯は `docs/adr/0006-kms-viaservice-removal.md`、設計は `docs/superpowers/specs/2026-08-27-sops-env-decryption-design.md` を参照)
-- production の hot path は **AWS SSM Parameter Store / Secrets Manager** を並列維持し、systemd `EnvironmentFile=` 経由で配信する (SOPS 復号値と衝突しないよう、infra URL 類は SSM 側 / application secret は `.sops` 側で分担)
-- 平文 `.env` / `.env.<env>` は `.gitignore` で除外 (loader が起動時に書き出す)
+- ユーザー管理のセルフホスト Infisical を workspace 全体の secret SoT とする。汎用HTTPSホスト名に `tastile` を含めない。移行と運用の正本は `docs/adr/0012-infisical-secrets-source-of-truth.md`
+- project / environment / service path を明示し、同一環境のローカル・CI・本番実行で同じ Infisical 値を使う。local-only secret override や `.env` fallback を禁止する
+- developer は Infisical CLI の対話認証、GitHub Actions は OIDC machine identity、EC2 は AWS IAM machine identity で認証する。Infisical に認証できない場合は失敗し、古い値へ fallback しない
+- Cloudflare Worker bindings や Android signing 等 platform が要求する値は、認証済み job から Infisical より同期する。Infisical 以外を編集可能な正本にしない
+- `.env*` / `*.example` による env schema や secret 設定ファイルを置かない。設定は Infisical path とアプリ側 validation で定義する
 
 ---
 
@@ -381,7 +382,7 @@ host portability 契約は `docs/agent-orchestration.md` §1-1 を参照。
 - **Docker を使わない**: 開発でも本番でも Linux バイナリ直接実行
 - **PostgreSQL の enum 型を使わない**: `smallint` + アプリ Registry
 - **JSONB を正本に保存しない**: 子テーブルへ正規化
-- **env の値をリポジトリにコミットしない**: `.env.example` に項目のみ残す (`.env.<env>.sops` は KMS で暗号化された ciphertext であり例外 — §6-4 参照)
+- **env の secret 値を repository に保存しない**: Infisical runtime injection を使い、secret ciphertext も例外にしない (§6-4 / ADR-0012)
 - **存在しない外部ドキュメントを参照しない**: `pomodoroom/CORE_POLICY.md` / `tastile_docs_bundle/` 等の旧参照は禁止
 
 ---
