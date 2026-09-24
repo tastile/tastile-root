@@ -26,9 +26,13 @@ if (-not (Test-Path -LiteralPath $configurationPath -PathType Leaf)) {
 
 $configuration = Get-Content -LiteralPath $configurationPath -Raw | ConvertFrom-Json
 $domain = [string]$configuration.domain
-$projectId = [string]$configuration.workspaceId
+$projectConfigurationPath = Join-Path $PSScriptRoot 'get-infisical-project.ps1'
+. $projectConfigurationPath
+$project = Get-InfisicalProjectConfiguration -Configuration $configuration -Environment $Environment
+$domain = $project.domain
+$projectId = $project.projectId
 if ($domain -notmatch '^https://[^/]+/?$' -or [string]::IsNullOrWhiteSpace($projectId)) {
-    throw 'Workspace .infisical.json must specify an HTTPS domain and project ID.'
+    throw "Workspace .infisical.json must specify an HTTPS domain and a $Environment project ID."
 }
 if (-not (Get-Command infisical -ErrorAction SilentlyContinue) -or -not (Get-Command git -ErrorAction SilentlyContinue)) {
     throw 'Infisical CLI and Git CLI are required.'
@@ -96,15 +100,13 @@ foreach ($temporaryPath in $temporaryFiles) {
 try {
     $null = New-Item -ItemType File -Path $temporaryJsonPath
     Set-PrivateFilePermissions -Path $temporaryJsonPath
-    & infisical --domain=$domain --silent export `
-        --projectId=$projectId `
-        --env=$Environment `
-        --path=$secretPath `
-        --format=json `
-        --secret-overriding=false `
-        --output-file=$temporaryJsonPath *> $null
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $temporaryJsonPath -PathType Leaf)) {
-        throw "Infisical export failed for $Repository / $Environment (exit code $LASTEXITCODE). No example was changed."
+    $cliWorkspacePath = New-InfisicalCliWorkspace -ProjectId $projectId -Domain $domain -WorkspaceRoot $workspaceRoot
+    $exportExitCode = Invoke-InfisicalCli -WorkspacePath $cliWorkspacePath -Domain $domain -Arguments @(
+        'export', "--env=$Environment", "--path=$secretPath", '--format=json',
+        '--secret-overriding=false', "--output-file=$temporaryJsonPath"
+    )
+    if ($exportExitCode -ne 0 -or -not (Test-Path -LiteralPath $temporaryJsonPath -PathType Leaf)) {
+        throw "Infisical export failed for $Repository / $Environment (exit code $exportExitCode). No example was changed."
     }
 
     $records = @(Get-Content -LiteralPath $temporaryJsonPath -Raw | ConvertFrom-Json -AsHashtable)
@@ -138,5 +140,8 @@ try {
         if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) {
             Remove-Item -LiteralPath $temporaryPath -Force
         }
+    }
+    if ($cliWorkspacePath -and (Test-Path -LiteralPath $cliWorkspacePath -PathType Container)) {
+        Remove-InfisicalCliWorkspace -Path $cliWorkspacePath -WorkspaceRoot $workspaceRoot
     }
 }

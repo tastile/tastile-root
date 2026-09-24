@@ -34,9 +34,13 @@ if (-not (Test-Path -LiteralPath $configurationPath -PathType Leaf)) {
 
 $configuration = Get-Content -LiteralPath $configurationPath -Raw | ConvertFrom-Json
 $domain = [string]$configuration.domain
-$projectId = [string]$configuration.workspaceId
+$projectConfigurationPath = Join-Path $PSScriptRoot 'get-infisical-project.ps1'
+. $projectConfigurationPath
+$project = Get-InfisicalProjectConfiguration -Configuration $configuration -Environment $environmentSlug
+$domain = $project.domain
+$projectId = $project.projectId
 if ($domain -notmatch '^https://[^/]+/?$' -or [string]::IsNullOrWhiteSpace($projectId)) {
-    throw 'Workspace .infisical.json must specify an HTTPS domain and project ID.'
+    throw "Workspace .infisical.json must specify an HTTPS domain and a $environmentSlug project ID."
 }
 
 $outputName = if ($Repository -eq 'web') {
@@ -103,6 +107,7 @@ function Test-GitIgnoredPath {
 }
 
 $null = New-Item -ItemType Directory -Path $temporaryDirectory -Force
+$cliWorkspacePath = $null
 $relativeOutputPath = $outputName
 $temporaryName = "infisical-export-$([guid]::NewGuid().ToString('N')).env"
 $relativeTemporaryPath = ".tmp/$temporaryName"
@@ -122,17 +127,15 @@ if (-not $restoreMutex.WaitOne(0)) {
 }
 
 try {
+    $cliWorkspacePath = New-InfisicalCliWorkspace -ProjectId $projectId -Domain $domain -WorkspaceRoot $workspaceRoot
     $null = New-Item -ItemType File -Path $temporaryPath
     Set-PrivateFilePermissions -Path $temporaryPath
-    & infisical --domain=$domain --silent export `
-        --projectId=$projectId `
-        --env=$environmentSlug `
-        --path=$secretPath `
-        --format=dotenv `
-        --secret-overriding=false `
-        --output-file=$temporaryPath *> $null
-    if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $temporaryPath -PathType Leaf)) {
-        throw "Infisical export failed (exit code $LASTEXITCODE). Confirm CLI login and access to the selected path."
+    $exportExitCode = Invoke-InfisicalCli -WorkspacePath $cliWorkspacePath -Domain $domain -Arguments @(
+        'export', "--env=$environmentSlug", "--path=$secretPath", '--format=dotenv',
+        '--secret-overriding=false', "--output-file=$temporaryPath"
+    )
+    if ($exportExitCode -ne 0 -or -not (Test-Path -LiteralPath $temporaryPath -PathType Leaf)) {
+        throw "Infisical export failed (exit code $exportExitCode). Confirm CLI login and access to the selected path."
     }
 
     $dotenv = Get-Content -LiteralPath $temporaryPath -Raw
@@ -180,6 +183,9 @@ try {
 } finally {
     if (Test-Path -LiteralPath $temporaryPath) {
         Remove-Item -LiteralPath $temporaryPath -Force
+    }
+    if ($cliWorkspacePath) {
+        Remove-InfisicalCliWorkspace -Path $cliWorkspacePath -WorkspaceRoot $workspaceRoot
     }
     $restoreMutex.ReleaseMutex()
     $restoreMutex.Dispose()

@@ -32,9 +32,13 @@ if (-not (Test-Path -LiteralPath $configurationPath -PathType Leaf)) {
 
 $configuration = Get-Content -LiteralPath $configurationPath -Raw | ConvertFrom-Json
 $domain = [string]$configuration.domain
-$targetProjectId = [string]$configuration.workspaceId
+$projectConfigurationPath = Join-Path $PSScriptRoot 'get-infisical-project.ps1'
+. $projectConfigurationPath
+$targetProject = Get-InfisicalProjectConfiguration -Configuration $configuration -Environment $TargetEnvironment
+$domain = $targetProject.domain
+$targetProjectId = $targetProject.projectId
 if ($domain -notmatch '^https://[^/]+/?$' -or [string]::IsNullOrWhiteSpace($targetProjectId)) {
-    throw 'Workspace .infisical.json must specify an HTTPS domain and target project ID.'
+    throw "Workspace .infisical.json must specify an HTTPS domain and a $TargetEnvironment target project ID."
 }
 if ($SourceProjectId -eq $targetProjectId -and $SourcePath -eq $TargetPath -and $SourceEnvironment -eq $TargetEnvironment) {
     throw 'Refusing to migrate a secret set onto itself.'
@@ -42,6 +46,9 @@ if ($SourceProjectId -eq $targetProjectId -and $SourcePath -eq $TargetPath -and 
 if (-not (Get-Command infisical -ErrorAction SilentlyContinue) -or -not (Get-Command git -ErrorAction SilentlyContinue)) {
     throw 'Infisical CLI and Git CLI are required.'
 }
+
+$sourceCliWorkspacePath = $null
+$targetCliWorkspacePath = $null
 
 function Set-PrivateFilePermissions {
     param([Parameter(Mandatory = $true)][string]$Path)
@@ -116,35 +123,31 @@ $targetBeforeTemporaryPath = $temporaryPaths[1]
 $targetAfterTemporaryPath = $temporaryPaths[2]
 
 try {
+    $sourceCliWorkspacePath = New-InfisicalCliWorkspace -ProjectId $SourceProjectId -Domain $domain -WorkspaceRoot $workspaceRoot
+    $targetCliWorkspacePath = New-InfisicalCliWorkspace -ProjectId $targetProjectId -Domain $domain -WorkspaceRoot $workspaceRoot
     foreach ($temporaryPath in $temporaryPaths) {
         $null = New-Item -ItemType File -Path $temporaryPath
         Set-PrivateFilePermissions -Path $temporaryPath
     }
 
-    & infisical --domain=$domain --silent export `
-        --projectId=$SourceProjectId `
-        --env=$SourceEnvironment `
-        --path=$SourcePath `
-        --format=json `
-        --secret-overriding=false `
-        --output-file=$sourceJsonPath *> $null
-    if ($LASTEXITCODE -ne 0) {
-        throw "Source verification export failed (exit code $LASTEXITCODE); no target changes were made."
+    $sourceExportExitCode = Invoke-InfisicalCli -WorkspacePath $sourceCliWorkspacePath -Domain $domain -Arguments @(
+        'export', "--env=$SourceEnvironment", "--path=$SourcePath", '--format=json',
+        '--secret-overriding=false', "--output-file=$sourceJsonPath"
+    )
+    if ($sourceExportExitCode -ne 0) {
+        throw "Source verification export failed (exit code $sourceExportExitCode); no target changes were made."
     }
     $sourceSecrets = Get-SecretMap -Path $sourceJsonPath
     if ($sourceSecrets.Count -eq 0) {
         throw 'Source export contained no secrets; no target changes were made.'
     }
 
-    & infisical --domain=$domain --silent export `
-        --projectId=$targetProjectId `
-        --env=$TargetEnvironment `
-        --path=$TargetPath `
-        --format=json `
-        --secret-overriding=false `
-        --output-file=$targetBeforeTemporaryPath *> $null
-    if ($LASTEXITCODE -ne 0) {
-        throw "Target preflight failed (exit code $LASTEXITCODE); no target changes were made."
+    $targetBeforeExitCode = Invoke-InfisicalCli -WorkspacePath $targetCliWorkspacePath -Domain $domain -Arguments @(
+        'export', "--env=$TargetEnvironment", "--path=$TargetPath", '--format=json',
+        '--secret-overriding=false', "--output-file=$targetBeforeTemporaryPath"
+    )
+    if ($targetBeforeExitCode -ne 0) {
+        throw "Target preflight failed (exit code $targetBeforeExitCode); no target changes were made."
     }
     if ((Get-SecretMap -Path $targetBeforeTemporaryPath).Count -ne 0) {
         throw 'Target path is not empty; refusing to overwrite or merge secrets.'
@@ -166,25 +169,20 @@ try {
 
     foreach ($key in $sourceSecrets.Keys) {
         $valuePath = Join-Path $temporaryDirectory "$key.value"
-        & infisical --domain=$domain --silent secrets set `
-            "$key=@$valuePath" `
-            --projectId=$targetProjectId `
-            --env=$TargetEnvironment `
-            --path=$TargetPath *> $null
-        if ($LASTEXITCODE -ne 0) {
-            throw "Target import failed for key $key (exit code $LASTEXITCODE); source values were retained. Check the target for partial creation before retrying."
+        $setExitCode = Invoke-InfisicalCli -WorkspacePath $targetCliWorkspacePath -Domain $domain -Arguments @(
+            'secrets', 'set', "$key=@$valuePath", "--env=$TargetEnvironment", "--path=$TargetPath"
+        )
+        if ($setExitCode -ne 0) {
+            throw "Target import failed for key $key (exit code $setExitCode); source values were retained. Check the target for partial creation before retrying."
         }
     }
 
-    & infisical --domain=$domain --silent export `
-        --projectId=$targetProjectId `
-        --env=$TargetEnvironment `
-        --path=$TargetPath `
-        --format=json `
-        --secret-overriding=false `
-        --output-file=$targetAfterTemporaryPath *> $null
-    if ($LASTEXITCODE -ne 0) {
-        throw "Target verification export failed (exit code $LASTEXITCODE); source values were retained."
+    $targetAfterExitCode = Invoke-InfisicalCli -WorkspacePath $targetCliWorkspacePath -Domain $domain -Arguments @(
+        'export', "--env=$TargetEnvironment", "--path=$TargetPath", '--format=json',
+        '--secret-overriding=false', "--output-file=$targetAfterTemporaryPath"
+    )
+    if ($targetAfterExitCode -ne 0) {
+        throw "Target verification export failed (exit code $targetAfterExitCode); source values were retained."
     }
     $targetSecrets = Get-SecretMap -Path $targetAfterTemporaryPath
     if ($targetSecrets.Count -ne $sourceSecrets.Count) {
@@ -204,6 +202,12 @@ try {
         }
     }
     if (Test-Path -LiteralPath $temporaryDirectory -PathType Container) {
-        Remove-Item -LiteralPath $temporaryDirectory -Force
+        Remove-Item -LiteralPath $temporaryDirectory -Recurse -Force
+    }
+    if ($sourceCliWorkspacePath) {
+        Remove-InfisicalCliWorkspace -Path $sourceCliWorkspacePath -WorkspaceRoot $workspaceRoot
+    }
+    if ($targetCliWorkspacePath) {
+        Remove-InfisicalCliWorkspace -Path $targetCliWorkspacePath -WorkspaceRoot $workspaceRoot
     }
 }
