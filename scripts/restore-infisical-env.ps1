@@ -138,6 +138,9 @@ try {
     }
 
     $dotenv = Get-Content -LiteralPath $temporaryPath -Raw
+    if ([string]::IsNullOrWhiteSpace($dotenv)) {
+        throw "Infisical returned no dotenv keys for $Environment at $secretPath; refusing to create an empty environment file."
+    }
     $dotenvMatches = [regex]::Matches($dotenv, '(?m)^(?:export\s+)?(?<key>[A-Za-z_][A-Za-z0-9_]*)=')
     $dotenvKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
     foreach ($match in $dotenvMatches) {
