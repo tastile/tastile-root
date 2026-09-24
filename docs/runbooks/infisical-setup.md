@@ -45,10 +45,10 @@ Infisical self-hosting does not itself unlock paid access-control features. This
 - Infisical CLI 0.43.133 が利用でき、端末は `https://secrets.rebuildup.dev` の self-hosted instance に Google user login 済み。CLI の `login status` で認証済みを確認した。
 - HTTPS と DNS は応答し、self-hosted Infisical 0.165.15 の `Tastile` project (ID: `f2890cb7-599b-4bd6-b7b4-a47aeb9b324b`) を CLI から読める。以前の「外部 HTTPS 不可」「target に値なし」という記録は古い。
 - `dev` / `staging` / `prod` と `/tastile/{core,web,android,desktop,brands}` の path は存在する。
-- 2026-09-24 の値を表示しない inventory では、core は dev/prod 各8キー、web は dev 15キー、desktop は dev 6キー。staging は全 service path が空で、web prod と android の全 environment も空。brands は全 environment が空。
+- 2026-09-24 の値を表示しない inventory では、core は dev/prod 各8キー、web は dev 15キー、desktop は dev 6キー。staging は全 service path が空で、web prod と brands の全 environment が空。Android は旧 `tastile-android` project の dev 4キー/prod 9キーを canonical path へコピーし、値を完全一致比較済み。
 - root の `.infisical.json` は self-hosted project ID/domain を指す。child 設定と core/web/desktop の composite action はローカル作業中で未 push、Android 設定は別の legacy project ID を指しており、canonical project への統一は未完了。2026-09-24 に canonical project で core/web/android/desktop × development/staging/production の12 machine identity を作成し、GitHub OIDC subject、audience `https://github.com/tastile`、1時間TTLを設定した。全identityのproject roleは No Access。
 - この workspace は Infisical Free plan のため、folder-level access control の設定画面が Pro plan への upgrade を要求する。パス単位ACLが使えない状態では、広い project role を代用せず No Access を維持する。GitHub Environment variables と workflow の切替も未完了。
-- Android の `local.properties` には `sdk.dir` だけがあり、アプリ secret は確認されなかった。実行時に必要な署名 / Play credential は Android path へ移行されていない。
+- Android の `local.properties` には `sdk.dir` だけがあり、アプリ secret は確認されなかった。旧 Android Infisical project の dev 4キー/prod 9キーは `/tastile/android` へ転送し、JSON 全値の完全一致を確認した。複数行の `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` は CLI の file-value syntax で転送し、target と source の9キーすべてを再比較した。旧 project は残し、Android config/CI/署名・Play publishing の読み取りと実動作を確認するまで削除しない。
 - web の `.env.development.sops` / `.env.production.sops` は追跡中で、GitHub Secrets に SOPS age keys が残る。端末に age private key はなく、GitHub Secrets の値は workflow 経由以外では読めない。
 - GitHub Secrets の値、AWS SSM / Secrets Manager、EC2 EnvironmentFile、Cloudflare Worker/R2 と旧 Infisical Cloud の値は旧 store に残る可能性があり、消去前の consumer inventory と live cutover が必要。
 - 既存 consumer と旧 secret store は稼働を維持する。各 path/environment の読み取り、CI、runtime、live deploy/startup が確認できるまで旧 source / ciphertext / copy を削除しない。
@@ -60,6 +60,16 @@ Infisical self-hosting does not itself unlock paid access-control features. This
 3. Run each integration's live deploy/startup check; verify Cloudflare Worker runtime bindings, Android signing + Play upload, desktop R2 upload, database role login, and core/web service startup.
 4. Remove SOPS ciphertext and keys, local secret files, GitHub secret values, AWS SSM/Secrets Manager application secret copies, and legacy EnvironmentFiles only after the matching consumer check succeeds.
 5. Revoke old decrypt/read permissions and rotate any credentials that were copied to multiple legacy stores.
+
+For values held in another Infisical project, use `scripts/migrate-infisical-secrets.ps1` from the workspace root. It requires explicit source and target selectors, rejects a non-empty target, writes each secret value to a temporary current-user-only file under ignored `.tmp/`, imports each value through the CLI's file-value syntax so multiline values remain intact, suppresses CLI output, compares every key and full value from Infisical JSON exports after import without displaying them, and retains the source. Import is not transactional: run it while no other writer is changing the destination path, and inspect the target before retrying after any error because an import can partially succeed. Example:
+
+```powershell
+pwsh -NoProfile -File .\scripts\migrate-infisical-secrets.ps1 `
+  -SourceProjectId <legacy-project-id> -SourceEnvironment dev -SourcePath / `
+  -TargetEnvironment dev -TargetPath /tastile/android
+```
+
+Run one environment/path at a time. Do not use this helper for SOPS/GitHub/AWS sources whose access and integrity have not been established.
 
 ## External prerequisites
 
