@@ -12,7 +12,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = Split-Path -Parent $PSScriptRoot
 $repositoryRoot = Join-Path $workspaceRoot "tastile-$Repository"
-$configurationPath = Join-Path $workspaceRoot '.infisical.json'
+$configurationPath = Join-Path $repositoryRoot '.infisical.json'
 $temporaryDirectory = Join-Path $workspaceRoot '.tmp'
 $examplePath = Join-Path $repositoryRoot '.env.example'
 $secretPath = "/tastile/$Repository"
@@ -21,7 +21,7 @@ if (-not (Test-Path -LiteralPath $repositoryRoot -PathType Container)) {
     throw "Repository directory is missing: tastile-$Repository"
 }
 if (-not (Test-Path -LiteralPath $configurationPath -PathType Leaf)) {
-    throw 'Workspace .infisical.json is missing; refusing to use an implicit Infisical project.'
+    throw "Repository tastile-$Repository .infisical.json is missing; refusing to use an implicit Infisical project."
 }
 
 $configuration = Get-Content -LiteralPath $configurationPath -Raw | ConvertFrom-Json
@@ -32,7 +32,7 @@ $project = Get-InfisicalProjectConfiguration -Configuration $configuration -Envi
 $domain = $project.domain
 $projectId = $project.projectId
 if ($domain -notmatch '^https://[^/]+/?$' -or [string]::IsNullOrWhiteSpace($projectId)) {
-    throw "Workspace .infisical.json must specify an HTTPS domain and a $Environment project ID."
+    throw "Repository tastile-$Repository .infisical.json must specify an HTTPS domain and a $Environment project ID."
 }
 if (-not (Get-Command infisical -ErrorAction SilentlyContinue) -or -not (Get-Command git -ErrorAction SilentlyContinue)) {
     throw 'Infisical CLI and Git CLI are required.'

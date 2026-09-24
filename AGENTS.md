@@ -32,7 +32,7 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
   作らない。検索は `rg` / `rg --files` を優先する。
 - business logic は `tastile-core` が所有し、client は thin client とする。v1 の語彙と
   schema を正本とし、互換 shim を独断で追加しない。
-- secret 実値は Infisical を唯一の正本として保存し、local / CI / production から認証して取得する。`.env*`、`local.properties`、GitHub Secrets、AWS Parameter Store / Secrets Manager に独立 copy や fallback を作らない。dotenv file が必要なツールに限り、認証後に runbook script で一時生成し、Git ignore・ユーザー限定権限にした上で利用後に削除する。`.env*` や `*.example` の secret schema file は作らず、Infisical path とアプリ側 validation を使う (ADR-0012)。一時物は root の `.tmp/`、外部参照 clone は
+- secret 実値は Infisical を唯一の正本として保存し、local / CI / production から認証して取得する。`.env*`、`local.properties`、GitHub Secrets、AWS Parameter Store / Secrets Manager に独立 copy や fallback を作らない。dotenv file が必要なツールに限り、認証後に runbook script で一時生成し、Git ignore・ユーザー限定権限にした上で利用後に削除する。子 repository の `.env.example` は選択した Infisical environment から復元した `.env` と同じ key name を空値で記載する schema-only file に限り許可し、runtime や fallback では使わない。その他の `.env*` や `*.example` secret schema file は作らず、Infisical path とアプリ側 validation を使う (ADR-0012)。一時物は root の `.tmp/`、外部参照 clone は
   `.reference/` に置き、どちらも dependency にしない。
 - 権限と利用可能な機能が許す場合、独立した作業だけを明示的な file ownership で
   並列化する。同一 file の並列編集と、subagent による自己承認は禁止する。

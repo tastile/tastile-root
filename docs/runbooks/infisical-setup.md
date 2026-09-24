@@ -4,7 +4,7 @@ This runbook configures the Infisical project required by ADR-0012. Do not remov
 
 ## Project contract
 
-The self-hosted Infisical instance uses one project per environment because the current Free plan does not expose folder-level ACLs. The IDs are recorded in the root `.infisical.json`; clients must use the matching project ID, environment slug, and service path and fail closed instead of falling back to Infisical Cloud. The projects are `tastile-dev` (`949b4193-a226-4620-8371-726a37c7195b`), `tastile-staging` (`44081e84-5983-4cc2-9fc9-dca5363005e1`), and `tastile-prod` (`ab532e90-acde-40e6-a206-3976743e5da5`). Use matching environment slugs `dev`, `staging`, and `prod` inside the corresponding project. The public HTTPS hostname must be a generic hostname on a domain owned by the user and must not include `tastile`.
+The self-hosted Infisical instance uses one project per environment because the current Free plan does not expose folder-level ACLs. Each consuming child repository records the project IDs and machine identity IDs in its own `.infisical.json`; root has no Infisical project configuration because it has no runtime environment. Clients must use the matching project ID, environment slug, and service path and fail closed instead of falling back to Infisical Cloud. The projects are `tastile-dev` (`949b4193-a226-4620-8371-726a37c7195b`), `tastile-staging` (`44081e84-5983-4cc2-9fc9-dca5363005e1`), and `tastile-prod` (`ab532e90-acde-40e6-a206-3976743e5da5`). Use matching environment slugs `dev`, `staging`, and `prod` inside the corresponding project. The public HTTPS hostname must be a generic hostname on a domain owned by the user and must not include `tastile`.
 
 | Repository | Base secret path | Examples |
 |---|---|---|
@@ -18,9 +18,11 @@ Use a child path for platform credentials where an identity needs narrower acces
 
 ## Machine identities
 
-Create one GitHub OIDC machine identity for each Infisical environment, bound to the four explicit Tastile repository names and the matching GitHub environment (`dev`, `staging`, or `prod`). Assign the identity only to its matching environment project with the built-in read-only Viewer role. This grants shared access to all four repositories' paths inside that environment; never assign an identity to another environment project. GitHub workflow environment names must be normalized to `dev`, `staging`, and `prod` before using these shared identities. Add the following non-secret GitHub Environment variables to each applicable repository:
+Create one GitHub OIDC machine identity for each Infisical environment, bound to the four explicit Tastile repository names and the matching GitHub environment (`development`, `staging`, or each repository's production environment). Assign the identity only to its matching environment project. During the approved migration window, the identities have the Member role to import and verify secrets; downgrade all three to the built-in read-only Viewer role after the values are verified. This grants shared access to all four repositories' paths inside that environment; never assign an identity to another environment project. Add the following non-secret GitHub repository variables to each applicable repository for migration workflows:
 
-- `INFISICAL_IDENTITY_ID`: machine identity ID for that GitHub environment.
+- `INFISICAL_IDENTITY_ID_DEV`, `INFISICAL_IDENTITY_ID_STAGING`, `INFISICAL_IDENTITY_ID_PROD`: machine identity IDs.
+- `INFISICAL_PROJECT_ID_DEV`, `INFISICAL_PROJECT_ID_STAGING`, `INFISICAL_PROJECT_ID_PROD`: matching project IDs.
+- `INFISICAL_DOMAIN`: the self-hosted Infisical HTTPS URL.
 
 Do not configure Universal Auth client secrets for GitHub Actions.
 
@@ -28,7 +30,7 @@ On each EC2 instance, configure an AWS IAM machine identity for Infisical, bind 
 
 ## Developer setup
 
-Install the official Infisical CLI and authenticate to the self-hosted domain. The workspace restore and migration helpers create a short-lived CLI configuration in ignored `.tmp/` with the selected environment project's ID, then pass explicit `--domain`, `--env`, and `--path` selectors. Never rely on the CLI's Cloud default or an implicit root project selector. Normal app commands must not require a local `.env*`, `.dev.vars`, `local.properties`, or `gradle.properties` containing secrets.
+Install the official Infisical CLI and authenticate to the self-hosted domain. The restore and migration helpers read project IDs from the target child repository's `.infisical.json`, create a short-lived CLI configuration in ignored `.tmp/`, then pass explicit `--domain`, `--env`, and `--path` selectors. Never rely on the CLI's Cloud default or an implicit project selector. Normal app commands must not require a local `.env*`, `.dev.vars`, `local.properties`, or `gradle.properties` containing secrets.
 
 Some tools require a dotenv file on disk. Restore one explicitly from the workspace root after authenticating:
 
@@ -68,11 +70,11 @@ For values held in another Infisical project, use `scripts/migrate-infisical-sec
 ```powershell
 pwsh -NoProfile -File .\scripts\migrate-infisical-secrets.ps1 `
   -SourceProjectId <legacy-project-id> -SourceEnvironment dev -SourcePath / `
-  -TargetEnvironment dev -TargetPath /tastile/android
+  -TargetEnvironment dev -TargetRepository android -TargetPath /tastile/android
 ```
 
 Run one environment/path at a time. Do not use this helper for SOPS/GitHub/AWS sources whose access and integrity have not been established.
 
 ## External prerequisites
 
-Self-hosted HTTPS and interactive user login now work. Remaining work includes confirming the self-hosted server's paid license/configuration for folder-level access controls or another approved least-privilege mechanism, GitHub Environment variables, values absent from target paths, secret-safe migration for GitHub/SOPS sources, Android/Cloudflare/platform integrations, and live consumer cutover checks. The current web SOPS age private keys are held only in GitHub Secrets, so migration must run in a controlled job after a scoped write grant is available. Never paste a secret or access token into a repository file or chat.
+Self-hosted HTTPS and interactive user login work. The three environment OIDC identities exist, Universal Auth has been removed from them, and GitHub repository variables contain their public IDs and project IDs. Live GitHub OIDC exchanges and secret imports are not yet verified. Remaining work includes importing values absent from target paths, migrating GitHub/SOPS/AWS/platform sources, updating runtime workflows to the new project identities, live consumer cutover checks, and downgrading the migration identities from Member to Viewer. The current web SOPS age private keys remain in GitHub Secrets and must be used only by a controlled migration job. Never paste a secret or access token into a repository file or chat.

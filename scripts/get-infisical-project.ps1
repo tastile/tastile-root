@@ -12,10 +12,10 @@ function Get-InfisicalProjectConfiguration {
     $domain = [string]$Configuration.domain
     $projectId = [string]$Configuration.projects.$Environment.projectId
     if ($domain -notmatch '^https://[^/]+/?$') {
-        throw 'Workspace .infisical.json must specify an HTTPS domain.'
+        throw 'Repository .infisical.json must specify an HTTPS domain.'
     }
     if ($projectId -notmatch '^[0-9a-fA-F-]{36}$') {
-        throw "Workspace .infisical.json must specify a valid project ID for $Environment."
+        throw "Repository .infisical.json must specify a valid project ID for $Environment."
     }
 
     [pscustomobject]@{

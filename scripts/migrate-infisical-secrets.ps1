@@ -17,17 +17,22 @@ param(
     [string]$TargetEnvironment,
 
     [Parameter(Mandatory = $true)]
+    [ValidateSet('core', 'web', 'android', 'desktop')]
+    [string]$TargetRepository,
+
+    [Parameter(Mandatory = $true)]
     [ValidatePattern('^/(?:[^/]+/?)*$')]
     [string]$TargetPath
 )
 
 $ErrorActionPreference = 'Stop'
 $workspaceRoot = Split-Path -Parent $PSScriptRoot
-$configurationPath = Join-Path $workspaceRoot '.infisical.json'
+$repositoryRoot = Join-Path $workspaceRoot "tastile-$TargetRepository"
+$configurationPath = Join-Path $repositoryRoot '.infisical.json'
 $temporaryRoot = Join-Path $workspaceRoot '.tmp'
 
 if (-not (Test-Path -LiteralPath $configurationPath -PathType Leaf)) {
-    throw 'Workspace .infisical.json is missing; refusing to use an implicit target project.'
+    throw "Repository tastile-$TargetRepository .infisical.json is missing; refusing to use an implicit target project."
 }
 
 $configuration = Get-Content -LiteralPath $configurationPath -Raw | ConvertFrom-Json
@@ -38,7 +43,7 @@ $targetProject = Get-InfisicalProjectConfiguration -Configuration $configuration
 $domain = $targetProject.domain
 $targetProjectId = $targetProject.projectId
 if ($domain -notmatch '^https://[^/]+/?$' -or [string]::IsNullOrWhiteSpace($targetProjectId)) {
-    throw "Workspace .infisical.json must specify an HTTPS domain and a $TargetEnvironment target project ID."
+    throw "Repository tastile-$TargetRepository .infisical.json must specify an HTTPS domain and a $TargetEnvironment target project ID."
 }
 if ($SourceProjectId -eq $targetProjectId -and $SourcePath -eq $TargetPath -and $SourceEnvironment -eq $TargetEnvironment) {
     throw 'Refusing to migrate a secret set onto itself.'
