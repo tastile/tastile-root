@@ -49,7 +49,7 @@ $outputName = if ($Repository -eq 'web') {
     '.env'
 }
 $outputPath = Join-Path $repositoryRoot $outputName
-$temporaryDirectory = Join-Path $repositoryRoot '.tmp'
+$temporaryDirectory = Join-Path $workspaceRoot '.tmp'
 
 if (-not (Get-Command infisical -ErrorAction SilentlyContinue)) {
     throw 'Infisical CLI was not found. Install the CLI and authenticate to the configured self-hosted instance.'
@@ -93,9 +93,12 @@ function Set-PrivateFilePermissions {
 }
 
 function Test-GitIgnoredPath {
-    param([Parameter(Mandatory = $true)][string]$RelativePath)
+    param(
+        [Parameter(Mandatory = $true)][string]$GitRoot,
+        [Parameter(Mandatory = $true)][string]$RelativePath
+    )
 
-    & git -C $repositoryRoot check-ignore --quiet -- $RelativePath *> $null
+    & git -C $GitRoot check-ignore --quiet -- $RelativePath *> $null
     return ($LASTEXITCODE -eq 0)
 }
 
@@ -105,11 +108,17 @@ $temporaryName = "infisical-export-$([guid]::NewGuid().ToString('N')).env"
 $relativeTemporaryPath = ".tmp/$temporaryName"
 $temporaryPath = Join-Path $temporaryDirectory $temporaryName
 $outputInstalled = $false
-if (-not (Test-GitIgnoredPath -RelativePath $relativeOutputPath)) {
+if (-not (Test-GitIgnoredPath -GitRoot $repositoryRoot -RelativePath $relativeOutputPath)) {
     throw "Generated output is not ignored by Git: $relativeOutputPath"
 }
-if (-not (Test-GitIgnoredPath -RelativePath $relativeTemporaryPath)) {
+if (-not (Test-GitIgnoredPath -GitRoot $workspaceRoot -RelativePath $relativeTemporaryPath)) {
     throw "Temporary secret output is not ignored by Git: $relativeTemporaryPath"
+}
+
+$restoreMutex = [System.Threading.Mutex]::new($false, "TastileInfisicalRestore-$Repository")
+if (-not $restoreMutex.WaitOne(0)) {
+    $restoreMutex.Dispose()
+    throw "Another Infisical restore is already running for $Repository. Retry after it finishes."
 }
 
 try {
@@ -127,7 +136,14 @@ try {
     }
 
     $dotenv = Get-Content -LiteralPath $temporaryPath -Raw
-    $keyCount = [regex]::Matches($dotenv, '(?m)^(?:export\s+)?[A-Za-z_][A-Za-z0-9_]*=').Count
+    $dotenvMatches = [regex]::Matches($dotenv, '(?m)^(?:export\s+)?(?<key>[A-Za-z_][A-Za-z0-9_]*)=')
+    $dotenvKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($match in $dotenvMatches) {
+        if (-not $dotenvKeys.Add($match.Groups['key'].Value)) {
+            throw "Infisical returned a duplicate dotenv key for $Environment at $secretPath; refusing to create an environment file."
+        }
+    }
+    $keyCount = $dotenvKeys.Count
     if ($keyCount -lt 1) {
         throw "Infisical returned no dotenv keys for $Environment at $secretPath; refusing to create an empty environment file."
     }
@@ -135,6 +151,17 @@ try {
     [System.IO.File]::Move($temporaryPath, $outputPath, $true)
     $outputInstalled = $true
     Set-PrivateFilePermissions -Path $outputPath
+    & (Join-Path $PSScriptRoot 'sync-infisical-env-example.ps1') -Repository $Repository -Environment $environmentSlug
+    $exampleKeys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+    foreach ($line in Get-Content -LiteralPath (Join-Path $repositoryRoot '.env.example')) {
+        $exampleMatch = [regex]::Match($line, '^(?<key>[A-Za-z_][A-Za-z0-9_]*)=$')
+        if (-not $exampleMatch.Success -or -not $exampleKeys.Add($exampleMatch.Groups['key'].Value)) {
+            throw "Generated .env.example contains an invalid or duplicate key for $Repository / $Environment."
+        }
+    }
+    if ($exampleKeys.Count -ne $dotenvKeys.Count -or @($dotenvKeys | Where-Object { -not $exampleKeys.Contains($_) }).Count -gt 0) {
+        throw "Generated .env.example keys do not match the restored $Repository / $Environment environment."
+    }
     if ($RemoveAfterRestore) {
         Remove-Item -LiteralPath $outputPath -Force
         Write-Output "Restore verified for $Repository / $Environment ($keyCount keys); the generated file was removed. Secret values were not printed."
@@ -154,4 +181,6 @@ try {
     if (Test-Path -LiteralPath $temporaryPath) {
         Remove-Item -LiteralPath $temporaryPath -Force
     }
+    $restoreMutex.ReleaseMutex()
+    $restoreMutex.Dispose()
 }

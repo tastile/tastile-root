@@ -238,7 +238,7 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 - project / environment / service path を明示し、同一環境のローカル・CI・本番実行で同じ Infisical 値を使う。local-only secret override や `.env` fallback を禁止する
 - developer は Infisical CLI の対話認証、GitHub Actions は OIDC machine identity、EC2 は AWS IAM machine identity で認証する。Infisical に認証できない場合は失敗し、古い値へ fallback しない
 - Cloudflare Worker bindings や Android signing 等 platform が要求する値は、認証済み job から Infisical より同期する。Infisical 以外を編集可能な正本にしない
-- `.env*` / `*.example` による env schema や secret 設定ファイルを置かない。設定は Infisical path とアプリ側 validation で定義する
+- secret 実値を `.env*` や `*.example` に保存しない。子 repository の `.env.example` は復元対象の Infisical environment から key name だけを取得し、復元される `.env` と同じキー集合・空値で生成する場合に限り commit できる。runtime や fallback source として読み込まず、キー変更後は `scripts/restore-infisical-env.ps1` または `scripts/sync-infisical-env-example.ps1` で対象 environment を指定して再生成する
 
 ---
 
