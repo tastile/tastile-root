@@ -22,7 +22,9 @@ param(
 
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^/(?:[^/]+/?)*$')]
-    [string]$TargetPath
+    [string]$TargetPath,
+
+    [switch]$VerifyOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -154,31 +156,33 @@ try {
     if ($targetBeforeExitCode -ne 0) {
         throw "Target preflight failed (exit code $targetBeforeExitCode); no target changes were made."
     }
-    if ((Get-SecretMap -Path $targetBeforeTemporaryPath).Count -ne 0) {
+    if (-not $VerifyOnly -and (Get-SecretMap -Path $targetBeforeTemporaryPath).Count -ne 0) {
         throw 'Target path is not empty; refusing to overwrite or merge secrets.'
     }
 
-    foreach ($key in $sourceSecrets.Keys) {
-        if ($key -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
-            throw 'Source contains a key that cannot be safely passed to the Infisical CLI.'
+    if (-not $VerifyOnly) {
+        foreach ($key in $sourceSecrets.Keys) {
+            if ($key -notmatch '^[A-Za-z_][A-Za-z0-9_]*$') {
+                throw 'Source contains a key that cannot be safely passed to the Infisical CLI.'
+            }
+            $valuePath = Join-Path $temporaryDirectory "$key.value"
+            $relativePath = ".tmp/$temporaryDirectoryName/$key.value"
+            if (-not (Test-GitIgnoredPath -RelativePath $relativePath)) {
+                throw "Temporary secret file is not ignored by Git: $relativePath"
+            }
+            $null = New-Item -ItemType File -Path $valuePath
+            Set-PrivateFilePermissions -Path $valuePath
+            Set-Content -LiteralPath $valuePath -Value $sourceSecrets[$key] -NoNewline -Encoding utf8NoBOM
         }
-        $valuePath = Join-Path $temporaryDirectory "$key.value"
-        $relativePath = ".tmp/$temporaryDirectoryName/$key.value"
-        if (-not (Test-GitIgnoredPath -RelativePath $relativePath)) {
-            throw "Temporary secret file is not ignored by Git: $relativePath"
-        }
-        $null = New-Item -ItemType File -Path $valuePath
-        Set-PrivateFilePermissions -Path $valuePath
-        Set-Content -LiteralPath $valuePath -Value $sourceSecrets[$key] -NoNewline -Encoding utf8NoBOM
-    }
 
-    foreach ($key in $sourceSecrets.Keys) {
-        $valuePath = Join-Path $temporaryDirectory "$key.value"
-        $setExitCode = Invoke-InfisicalCli -WorkspacePath $targetCliWorkspacePath -Domain $domain -Arguments @(
-            'secrets', 'set', "$key=@$valuePath", "--env=$TargetEnvironment", "--path=$TargetPath"
-        )
-        if ($setExitCode -ne 0) {
-            throw "Target import failed for key $key (exit code $setExitCode); source values were retained. Check the target for partial creation before retrying."
+        foreach ($key in $sourceSecrets.Keys) {
+            $valuePath = Join-Path $temporaryDirectory "$key.value"
+            $setExitCode = Invoke-InfisicalCli -WorkspacePath $targetCliWorkspacePath -Domain $domain -Arguments @(
+                'secrets', 'set', "$key=@$valuePath", "--env=$TargetEnvironment", "--path=$TargetPath"
+            )
+            if ($setExitCode -ne 0) {
+                throw "Target import failed for key $key (exit code $setExitCode); source values were retained. Check the target for partial creation before retrying."
+            }
         }
     }
 
@@ -199,7 +203,8 @@ try {
         }
     }
 
-    Write-Output "Migrated and verified $($sourceSecrets.Count) keys from project $SourceProjectId ($SourceEnvironment $SourcePath) to the configured project ($TargetEnvironment $TargetPath). Values were not printed; source secrets were retained."
+    $operation = if ($VerifyOnly) { 'Verified' } else { 'Migrated and verified' }
+    Write-Output "$operation $($sourceSecrets.Count) keys from project $SourceProjectId ($SourceEnvironment $SourcePath) to the configured project ($TargetEnvironment $TargetPath). Values were not printed; source secrets were retained."
 } finally {
     foreach ($temporaryPath in $temporaryPaths) {
         if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) {
