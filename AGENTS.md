@@ -97,3 +97,22 @@ skip、broad ignore、warning suppression、古い出力で green を作らな�
 PostgreSQL は到達可能な実 DB、Android は対象 device、Rust はこの host では WSL / wslc
 で確認する。agent が commit する場合は `.agent-loop/README.md` の独立 review gate を通し、
 英語の `<type>: <concise title>` を使う。
+
+
+## Constitution / operating profile
+
+- [`constitution/CONSTITUTION.md`](constitution/CONSTITUTION.md)
+- [`organization/profiles/release-driven-solo.md`](organization/profiles/release-driven-solo.md)
+
+
+## Agent Skills lifecycle
+
+project-init 由来の Agent Skills は project-local に管理する。
+
+- 初回導入 / 全体 reconcile: `bunx skills add rebuildup/project-init --skill '*' --agent claude-code opencode codex -y`
+- fresh clone: `bunx skills install`
+- 継続更新: `bunx skills update -p -y`
+- `skills-lock.json` は CLI 生成物として commit し、source/hash を手編集しない
+- upstream-managed Skill は直接編集せず、project 固有差分は別 Skill / adapter / ADR / docs へ置く
+
+Bun は Agent Skills 管理用 tooling であり、product runtime/toolchain の既存 decision を置換しない。
