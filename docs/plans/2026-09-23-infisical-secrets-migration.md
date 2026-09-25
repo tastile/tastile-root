@@ -1,5 +1,11 @@
 # Infisical secrets migration design
 
+> This is the initial design and migration history, not the current runbook.
+> ADR-0012 supersedes its SOPS/KMS handling. Use
+> [`docs/runbooks/infisical-setup.md`](../runbooks/infisical-setup.md) and
+> GitHub issue #35 for current state and remaining actions. Do not use this
+> document's dated inventories or draft-PR status as current evidence.
+
 ## Goal
 
 Make Infisical the canonical store for Tastile application, CI, signing, and deployment secrets across the workspace. Local and remote runs for a given service/environment must use the exact same Infisical project, environment, and path. Remove local secret files and per-system secret stores as authoritative sources; deployment platforms may hold synchronized runtime copies only where required by the platform.
