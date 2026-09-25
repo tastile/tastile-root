@@ -42,7 +42,19 @@ The script writes the selected web environment to its ignored `.env.development`
 
 The connected server identifies itself as Infisical `v0.165.15 Free`, and its UI gates folder-level access controls behind a paid entitlement. Infisical's self-hosted activation guide says paid features require a license key in the server's `LICENSE_KEY` environment variable. A Cloud plan purchase or upgrade does not configure this separate server. The user does not know where to obtain an existing license key, so the migration uses environment-specific projects and does not depend on that paid feature. Before CI can read secrets, assign one identity per environment the read-only Viewer role in only that environment project and verify OIDC subjects. Do not delete legacy sources before target values and CI/runtime behavior are verified.
 
-## 現在の移行状態 (2026-09-24)
+## 現在の移行状態 (2026-09-25)
+
+- self-hosted Infisical の環境別 project と各 repository の `.infisical.json` は存在する。Core/Web runtime identities は環境別 Core project で Viewer、DB runtime identities は別の DB project で AWS Auth のみ、同 project で Viewer。
+- ユーザーはprod/staging両DB identityを対応する環境Core projectにもViewerとして追加することを承認した。再ログイン後、prod/staging両方の `Assign Existing` のidentity候補が `No options` と確認できた。既存DB identitiesは `Project` 管理であり別projectへ割当不可。新しいidentityは作成していない。現在の分離構成を維持し、Core runtime identityがCore project、DB runtime identityが専用DB projectを読む。
+- Root restore helper で dev の core 8 / web 15 / Android 4 / desktop 6 keys を一時復元し、各 `.env.example` を更新した後、生成 `.env` を削除した。Core prod 8、Web staging 13 / prod 33、Android prod 9 も復元・削除を確認した。Core staging、Android staging、desktop staging/prod は空。
+- 旧 self-hosted `tastile` project との値を表示しない再照合では、core dev/prod (各8 keys)、web dev (15)、Android dev/prod (4/9)、desktop dev (6) のsource key/value一致を確認した。core staging、web staging、Android staging、desktop staging/prod の旧 source path は空だった。Web prod の旧 source は23 keys、環境別 target は33 keysで、10 keys は target のみ。共通する `TASTILE_WEB_BRIDGE_SECRET` は値が異なるため移行・削除を停止し、target 側のローテーション値を正として consumer 確認する必要がある。旧 source の値は保持している。
+- Web local Infisical launcher は dev 15 keys を注入し、必須値の存在確認に成功。Web `bun run check` は154 files / 1172 tests pass、`bun run build:infisical` はprodの33 secretsでproduction build pass。GitHub OIDC、Cloudflare、EC2 runtimeのlive検証は未完了。
+- Root #36、Core #142、Web #147 の Draft PR はremoteに公開済み。Web PRはSOPS workflow/ciphertext/loader削除を含むが、default branchでは `sops-decrypt` と `patch-stripe-env` workflowがまだactive。PR checksはpassしているがOIDC fetchとruntime cutoverは未検証。
+- GitHub metadata inventoryではWeb repo secretに3つの `SOPS_AGE_KEY_*` が残るほか、Core/Web deploy identifiersやbridge secretのlegacy repository secretsも残る。これらは新workflowを対象branchで動作確認してから削除する。Web Cloudflare preview/staging secretsとCloudflare deploy workflowのInfisical切替も未完了。
+- Core staging `/tastile/core` と両DB runtime projectは空。prod/stagingのCore/DB runtime cutoverとDB application role loginは未検証。RootのGitHub #36、Core #142、Web #147以外の移行差分も子repo worktreeに未commit変更として残っている。
+- GitHub Web deploy workflow用のAWS role/region/bucket/instance IDは公開variablesに設定済み。旧GitHub/AWS/Cloudflare/EC2 copiesは対応consumerのcutover確認まで保持する。PR作成済みだがmerge、runtime deploy、old storeの削除は未完了。
+
+## 履歴：移行状態 (2026-09-24; superseded)
 
 - Infisical CLI 0.43.133 が利用でき、端末は `https://secrets.rebuildup.dev` の self-hosted instance に Google user login 済み。CLI の `login status` で認証済みを確認した。
 - HTTPS と DNS は応答し、self-hosted Infisical 0.165.15 の `Tastile` project (ID: `f2890cb7-599b-4bd6-b7b4-a47aeb9b324b`) を CLI から読める。以前の「外部 HTTPS 不可」「target に値なし」という記録は古い。
@@ -53,7 +65,7 @@ The connected server identifies itself as Infisical `v0.165.15 Free`, and its UI
 - 旧 workflow inventory では GitHub Environment 名が core `staging` / `production`、web `preview` / `staging` / `production`、Android `android-release`、desktop `production` に分かれており、新しい `dev` / `staging` / `prod` の共有OIDC subjectとは一致しない。GitHub Environment variables とworkflowは未切替で、現在CIからは新 projectを読めない。
 - self-hosted server の UI は `v0.165.15 Free` と表示し、folder-level access control を有料機能として制限する。Hetzner 上の Docker Compose deployment を SSH で read-only 確認し、`/srv/infisical/.env` は mode `0600`、Compose の `env_file` 参照はあるが、`.env` と Compose のどちらにも `LICENSE_KEY` は設定されていないことを確認した。Infisical の [self-hosted activation docs](https://infisical.com/docs/self-hosting/ee) は paid features を使うには server の `LICENSE_KEY` 環境変数へ発行済み license key を設定するよう案内する。別契約の Cloud plan はこの server の状態を変更しない。既存 license key を入手できないため、選択済みのFree対応環境別project設計へ変更した。既存の12 OIDC identitiesは旧Tastile projectでNo Accessのまま、新projectへはまだ割り当てていない。workflow cutover前にsubjectとproject権限を一致させて確認する。server files / containers は変更していない。
 - Android の `local.properties` には `sdk.dir` だけがあり、アプリ secret は確認されなかった。旧 Android Infisical project の dev 4キー/prod 9キーは `/tastile/android` へ転送し、JSON 全値の完全一致を確認した。複数行の `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON` は CLI の file-value syntax で転送し、target と source の9キーすべてを再比較した。旧 project は残し、Android config/CI/署名・Play publishing の読み取りと実動作を確認するまで削除しない。
-- web の `.env.development.sops` / `.env.production.sops` は追跡中で、GitHub Secrets に `SOPS_AGE_KEY_DEVELOPMENT`, `SOPS_AGE_KEY_STAGING`, `SOPS_AGE_KEY_PRODUCTION` が残る。SOPS plaintext source と canonical Infisical target の完全一致・runtime cutover を確認し、workflow consumer を取り除くまで ciphertext と age keys は保持する。
+- Web のremote default branchではSOPS ciphertextと `sops-decrypt` workflowがまだ追跡/有効で、GitHub Secretsには3つの `SOPS_AGE_KEY_*` が残る。新しいbranchではSOPS実行経路を削除済みだが、PRをdefault/release branchへ取り込んでconsumerを止めるまで旧 keys/ciphertextを削除しない。SOPSを使った追加復号・実行はしない。
 - GitHub Secrets の値、AWS SSM / Secrets Manager、EC2 EnvironmentFile、Cloudflare Worker/R2 と旧 Infisical Cloud の値は旧 store に残る可能性があり、消去前の consumer inventory と live cutover が必要。
 - 既存 consumer と旧 secret store は稼働を維持する。各 path/environment の読み取り、CI、runtime、live deploy/startup が確認できるまで旧 source / ciphertext / copy を削除しない。
 

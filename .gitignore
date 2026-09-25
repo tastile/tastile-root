@@ -70,15 +70,11 @@ desktop.ini
 
 # Dependencies
 node_modules/
+.terraform/
 
 # Legacy tile-create-e2e-wiring (moved to tastile-web/docs/plans and tastile-core/docs/plans on 2026-08-04)
 /tile-create-e2e-wiring/
 
-# Additional Infisical-era aliases (remove with the remaining SOPS loader).
+# Legacy dotenv aliases remain ignored so old local copies cannot be committed.
 .env.dev
 .env.product
-
-# Terraform state and plugin cache until the obsolete SOPS stack is removed.
-infra/sops/*.tfplan
-infra/sops/.terraform/
-infra/sops/.terraform-outputs.json

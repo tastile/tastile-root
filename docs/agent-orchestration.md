@@ -434,7 +434,7 @@ Issue / Project の durable work state と status transition は
 
 次の操作は **side-effect journal に記録してから** 実行する:
 
-- AWS リソース mutation (sops 復号は §8-3 の例外)
+- AWS リソース mutation
 - database schema migration
 - 外部 SaaS API call (SES、Stripe 等)
 - production deploy

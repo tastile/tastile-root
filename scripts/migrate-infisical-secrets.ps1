@@ -194,17 +194,20 @@ try {
         throw "Target verification export failed (exit code $targetAfterExitCode); source values were retained."
     }
     $targetSecrets = Get-SecretMap -Path $targetAfterTemporaryPath
-    if ($targetSecrets.Count -ne $sourceSecrets.Count) {
-        throw 'Source and target secret key counts did not match; source values were retained.'
+    $sourceOnlyKeys = @($sourceSecrets.Keys | Where-Object { -not $targetSecrets.ContainsKey($_) } | Sort-Object)
+    if ($sourceOnlyKeys.Count -gt 0) {
+        throw "Target is missing source keys (source=$($sourceSecrets.Count), target=$($targetSecrets.Count)): [$($sourceOnlyKeys -join ', ')]. Source values were retained."
     }
     foreach ($key in $sourceSecrets.Keys) {
-        if (-not $targetSecrets.ContainsKey($key) -or $targetSecrets[$key] -cne $sourceSecrets[$key]) {
+        if ($targetSecrets[$key] -cne $sourceSecrets[$key]) {
             throw "Source and target secret values did not match for key $key; source values were retained."
         }
     }
 
     $operation = if ($VerifyOnly) { 'Verified' } else { 'Migrated and verified' }
-    Write-Output "$operation $($sourceSecrets.Count) keys from project $SourceProjectId ($SourceEnvironment $SourcePath) to the configured project ($TargetEnvironment $TargetPath). Values were not printed; source secrets were retained."
+    $extraTargetKeyCount = $targetSecrets.Count - $sourceSecrets.Count
+    $targetSummary = if ($extraTargetKeyCount -gt 0) { " Target contains $extraTargetKeyCount additional keys." } else { '' }
+    Write-Output "$operation $($sourceSecrets.Count) keys from project $SourceProjectId ($SourceEnvironment $SourcePath) to the configured project ($TargetEnvironment $TargetPath).$targetSummary Values were not printed; source secrets were retained."
 } finally {
     foreach ($temporaryPath in $temporaryPaths) {
         if (Test-Path -LiteralPath $temporaryPath -PathType Leaf) {
