@@ -77,3 +77,10 @@ skip、broad ignore、warning suppression、古い出力で green を作らな�
 PostgreSQL は到達可能な実 DB、Android は対象 device、Rust はこの host では WSL / wslc
 で確認する。agent が commit する場合は `.agent-loop/README.md` の独立 review gate を通し、
 英語の `<type>: <concise title>` を使う。
+
+
+## Constitution / operating profile
+
+- Top-level contract: [`constitution/CONSTITUTION.md`](constitution/CONSTITUTION.md)
+- Current Operating Model: [`organization/profiles/release-driven-solo.md`](organization/profiles/release-driven-solo.md)
+- Project-specific canonical docs and ADRs remain more specific than replaceable upstream Practices when they preserve the Constitution.
