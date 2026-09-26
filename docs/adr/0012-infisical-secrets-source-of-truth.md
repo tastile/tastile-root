@@ -34,11 +34,28 @@ The user requires one remote source of truth and the same secrets to be availabl
 
 ## Migration completion criteria
 
-- All five repositories and deployment workflows use explicit Infisical project/environment/path selection.
+- All five repositories and deployment workflows use explicit Infisical project/environment/path selection; RDS application credentials use the dedicated DB-project exception defined below.
 - Local dev/test/build/release commands that need secrets use authenticated Infisical injection and have no `.env` or platform-specific secret fallback.
 - GitHub Actions, EC2, Cloudflare, Android release, desktop release, RDS app role, and database tooling read from Infisical or receive a verified synchronized value from it.
 - SOPS/KMS code, age keys, committed ciphertext, runtime SSM/Secrets Manager app-secret copies, local secret files, and long-lived GitHub secret copies are removed after successful live migration checks.
 - No secret value is present in source, docs, job logs, output artifacts, or process arguments.
+
+## Decision amendment (2026-09-26, database credential isolation)
+
+The three environment-specific projects remain the canonical projects for repository/application secrets under `/tastile/<service>`. RDS application credentials are an explicit isolation exception: staging and production may each use a dedicated database-credential project containing only `/tastile/db`.
+
+This exception exists because the self-hosted Free plan does not provide folder-level ACLs. Placing database credentials in the shared environment project would make them readable by the shared repository OIDC identity, which is broader access than the EC2 database consumer requires.
+
+Dedicated DB projects must follow these rules:
+
+- they are selected explicitly by non-secret project ID and a DB-specific AWS IAM machine identity;
+- EC2/runtime and controlled database tooling are the consumers; shared repository GitHub OIDC identities must not receive read access;
+- child repository `.infisical.json` files continue to describe only the three normal dev/staging/prod application projects;
+- no database credential is copied into `/tastile/core`, GitHub Secrets, SSM Parameter Store, Secrets Manager application copies, or persistent host environment files;
+- staging and production use distinct DB projects/identities and must not cross-read;
+- rotation/recovery must verify the matching database role before any legacy AWS application-secret copy is removed.
+
+This amendment supersedes Decision 1 only where it previously implied that every secret, including RDS application credentials, must live in exactly the three shared environment projects. Decision 7 remains authoritative for RDS credential lifecycle.
 
 ## Decision amendment (2026-09-24)
 
