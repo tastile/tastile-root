@@ -53,11 +53,11 @@ canonical source を fetch したうえ、以下の section を参照する。Ag
 | §22 | Verification taxonomy | `.agents/skills/verify-tastile-change/SKILL.md` |
 | §23 | Worker / integration / release gate | ADR-0007 §2-4, ADR-0008, `scripts/orchestration/verify-release.ps1` |
 | §24 | GitHub Actions / CI | `.github/workflows/quality.yml`, GH required status check |
-| §25 | Security maintenance | ADR-0004, ADR-0006, KMS / SOPS / GHSA ingest |
+| §25 | Security maintenance | ADR-0004, ADR-0012, secret-source / GHSA ingest |
 | §26 | Reviewer separation | `.agents/skills/tastile-precommit-review/SKILL.md`, `CODEX_ROLES.ja.md` |
 | §27 | Onboarding / repository-controlled knowledge | `README.md`, `AGENTS.md`, `docs/HARNESS.md`, 本 Skill |
 | §28 | Source / documentation / GH language | `AGENTS.md` 「常時適用する不変条件」 |
-| §29 | Package / search / scripts / secret / temporary policy | `AGENTS.md`, `.gitignore`, `scripts/sops-decrypt.ts` |
+| §29 | Package / search / scripts / secret / temporary policy | `AGENTS.md`, `.gitignore`, `scripts/restore-infisical-env.ps1` |
 | §30 | Recovery test / context handoff / 初期化完了条件 | `docs/agent-orchestration.md` 付録 A, ADR-0008 §D-5, `.agents/skills/recover-task/SKILL.md` |
 
 ## 現状 anchor (2026-09-12 時点)

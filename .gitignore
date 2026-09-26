@@ -61,28 +61,20 @@ desktop.ini
 # Local scratch (transient fixture, log, and review scripts).
 .tmp/
 
-# Actual environment values (examples remain tracked)
+# Actual environment values
 .env
 .env.development
 .env.production
 .env.local
 .env.*.local
-!.env.example
-!.env.development.example
-!.env.production.example
 
-# sops loader dev install (Task 2 left this untracked; `bun add --no-save`)
+# Dependencies
 node_modules/
+.terraform/
 
 # Legacy tile-create-e2e-wiring (moved to tastile-web/docs/plans and tastile-core/docs/plans on 2026-08-04)
 /tile-create-e2e-wiring/
 
-# Terraform (infra/sops/)
-infra/sops/*.tfplan
-infra/sops/.terraform/
-infra/sops/.terraform-outputs.json
-
-# Additional SOPS-decrypted secret targets (project-wide; covered by
-# the loader's spec at docs/superpowers/specs/2026-08-27-sops-env-decryption-design.md)
+# Legacy dotenv aliases remain ignored so old local copies cannot be committed.
 .env.dev
 .env.product

@@ -4,7 +4,7 @@
       "name": "core",
       "path": "tastile-core",
       "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
-      "gate": { "command": "cargo", "arguments": ["test", "-p", "domain"] }
+      "gate": { "command": "cargo", "arguments": ["test", "--manifest-path", "crates-v1/Cargo.toml", "-p", "domain"] }
     },
     {
       "name": "web",
@@ -49,7 +49,7 @@
       "name": "root",
       "path": ".",
       "skill": ".agents/skills/tastile-precommit-review/SKILL.md",
-      "gate": { "command": "bash", "arguments": [".agent-loop/gate-root.sh"] },
+      "gate": { "command": "pwsh", "arguments": ["-NoProfile", "-File", ".agent-loop/gate-root.ps1"] },
       "skip_reviewer": true
     }
   ]

@@ -125,7 +125,6 @@ Test-IgnoreRule ".env" $true
 Test-IgnoreRule ".env.development" $true
 Test-IgnoreRule ".env.production" $true
 Test-IgnoreRule ".env.local" $true
-Test-IgnoreRule ".env.example" $false
 Test-IgnoreRule "scripts/probe.ps1" $false
 Test-IgnoreRule "docs/probe.txt" $false
 Test-IgnoreRule ".codex/config.toml" $false

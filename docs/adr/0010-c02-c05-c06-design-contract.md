@@ -12,7 +12,7 @@
   - `tastile-core/crates-v1/worker/src/delivery_tick.rs`
   - `tastile-android/app/src/main/java/app/tastile/android/data/notification/PushEndpointRepository.kt` (現状維持)
   - `tastile-core/docs/production/v1-core-release.md` (env 投入項目)
-- 先行 ADR: [ADR-0006](./0006-kms-viaservice-removal.md) (関連, KMS 不要化の一環), [ADR-0007](./0007-release-branch-and-ticket-workflow.md) (連動), [ADR-0009](./0009-github-projects-work-state.md) (関連)
+- 関連 ADR: [ADR-0006](./0006-kms-viaservice-removal.md) (歴史的記録。ADR-0012で superseded), [ADR-0007](./0007-release-branch-and-ticket-workflow.md) (連動), [ADR-0009](./0009-github-projects-work-state.md) (関連)
 - 後続 ADR: なし (C07 / C03 / C04 / W02 / W04 / A02 / A04 は本 ADR 完了が前提)
 - canonical: [agent orchestration policy](../agent-orchestration.md) §7 (ADR lifecycle)
 - Issue 起点:

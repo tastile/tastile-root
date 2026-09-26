@@ -41,7 +41,7 @@ consumer は field name と context を保持する。
    `git reset --hard <base_sha or checkpoint_sha>` で snapshot を復元する。
 7. `completed_steps` / `pending_validation` を再評価する。`completed_steps` に
    重複する step を実行しない。
-8. `external_side_effects` の actual remote state を `gh` / `git` / `sops` で確認する。
+8. `external_side_effects` の actual remote state を `gh` / `git` で確認する。
    idempotency_key と `observed_state` が食い違うものは abort する。
 9. stale base / conflict を `git fetch origin <target_release>` の差分比較で確認する。
 10. remaining plan を `next_steps` から再構成する。
