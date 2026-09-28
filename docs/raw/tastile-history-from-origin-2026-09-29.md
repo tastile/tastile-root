@@ -997,4 +997,394 @@
   - Cloudflare DNS/TLS/CDN
   - AWS EC2: Next.js/API/worker/nginx/download
   - RDS
-- responsibility再配分案:
+- responsibility再配分案:  - Cloudflare = DNS/WAF/Web Workers/R2 distribution
+  - AWS = EC2 API/worker/RDS
+  - GitHub = source/CI/release
+- `download.tastile.app` を S3→presign→SSM→EC2/nginx から R2へ移行。
+- immutable release + short-cache stable manifest。
+- staging:
+  - `staging.app.tastile.app`
+  - `staging.api.tastile.app` 系を検討し、後に cert constraint から `api.staging.app.tastile.app` を canonical とした履歴
+  - dedicated EC2 / worker / RDS
+  - production DB share禁止
+- BetterAuth + private RDS を Workersへ直接持っていく場合 Hyperdrive/VPC 等が必要なため Web full migration は後判断。
+- permanent develop branch は不要。
+- `feature → release-x-y-z → main` 維持。
+
+### 2026-09-20: production localhost incident
+
+- production Web 実機/ブラウザで:
+  - `localhost/api/proxy/read/active-tile`
+  - `localhost/api/proxy/access/notifications?limit=20`
+  - `localhost/api/proxy/read/execution-view`
+  - `localhost/api/proxy/access/subjects`
+  - `localhost/api/proxy/read/tiles?...`
+  等へ request。
+- `net::ERR_CONNECTION_REFUSED`。
+- side panel が実質壊れていた。
+- production config/contract problem が earlier test で防げなかった具体例。
+
+### Core staging #137 と権限境界
+
+- staging backend を production から分離。
+- target:
+  - Cloudflare
+  - staging EC2
+  - `tastile-api.service`
+  - `tastile-worker.service`
+  - staging RDS PostgreSQL
+- staging が `TASTILE_ENV=staging` だから security guard が弱くならないよう production-equivalent auth guard。
+- staging/production:
+  - PostgreSQL share禁止
+  - runtime secret share禁止
+  - bridge secret share禁止
+  - deployment target share禁止
+  - backup/restore target share禁止
+- release SHA deploy。
+- API+Worker same revision。
+- migration readiness後 Worker start。
+- rollback。
+- destructive test が production endpoint/DBでは起動しない safeguard。
+- 途中で staging EC2 role が同一 account/region の production RDS secret まで読める可能性を発見。
+- exact staging secret ARN に permission を narrow する必要。
+
+### 2026-09-22: production auth incident
+
+- Googleで続行が使えない。
+- email account signup が HTTP 500。
+- path:
+  - `/api/auth/sign-in/social`
+  - `/api/auth/sign-up/email`
+- production authentication correctness 自体が release-hardening item になった。
+
+---
+
+## 2026-09-26〜28: Infisical migration、CLI、boundary cleanup
+
+### Infisical導入の背景
+
+- secrets path が SOPS/KMS/SSM/Secrets Manager/GitHub/env 等に分散。
+- Infisicalへ移行。
+- repository-local / environment-local ownership へ寄せる。
+- root を central decrypt runtime にしない。
+- ValidateOnly は 12/12 PASS に到達した時点。
+- しかし migration は完全完了せず、後続で多数の failure。
+
+### review tooling limitation
+
+- Copilot review quota exhausted。
+- CodeRabbit Free:
+  - non-default branch skip
+  - Draft auto reviewなし
+  - rate limit
+- 2026-09-26:
+  - Web PR #151 SSM shell quoting
+  - Root PR #41 Infisical evidence sync
+  - Brands PR #4 `.infisical.json`
+  - Core PR #149 artifact upload
+  - Web #150 `.env.example`
+  - Core/Web OIDC project-slug fix
+  等で review automation が不完全。
+- review automation unavailable は「review不要」を意味しないので manual/independent review を使う。
+
+### Core DB credential cutover
+
+- RDS master login を application credential として使う状態から dedicated application role へ。
+- Core PR #155。
+- `docs/production/infisical-db-cutover.md`
+- `scripts/v1/bootstrap-infisical-db-role.sh`
+- rollback-safe staging/production cutover。
+- review は CodeRabbit rate limit。
+
+### Web Infisical deploy failure
+
+- Web deploy 自体は host へ到達。
+- health check が `127.0.0.1:3000` で failure。
+- cause:
+  - systemd unit 上で Infisical login が browser interaction を要求
+  - WorkingDirectory 不足/誤り
+  - restart loop
+- fix:
+  - non-interactive `INFISICAL_TOKEN` path
+  - explicit WorkingDirectory
+  - log rotation
+- 後に deploy success。
+- SSM shell quoting regression も複数 PR (#151/#154/#157) で修正。
+
+### Android / Desktop
+
+- Android:
+  - env mapping fix
+  - signed AAB success
+  - v0.6.0 release
+  - PR #52 が ANDROID_KEY_* → RELEASE_* mapping + fail closed
+- Desktop:
+  - Infisical migration regression を `--file` 利用で修正 PR #39
+  - migration-only CI helper retirement PR #40
+  - v0.7.0 line cutover
+
+### Windows cleanup
+
+- 2026-09-27:
+  - source checkout 実体 0
+  - 約33GB回収
+  - Web #134 を `134-recovered` commit `129bddac` で保存
+  - Infisical scratch `becdc51c` 保存
+  - Android/Core/Desktop 等の未保存物を判定して削除
+  - empty root directory が bash CWD lock で残存
+- root branch 35:
+  - `484e161` 追加
+  - 誤って削除した OpenAPI submodule pointer を復元
+  - PR #45 Draft/OPEN
+  - diff は journal 2件 + `docs/runbooks/infisical-setup.md`
+
+### Root #44: repository independence
+
+- root の `.gitmodules` に tastile-openapi。
+- Web が `../openapi/openapi.yaml`。
+- Android が `../../openapi/openapi.yaml`。
+- root filesystem layout が build dependency になっていた。
+- root に SOPS KMS/IAM Terraform、decrypt scripts も残る。
+- target:
+  - Core の Rust OpenAPI definition が generation SoT
+  - `tastile-openapi` は generated distribution contract repo
+  - each consumer repository が revision を local pin
+  - root-relative path禁止
+  - standalone clone/build/test/CI
+  - root OpenAPI submodule 削除
+  - SOPS/KMS/decrypt responsibility を owning repoへ or obsoleteなら削除
+  - root は governance / architecture / release coordination / workspace tooling / cross-repo validation / organization docs に縮退
+  - root を production artifact/build/runtime dependency にしない
+
+### Tastile CLI separation
+
+- formal user-facing Rust client として Core から分離。
+- API-only。
+- Core internal crate に依存しない。
+- browser authentication。
+- TUI。
+- ratatui 3-pane。
+- CLI/TUI は同じ `app::*` functions。
+- operations:
+  - auth login `--print-url`
+  - today
+  - source tile read/create/update/reflow
+  - execution start/pause/resume/finish
+  - prompts
+- OpenAPI submodule pin の報告: `b0c781d...`。
+- 18 operations。
+- standalone build/test/drift check success。
+- initial real-account E2E は Web `/cli/authorize` / token exchange 未完成でblocked。
+- auth DoD:
+  - Better Auth `/cli/authorize`
+  - `/api/cli/token`
+  - PKCE S256
+  - TTL <= 5 min
+  - scope intersection `tastile.read tastile.write`
+  - atomic single-use
+  - user binding
+- CLI PR #2 で callback URL に `/cli/callback` を余計に足す bug が review で見つかり、direct `redirect_uri()` 使用が必要。
+- Web PR #158:
+  - `/cli/authorize`
+  - `/api/cli/token`
+- Core PR #176:
+  - granular API-token scopes
+  - centralized `AuthContext`
+- later CLI:
+  - public
+  - 3 OS CI green checkpoint
+  - 18/18 OpenAPI drift
+  - v1.0.0 release
+
+---
+
+## 「生活のフレームワーク」
+
+### 2026-09-26〜27
+
+- Tastile branding/product direction として「生活のフレームワーク」という言葉が発案された。
+- 単なる marketing copy ではなく、Tastile を
+  - planned work / obligation primitives
+  - execution control
+  - scheduling / re-scheduling
+  - human feedback
+  - multi-platform client / integration
+  を提供する framework と見る再解釈。
+- 最初に root 側で Issue 化しようとした。
+- しかし user が「根本の方針は tastile-core の docs が SoT では？」と指摘。
+- root issue は duplicate/superseded 扱い。
+- Core #172 を canonical issue として、`v1/00-glossary.md`, `01-scope.md`, `02-core-entities.md` と整合させる方向。
+- これは root architecture SoT と Core domain SoT の ownership 境界が曖昧であることを示す事例。
+
+---
+
+## GitHub Actions budget / cost
+
+### 過去から継続する問題
+
+- 2026-04 時点で included 2,000 minutes exhausted。
+- 2026-06 には Actions storage 0.45/0.5GB = 90% の通知もあった。
+- 2026-09 に private repo CI が release blocker になるほど再び深刻化。
+
+### 2026-09-28頃
+
+- hard spending cap = $2 を維持。
+- user は「billing を増やす」解決を拒否。
+- runner minutes を下げることが主 lever。
+- successful Core private-repo CI run の一例:
+  - quality 約20.3 min Linux
+  - Windows contract 約0.4 min
+- headroom は Linux 約333min / Windows 約200min と評価された時点があり、
+  full quality run に換算すると約16回程度しかない。
+- normal merge traffic で month end 前に再枯渇する。
+- Core #191/#192/#193:
+  - Rust-non-impacting change は lightweight contract path
+  - Rust change は fmt/clippy/test
+  - redundant build 削減
+- #194/#195/#196:
+  - side-effect-free runner allocation probe
+  - workflow_dispatch
+  - main-only
+  - empty permissions
+  - production/tag/Infisical mutationなし
+- probe 自体も「予算が復旧したか」を安全に確認する目的。
+
+---
+
+## 2026-09-27〜28: production/release checkpoint
+
+- production では Core 1.0.1 / Web 1.0.2 が稼働した checkpoint。
+- Web initial deploy で約72秒停止。
+- rollback → redeploy。
+- Infisical migration は 403 workaround が残る。
+- full secret leakage がないと判断できる範囲では Stripe/provider/AES key rotation は不要という整理。
+- Core #141 migration / deploy helper hardening 等が残件。
+- production smoke では `/admin/login` が expected 200 でなく 307 となり、legacy production main behavior が観測された。
+- release branch には fix があるが #91→main 未mergeなので production未deploy、という evidence。
+- Android:
+  - signed AAB generation / signature verification success
+  - Play upload は already-used versionCode で failure
+- 9/28 時点でも release は当初日程から9日超過した RED と表現された。
+- Core PR #177 merge `08ea760`。
+- Infisical PR #178。
+- Web 1.0.4 `895d2f8` / PR #165 等の進行。
+- 完了していない release gate を理由に project を中止する方針ではない。
+
+---
+
+## 2026-09-28〜29: AWS / Infisical 前提そのものを再評価
+
+### AWS free credits の消滅
+
+- AWS の free credits はすでに使い切った。
+- これまで AWS を採用した理由には:
+  - industry prevalence
+  - learning/career value
+  - free credit
+  が含まれていた。
+- free credit がなくなったので、EC2/RDS/VPC/IAM/SSM 等の固定費・運用費を通常の production cost として再評価する必要。
+
+### Infisical migration 未完
+
+- Infisical cutover は完全には終わっていない。
+- bug が多い。
+- autonomous agents が environment/auth/deploy/credential boundary で止まり続ける。
+- old AWS runtime 向け Infisical integration を完全に磨いた後に infra migration すると、secret injection / deploy / runtime identity / staging-prod split を二度作り直す可能性が高い。
+
+### 一般公開通知前に infra を変更する判断
+
+- broad general public announcement の前に infra を変更・固定する方が合理的という方向。
+- これは release を諦めることではない。
+- proposed sequence:
+  1. observable product behavior をなるべくfreeze
+  2. infrastructure migration
+  3. target runtime 前提で Infisical contract を完成
+  4. staging verification
+  5. production cutover
+  6. evidence-based soak
+  7. broad public announcement
+- public users が増えた後なら session/data/scheduler/notifications/downtime/rollback を守りながら migration する必要があり、現在より難しい。
+
+### target infra candidates — 未確定
+
+- Cloudflare は残す可能性が高い:
+  - DNS
+  - CDN
+  - WAF
+  - Web/edge
+  - R2
+- EC2 は strong removal candidate。
+- PostgreSQL/RDS は compute と別に判断。
+- candidates:
+  - Cloud Run Tokyo + Cloud SQL/PostgreSQL
+  - Cloud Run Tokyo + Supabase Tokyo
+  - Cloudflare Containers + PostgreSQL
+  - managed AWS container compute + Aurora Serverless 等
+- 2026-09-29 時点では target architecture 未決。
+- 「AWS全面採用」が default premise ではなくなった。
+
+---
+
+## 2026-09-29: architecture SoT を作り直す要求
+
+- 全体 architecture を再定義して明確な Source of Truth にしたい。
+- D2 を採用候補。
+- TALA を architecture layout に利用候補。
+- ただし diagram 自体だけを SoT にしない。
+- ambiguity 回避のため machine-readable structured files が必要。
+- ubiquitous language definition が必要。
+- PoC 定義が必要。
+- KPI が必要。
+- SLO / operational success criteria も対象。
+- ADR linkage。
+- repository / ownership mapping。
+- D2/TALA:
+  - software architecture に向く orthogonal layout
+  - selected node fixed positioning + auto layout
+  - node追加で layout が大きく変わることがある
+  - long one-way flow は Dagre/ELK の方が安定する可能性
+- 最も多く正確な Tastile history/intention が残っている場所として ChatGPT 会話履歴/memory を認識。
+- そのため canonical redesign より先に、会話前提を捨てられる raw corpus を root/core へ吐き出すことを要求。
+- user の明示要求:
+  - 「未移植情報だけ」ではない
+  - Pomodoroomのさらに前、Pomodoroへの関心から
+  - 最初期から現在まで
+  - 生の情報を重視
+  - 圧縮しない
+  - 整理は今しない
+  - 分かることすべてを文章として外部化
+
+---
+
+## 現在の repository / SoT ownership と矛盾し得る点
+
+- `tastile-root`:
+  - workspace/governance shell
+  - overall policy/auth/infra docs
+  - cross-repo coordination
+- `tastile-core`:
+  - domain/API/schema
+  - current canonical v1 `00..15`
+- clients:
+  - implementation local docs
+- business logic は Core。
+- client thin。
+- root #44 は root 自体を build/runtime dependency から外す方向。
+- しかし「生活のフレームワーク」をどこに置くかで root vs Core ownership が実際に揺れた。
+- 新architecture SoTでは product-wide fact と domain semantic fact の明確なownershipが必要。
+
+---
+
+## 意図的に解決しない historical contradictions
+
+- personal Web Pomodoro → Pomodoroom の exact transition は未確定。
+- local SQLite-centered Core と backend/PostgreSQL-centered service は successive architectures。
+- Supabase sync phase と AWS RDS production phase は両方実在。
+- Cognito-centric identity と Better Auth + owner-centric identity は successive designs。
+- READY/RUNNING/PAUSED/DONE、DRIFTING、PhaseKind/DerivedPhase、v7 pipeline、v1 Plan/Placement/Execution は同時に現行ではない。
+- Google Calendar integration は深く実装されたが Calendar SoT は早い段階で否定されていた。
+- Tauri は Pomodoroom desktop化に使われたが後に future Tastile direction から外された。
+- root OpenAPI shared submodule は実在したが repository independence 方針で廃止対象。
+- AWS は明確な理由で採用されたが free-credit消滅/operations failure により再評価中。
+- 「execution-control system」と「生活のフレームワーク」の関係は未確定。
+- この文書はこれらを統合して一つの答えにしない。
