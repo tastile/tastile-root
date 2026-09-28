@@ -53,6 +53,21 @@ The connected server identifies itself as Infisical `v0.165.15 Free`, and its UI
 - `/tastile/db` にprod / staging用DB URLを登録し、現行RDS endpoint/databaseへの接続とnon-admin runtime roleの権限を確認した。Core prodにはdelivery probe tokenを登録済み。Core stagingのdeployとAPI応答、Web / Android / Desktopの対応するproduction runtime・publishing経路、Web Cloudflare Worker、Desktop R2への実動作はまだ完了していない。
 - 現在のdefault-branch release PRはrelease gateでDraftのまま。Root #31はR02 / R04 / R05 / R06 / R07、独立RC判定、人間の公開承認を必須としている。移行PRの存在やrelease branch CIだけでは、これらのgateを代替しない。各child release branchのmain統合、全runtime / platform live cutover、old-store削除は引き続き必要。
 
+## 追記：移行状態 (2026-09-26 16:45 UTC; SoT集約は root Issue #35)
+
+- staging ECR rate-limit blockerは解消済みでblockerから除外する。Core staging Deploy run `36212632469` は merge SHA `8c44688` で end-to-end SUCCESS (quality / rollback / build / OIDC / isolated target / upload / host deploy / smoke fetch / API検証)。brands config mismatchも解消済み (brands Issue #3 / PR #4 closed、3-project `.infisical.json` で一致)。
+- Web OIDC matrix run `36216564098` は dev / staging / prod すべて SUCCESS。Core OIDC run `36216478463`、Android OIDC run `36213081307` も SUCCESS。Web deploy run `36218050244` のSSM quoting bugは修正merge済み (Web PR #151) で当該runはobsolete。fresh prod deploy (tag/dispatchのみ) とstaging OIDC run `36228615924` の人間承認が残る。
+- Core prod deliveries-500はapp bug疑い (Core #150) でrerun停止。delivery 4-keyは `/tastile/core` に未登録のまま (Core #159) で、live migrationはDraft承認PR Core #169 (sentinel) の人間承認待ち。`TASTILE_DELIVERY_KEY` はrotateしない。Core PR #155 (RDS app-role cutover impl) はmerge済み。DB cutover本体 (Core #152 / PR #171) はChatGPT側の作業域でoff limits。
+- 注意: release-1-0-1 head `b162c9d` (PR #170 merge後) で Deploy staging run `36254160103` がstep実行なしでFAILED、Verify OIDC run `36254160147` が prod-secret presence stepでFAILED (delivery 4-key欠落と整合)。current headではstaging/OIDC greenを主張できない。ownerのrerun/再検証が必要。
+- Root PR #36 / #41 / #42 は `release-0-6-0` へmerge済み (ticket→release統合のみ)。release→main統合と公開承認は人間のみ。legacy store削除は本sweepではゼロ (consumer live proofを満たしたscopeなし)。
+
+## 追記：移行状態 (2026-09-27 00:10 UTC; SoT集約は root Issue #35)
+
+- tastile-core runner allocation は外部 GitHub Actions hosted runner 制約 (Queue A diagnosis, journal `core-runner-zero-step-20260927-v1`)。dispatch 5/5 が steps:[] / 2-4 秒でcompleted failure (36258699276, 36258783284, 36258847241, 36254160103, 36258994425; 36258999545 も同種)。同一時刻に tastile-web dispatch 36259014257 は正常 (DEV job 4 step 成功)、tastile-android dispatch 36258868948 も SUCCESS。workflow content / OIDC / policy 起因ではない。代替経路: SHA `8c44688` の OIDC matrix 36216478463 (SUCCESS) と SHA `123c0230` の Deploy staging 36252641468 (SUCCESS; quality / rollback / build / OIDC / isolated target / upload / host deploy / smoke fetch / API verify 全部 green) が live proof として有効。OIDC / config / consumer 依存は PR #170 (cancel-in-progress のみ) で不変。
+- Core prod delivery 4-key (B: Core #159 / #169) と staging DB credential cutover (C: Core #152 / PR #171 / PR #173) は core runner 復旧待ち。legacy 値は prod EC2 `/etc/tastile/tastile.env` にしか存在せず、deploy-role 経由でしか届かないため、runner 戻り次第 `scripts/v1/migrate-legacy-delivery-secrets.sh` を workflow 経由で起動する。`TASTILE_DELIVERY_KEY` は rotate しない。
+- Queue D (Web #142) を先に進める: OIDC matrix dispatch 36259014257 (DEV done, STAGING/PROD in_progress)、続いて fresh prod deploy (tag/dispatch) を取り、consumer live proof を揃える。Web #151 で SSM quoting bug はmerge済み。legacy store 削除は本 sweep ではまだゼロ。
+- Queue E (Android #45) と Queue F (Desktop #30) はそれぞれ signing/Play consumer live proof と R2 release consumer live proof が残る。Core runner 制約の影響を受けない。
+
 ## 履歴：移行状態 (2026-09-24; superseded)
 
 - Infisical CLI 0.43.133 が利用でき、端末は `https://secrets.rebuildup.dev` の self-hosted instance に Google user login 済み。CLI の `login status` で認証済みを確認した。
