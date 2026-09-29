@@ -84,3 +84,5 @@ Private Core CI is intentionally decoupled from Cloud Build's GitHub App connect
 The GitHub App ID / installation ID and Infisical machine identity/project identifiers
 are non-secret references. The GitHub App private key is an Infisical secret and has no
 second editable copy.
+
+Polling is intentional: no inbound webhook or webhook signing secret is introduced for private Core CI.
