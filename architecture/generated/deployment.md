@@ -5,10 +5,10 @@
 
 | scope | expected | upper bound |
 | --- | --- | --- |
-| target env.ci | 0 | 3 |
+| target env.ci | 0 | 4 |
 | target env.production | 35.3 | 60.3 |
 | target env.staging | 6 | 6 |
-| **target total** | 41.3 | 69.3 |
+| **target total** | 41.3 | 70.3 |
 | current (retiring nodes, unverified) | 93 |  |
 | budget (quality.yaml cost_budget.pre_launch) | 45 |  |
 
@@ -35,7 +35,8 @@
 | `node.prod.web` | env.production | prov.gcp | Cloud Run service `web` (Next.js standalone) | ctr.web | {"cpu":1,"memory":"512Mi","min_instances":1,"max_instances":2,"billing":"request-based","db_pool_max":3} | 10 (estimate) same as core-api | planned |
 | `node.prod.db` | env.production | prov.gcp | Cloud SQL for PostgreSQL 17 Enterprise `tastile-prod-pg` | ctr.domain-db, ctr.auth-db | {"tier":"db-f1-micro (shared core, 0.6 GB; no SLA) — upgrade trigger in risk.db-tier","storage":"10 GB SSD, auto-increase","backups":"automated daily, 7 retained","pitr":"enabled, 7 days transaction logs","connectivity":"Cloud SQL connector (unix socket) from Cloud Run; no authorized networks","max_connections_budget":"api 2×5 + worker 1×3 + web 2×3 + migrate 2 = 21 ≤ 25"} | 14 (estimate) db-f1-micro list $0.0105/h (us-central1) ×1.3 Tokyo uplift ≈ $10 + 10 GB SSD ≈ $2.2 + backup / log ≈ $2 | planned |
 | `node.shared.registry` | env.production | prov.gcp | Artifact Registry `tastile` (asia-northeast1) — images promoted by digest to both envs |  | {"project":"tastile-dev","role":"shared build artifact control plane"} | 0.3 (estimate) | planned |
-| `node.shared.build` | env.ci | prov.gcp | Cloud Build (e2-standard-2 default pool) for tastile-core CI and all image builds |  | {"project":"tastile-dev","region":"asia-northeast1","pr_ci_service_account":"sa-cloud-build-ci","publish_service_account":"sa-cloud-build-publish"} | 0–3 (verified) 2,500 free build-minutes / month / billing account | planned |
+| `node.shared.build` | env.ci | prov.gcp | Cloud Build (e2-standard-2 default pool) for tastile-core CI and all image builds |  | {"project":"tastile-dev","region":"asia-northeast1","pr_ci_service_account":"sa-cloud-build-ci","publish_service_account":"sa-cloud-build-publish","source_bucket":"tastile-dev-tastile-ci-source"} | 0–3 (verified) 2,500 free build-minutes / month / billing account | planned |
+| `node.shared.ci-dispatcher` | env.ci | prov.gcp | Cloud Run Job `tastile-ci-dispatcher` + Cloud Scheduler poll |  | {"project":"tastile-dev","service_account":"sa-ci-dispatcher","source":"GitHub App short-lived installation token from Infisical","interval":"1 min","target_repo":"tastile/tastile-core"} | 0–1 (estimate) minute poll/job within Cloud Run and Scheduler free tiers at pre-launch volume | planned |
 | `node.prod.downloads` | env.production | prov.cloudflare | R2 bucket `tastile-downloads` + custom domain download.tastile.app | ctr.downloads |  | 0 (verified) < 10 GB storage, egress free | retained |
 | `node.prod.media` | env.production | prov.cloudflare | R2 bucket `tastile-media-prod` + custom domain media.tastile.app | ctr.media |  | 0 (verified) | planned |
 | `node.prod.email` | env.production | prov.resend | Resend (domain tastile.app, sending subdomain mail.tastile.app) | ext.email |  | 0–20 (verified) Free 3,000/month & 100/day; Pro $20 before public announcement if volume requires | planned |
