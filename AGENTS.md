@@ -50,8 +50,9 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
 詳細手順は `.agents/skills/` を正本とし、trigger に一致したときだけ読む。
 
 - `cross-repo-contract-check`: 複数 child、API / schema / auth / 共有 UI contract の変更。
-- `verify-tastile-change`: PASS、DONE、GREEN、commit / merge / ship 可能と述べる直前。
-- `tastile-precommit-review`: root 変更を agent が commit する直前の独立 review。
+- `verify-tastile-change`: PASS、DONE、GREEN、commit / merge / ship 可能と述べる直前。pre-commit
+  reviewer loop (旧 `tastile-precommit-review` + `.agent-loop/`) は 2026-09-29 に廃止済み
+  (ADR-0012)。binding verification は本 Skill に統一する。
 - `plugin-version-audit`: pinned 依存（MCP / Bun / Node / Biome / Knip / Vitest / Playwright / Next /
   openapi-typescript）の drift と advisory を release 前、または bump 直前に read-only で確認する。
 - `parallel-orchestration`: worker への実装委譲、並列化、再割当、停止、成果物統合。
@@ -75,7 +76,7 @@ pwsh -NoProfile -File .\scripts\check-agent-environment.ps1
 終了コードは `0=PASS`、`1=code/test failure`、`2=external prerequisite により BLOCKED`。
 skip、broad ignore、warning suppression、古い出力で green を作らない。UI は実 browser、
 PostgreSQL は到達可能な実 DB、Android は対象 device、Rust はこの host では WSL / wslc
-で確認する。agent が commit する場合は `.agent-loop/README.md` の独立 review gate を通し、
+で確認する。commit 前の binding verification は `verify-tastile-change` Skill で実施する。
 英語の `<type>: <concise title>` を使う。
 
 

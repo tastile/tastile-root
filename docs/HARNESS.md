@@ -410,19 +410,23 @@ pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile full -KeepGoing -Ma
 - 停止条件: 全通過、再試行上限、または外部前提の不足。BLOCKED を成功として扱わない
 - core full gate には `TASTILE_DATABASE_URL` または `DATABASE_URL` で到達可能な PostgreSQL が必要
 
-### 13-3. Agent commit review loop
+### 13-3. Agent commit review loop (deprecated 2026-09-29)
 
-Claude Code、Codex、OpenCode は `tastile` 直下から起動する。各agentのネイティブ tool hook は、agentが単一の直接 `git -C <repo> commit ...` を実行する直前に共通エンジンを起動する。
+2026-09-29 付で per-commit reviewer loop (`.agent-loop/` + `tastile-precommit-review` Skill)
+は廃止した (ADR-0012)。本節は運用履歴として残し、参照のみ。新しい binding verification
+contract は `verify-tastile-change` Skill に統一する。
 
-- Git hookではない。人間の通常commitには作用しない
-- fast gateと別CLI agent reviewの両方が必須
-- gate、skill、reviewerはHEADへcommit予定patchだけを適用した一時snapshot上で動く
-  - 例外: `root` repository は sibling 配置の child repo を `git archive HEAD` に取り込めず、snapshot 内に `.git` も無いため snapshot 化が成立しない。代わりに live workspace を対象にgateを走らせ、HEAD からの差分(staged patch)は reviewer prompt にだけ渡す。root gate は workspace 構造のみを検証するため、staged content の混入経路がない
-- Claude→Codex、Codex→Claude、OpenCode→Codexとして自己レビューを禁止
-- project固有基準は各child repoの `.agents/skills/tastile-precommit-review/SKILL.md`
-- Critical / Important のみblocking。approvalはキャッシュしない
-- CLI不在、認証不足、timeout、判定不能、曖昧なshell形式はfail-closed
-- 実装・対応形式・テストは `.agent-loop/README.md` を正本とする
+- per-repo fast gate はそれぞれ次の入口を使う: `pwsh -NoProfile -File scripts\check-agent-environment.ps1`
+  (root)、`bun run check` (web / blogs)、`cargo test -p domain` (core)、
+  `./gradlew verify --no-daemon` (android)、`pwsh scripts\check.ps1` (desktop)。
+- critical / important の検査は project-init の `quality-gate` Skill が PR 前 binding
+  evidence として吸収する。
+- 削除された hook (`.claude/hooks/hook-dispatch.mjs` の `agent-loop-precommit-review` /
+  `.codex/hooks.json` の `.agent-loop\Invoke-AgentHook.ps1`) は残存する
+  `git-guard.mjs` / `tastile-command-guard.ps1` と並走しない (機能分離)。
+
+旧 engine / Skill の evidence は git history に残っているため、必要に応じて
+`git log --diff-filter=D -- .agent-loop/` および `git log --diff-filter=D -- '*.agents/skills/tastile-precommit-review/*'` で参照する。
 
 ### 13-4. 次のマイルストーン
 

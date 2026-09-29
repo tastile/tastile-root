@@ -1,10 +1,10 @@
 # ADR-0011: `tastile-precommit-review` canonical Skill の配置 precedence
 
 - 日付: 2026-09-12
-- 状態: Accepted
+- 状態: Superseded by [ADR-0012](./0012-deprecate-tastile-precommit-review.md) (2026-09-29)
 - 対象: Tastile root workspace + 全 child repository の `tastile-precommit-review` / thin-adapter 解決
 - 先行 ADR: [ADR-0005](./0005-skills-and-mcp-extensions.md) (Skills catalog), [ADR-0007](./0007-ticket-driven-isolated-agent-delivery.md) (pre-commit reviewer の発火位置)
-- 後続 ADR: なし
+- 後続 ADR: なし (本 ADR は [ADR-0012](./0012-deprecate-tastile-precommit-review.md) で Superseded)
 - canonical policy: [agent orchestration policy](../agent-orchestration.md) §3 (Skill routing)
 
 ## Context

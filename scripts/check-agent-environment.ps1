@@ -54,7 +54,6 @@ $requiredFiles = @(
     ".claude/skills/cross-repo-contract-check/SKILL.md",
     ".claude/skills/verify-tastile-change/SKILL.md",
     ".agents/skills/cross-repo-contract-check/SKILL.md",
-    ".agents/skills/tastile-precommit-review/SKILL.md",
     ".agents/skills/verify-tastile-change/SKILL.md",
     ".agents/skills/plugin-version-audit/SKILL.md",
     "CODEX_ROLES.ja.md",
@@ -68,7 +67,10 @@ $requiredFiles = @(
     # files are therefore not present in a standalone root checkout. This
     # root-local quality gate must work in such a checkout. Child-local
     # contract (Skills, scripts, namespaces) is verified by the child repo's
-    # own CI and by cross-repo orchestration (.agent-loop/), not here.
+    # own CI. Cross-repo coordination is handled via Issue-driven dispatch
+    # and the `verify-tastile-change` Skill (binding verification). The legacy
+    # `.agent-loop/` precommit reviewer loop was retired 2026-09-29
+    # (ADR-0012).
 )
 foreach ($file in $requiredFiles) { Test-RequiredFile $file }
 

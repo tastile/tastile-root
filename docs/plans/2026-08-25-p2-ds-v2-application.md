@@ -19,7 +19,9 @@ P1 Global Constraints を継承し、追加で以下:
 - **依存追加は最小**: 新規 npm package を追加しない。ESLint custom rule は `eslint-local-rules/*.mjs` + `__tests__/*.test.mjs` 形式で `node --test` で unit test する（既存 P1 pattern）。
 - **i18n hardcoded literal を新規追加しない**: P2 で生成する comment / identifier / doc-comment はすべて英語。Mantine component 名 / CSS class / i18n key は例外（既存 library の identifier であり新規 literal ではない）。
 - **完了基準**: `bun run check:release` が 0 error / 0 actionable warning で通過。`bun audit` の 4 ignore（`GHSA-qx2v-qp2m-jg93` / `GHSA-6g55-p6wh-862q` / `GHSA-r28c-9q8g-f849` / `GHSA-f88m-g3jw-g9cj`）は変更禁止。
-- **コミット**: 各タスク末で `git commit`。agent-initiated commit は `.agents/skills/tastile-precommit-review` 経由。コミットメッセージは英語（`feat:` / `chore:` / `test:` prefix）。
+- **コミット**: 各タスク末で `git commit`。PR 直前の binding verification は
+  `.agents/skills/verify-tastile-change` Skill 経由 (`.agents/skills/tastile-precommit-review`
+  は 2026-09-29 廃止、ADR-0012)。コミットメッセージは英語（`feat:` / `chore:` / `test:` prefix）。
 - **`src/lib/vendored/mantine-schedule` には触らない**（Knip ガード対象）。
 - **既存 `eslint.config.mts` の `ignore` に新規 directory を追加しない**（production source を丸ごと ignore させない）。
 - **whitelist は最小限**: Tailwind `border-0` / `border-collapse` / `border-spacing` / `border-transparent` のみ許可。whitelist の追加は spec amendment 扱い。

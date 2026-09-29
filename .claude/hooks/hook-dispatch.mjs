@@ -3,12 +3,13 @@
 //
 // WHY THIS EXISTS
 // ---------------
-// The three Bash guards used to be registered as three separate hooks, so
-// every Bash tool call paid for all three process spawns. Measured on this
-// host: Invoke-AgentHook.ps1 ~690ms + tastile-command-guard.ps1 ~540ms +
-// git-guard.mjs ~100ms = ~1.33s of latency on *every* command, including
+// Two Bash guards used to be registered as separate hooks, so every Bash tool
+// call paid for two process spawns even when neither was interested in the
+// command. Measured on this host: tastile-command-guard.ps1 ~540ms +
+// git-guard.mjs ~100ms = ~640ms of latency on *every* command, including
 // `ls`, `cat`, and `rg`. Over a long build session that is minutes of dead
-// time.
+// time. (The third guard, the per-commit reviewer, was retired along with
+// `.agent-loop/`; see ADR-0012.)
 //
 // This dispatcher reads the PreToolUse event once and runs only the guards
 // whose subject matter actually appears in the command string. The guards
@@ -79,9 +80,6 @@ if (event && !command) process.exit(0);
 // uninteresting, so we do not get to skip anything.
 const unparseable = event === null;
 
-// The pre-commit review gate cares about commands that publish work.
-const PUBLISHES = /\bgit(?:\.exe)?\b[\s\S]*\b(?:commit|push|merge|tag|revert|cherry-pick)\b|\bgh(?:\.exe)?\b[\s\S]*\b(?:pr|release|api)\b/i;
-
 // The command-policy guard cares about package managers, cargo, and gradle,
 // plus root-level git add/commit.
 const POLICY = /(?:^|[^\w.-])(?:npm|npx|yarn|pnpm|cargo|gradlew(?:\.bat)?)\b|\bgit(?:\.exe)?\s+(?:add|commit)\b/i;
@@ -106,19 +104,6 @@ const GUARDS = [
       join(REPO_ROOT, ".claude", "hooks", "tastile-command-guard.ps1"),
     ],
     requires: join(REPO_ROOT, ".claude", "hooks", "tastile-command-guard.ps1"),
-  },
-  {
-    name: "agent-loop-precommit-review",
-    when: () => unparseable || PUBLISHES.test(command),
-    exec: "pwsh",
-    args: [
-      "-NoProfile",
-      "-File",
-      join(REPO_ROOT, ".agent-loop", "Invoke-AgentHook.ps1"),
-      "-Caller",
-      "claude",
-    ],
-    requires: join(REPO_ROOT, ".agent-loop", "Invoke-AgentHook.ps1"),
   },
 ];
 
