@@ -20,3 +20,20 @@ variable "region" {
   type        = string
   default     = "asia-northeast1"
 }
+
+
+variable "ci_dispatcher" {
+  description = "Optional non-secret configuration for the private Core CI dispatcher. Null keeps the runtime job/schedule disabled until its image and external Infisical/GitHub bindings exist."
+  type = object({
+    image                   = string
+    infisical_domain        = string
+    infisical_identity_id   = string
+    infisical_project_id    = string
+    infisical_environment   = optional(string, "dev")
+    infisical_secret_path   = optional(string, "/tastile/ci")
+    github_app_id           = string
+    github_installation_id  = string
+  })
+  default  = null
+  nullable = true
+}
