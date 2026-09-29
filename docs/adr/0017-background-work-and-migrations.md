@@ -26,8 +26,9 @@ gated_by: [poc.worker-drain]
 1. **Work Item / Outbox table が唯一の正本。** scheduler・queue・push は「起こす」だけの hint であり state を持たない。
 2. **worker は stateless drain。** `drain` entrypoint は期限到来分を lease 付きで処理し、空になるか deadline (55 秒) で返る。
    HTTP で起動され、同時に複数起動されても安全 (SKIP LOCKED)。
-3. **起動 trigger は 2 つ。** (a) sweep: Cloud Scheduler が 1 分ごとに起動 (失われた wake の回収)。(b) wake: Command が
-   `available_at` を持つ Work Item を作ったとき、Core が Cloud Tasks に schedule 時刻付きの起動を登録する (optional、SLO 未達時)。
+3. **最初の起動 trigger は sweep 1 つだけ。** Cloud Scheduler が 1 分ごとに worker を起動する。まずこの最小構成で
+   slo.work-lag (p95 60 秒 / p99 120 秒) を測る。SLO を満たせない場合に限り targeted wake を追加する。その場合も Core domain から
+   Cloud Tasks を直接呼ばず、provider-neutral wake port を通し、GCP adapter が Cloud Tasks 等へ変換する。
 4. **process lifecycle は domain semantics に影響しない。** 「Execution が放置されている」等は domain fact (最終 heartbeat /
    操作時刻、Placement 終了時刻) から導出し、worker / api の起動を条件にしない。startup-recovery の定義は core v1 側で改訂する。
 5. **migration は `core-migrate` job が deploy ごとに 1 回、`tastile_migrator` role で実行する。** api / worker は起動時に schema
@@ -42,7 +43,7 @@ gated_by: [poc.worker-drain]
 
 ## Consequences
 
-- worker の最悪遅延は sweep 間隔 (≈ 60 秒)。user への即時性は client の local OS alarm が担う (ADR-0018)。
+- worker の初期構成の最悪遅延は sweep 間隔 (≈ 60 秒)。user への即時性は client の local OS alarm が担う (ADR-0018)。targeted wake は実測で必要になった場合だけ追加する。
 - core に `drain` entrypoint、schema version check、migrate binary、prompt 導出の変更が必要 (ms.m3-core-staging)。
 
 ## Verification
