@@ -149,13 +149,18 @@ pocs:
   - id: poc.cloud-build-ci
     title: Core CI on Cloud Build instead of private GitHub Actions minutes
     hypothesis: Core の fmt / clippy / test (実 PG) を Cloud Build free tier 内で回せる。
-    method: Cloud Build trigger (GitHub App) で e2-standard-2 + PostgreSQL sidecar を使い CI を 10 回実行。
+    method: >-
+      Cloud Scheduler → sa-ci-dispatcher を起動。dispatcher は GCP-native auth で Infisical から Tastile CI GitHub App private key を取得し、
+      short-lived installation token で対象 Core PR head をdownload、private GCS source bucketへuploadして Cloud Build APIを呼ぶ。
+      PR buildは sa-cloud-build-ci で e2-standard-2 + PostgreSQL sidecarを使う。dispatcherが最終commit statusをGitHubへ返し、10回実行する。
     decides: [adr.root.0020]
     status: planned
     criteria:
       - {id: c1, metric: median_duration_min, op: "<=", threshold: 25}
       - {id: c2, metric: monthly_minutes_at_40_runs, op: "<=", threshold: 1000}
       - {id: c3, metric: status_reported_to_github_check, op: "==", threshold: true}
+      - {id: c4, metric: provider_managed_github_credentials_outside_infisical, op: "==", threshold: 0}
+      - {id: c5, metric: github_private_key_visible_to_pr_build, op: "==", threshold: false}
 
   - id: poc.restore-drill
     title: PITR restore drill
