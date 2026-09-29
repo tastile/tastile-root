@@ -1,0 +1,215 @@
+# Deployment topology: providers and nodes, target and current.
+# Canonical for: fd.deployment-topology and (cost part) fd.cost-budget estimates.
+# Prices: USD, list price, accessed 2026-09-29 (see architecture/evidence/2026-09-29-platform-evaluation.md).
+# `cost_basis: verified` = computed from an official price page; `estimate` = derived with stated assumptions;
+# `unverified` = could not be checked against a bill.
+schema: tastile.architecture/deployment@1
+as_of: 2026-09-29
+
+providers:
+  - id: prov.gcp
+    name: Google Cloud (asia-northeast1 Tokyo)
+    role: target application runtime, database, secret store, scheduler, build, logs / metrics
+    decision: adr.root.0014
+    lifecycle: planned
+  - id: prov.cloudflare
+    name: Cloudflare
+    role: DNS, TLS, WAF, edge router Worker, R2 (downloads, media)
+    decision: adr.root.0014
+    lifecycle: retained
+  - id: prov.github
+    name: GitHub
+    role: source, work state, PR review, public-repo CI, releases
+    lifecycle: retained
+  - id: prov.google-play
+    name: Google Play Console
+    role: Android distribution
+    lifecycle: retained
+  - id: prov.resend
+    name: Resend
+    role: transactional email (target, gated by poc.email-provider)
+    decision: adr.root.0018
+    lifecycle: planned
+  - id: prov.aws
+    name: AWS (ap-northeast-1)
+    role: current runtime (retiring)
+    lifecycle: retiring
+    retire_by: ms.m8-decommission
+  - id: prov.infisical
+    name: Infisical (self-hosted, user-operated)
+    role: current secret store (retiring)
+    lifecycle: retiring
+    retire_by: ms.m8-decommission
+
+nodes:
+  # ============================================================ target: production
+  - id: node.prod.edge
+    env: env.production
+    provider: prov.cloudflare
+    service: DNS (proxied) + Universal SSL + WAF managed rules + Worker `tastile-edge`
+    hosts: [ctr.edge, cmp.edge.router]
+    config:
+      zone: tastile.app
+      routes: [tastile.app, app.tastile.app, api.tastile.app]
+      plan: Free zone; Workers Paid ($5) once > 100k requests/day
+    cost_usd_month: {value: 0, max: 5, basis: verified}
+    lifecycle: planned
+  - id: node.prod.core-api
+    env: env.production
+    provider: prov.gcp
+    service: Cloud Run service `core-api`
+    hosts: [ctr.core-api]
+    config: {cpu: 1, memory: 512Mi, min_instances: 1, max_instances: 2, concurrency: 80, billing: request-based, ingress: all (edge assertion enforced), db_pool_max: 5}
+    identity: cred.gcp-service-identity
+    cost_usd_month: {value: 10, basis: estimate, assumption: "1 idle min instance 730 h at Tier-1 idle rate (0.0000025 vCPU-s + 0.0000025 GiB-s) ≈ $9.9; active time negligible before free tier"}
+    lifecycle: planned
+  - id: node.prod.core-worker
+    env: env.production
+    provider: prov.gcp
+    service: Cloud Run service `core-worker` (internal ingress, IAM invoker) + Cloud Scheduler sweep every 1 min + Cloud Tasks wake
+    hosts: [ctr.core-worker, ext.scheduler]
+    config: {cpu: 1, memory: 512Mi, min_instances: 0, max_instances: 1, request_timeout: 300s, db_pool_max: 3}
+    identity: cred.gcp-service-identity
+    cost_usd_month: {value: 1, basis: estimate, assumption: "43,800 sweeps × ≤ 0.5 s CPU ≈ 22k vCPU-s, inside free tier; scheduler jobs inside 3 free"}
+    lifecycle: planned
+  - id: node.prod.core-migrate
+    env: env.production
+    provider: prov.gcp
+    service: Cloud Run job `core-migrate` (run once per deploy before traffic shift)
+    hosts: [ctr.core-migrate]
+    identity: cred.gcp-service-identity
+    cost_usd_month: {value: 0, basis: estimate}
+    lifecycle: planned
+  - id: node.prod.web
+    env: env.production
+    provider: prov.gcp
+    service: Cloud Run service `web` (Next.js standalone)
+    hosts: [ctr.web]
+    config: {cpu: 1, memory: 512Mi, min_instances: 1, max_instances: 2, billing: request-based, db_pool_max: 3}
+    identity: cred.gcp-service-identity
+    cost_usd_month: {value: 10, basis: estimate, assumption: "same as core-api"}
+    lifecycle: planned
+  - id: node.prod.db
+    env: env.production
+    provider: prov.gcp
+    service: Cloud SQL for PostgreSQL 17 Enterprise `tastile-prod-pg`
+    hosts: [ctr.domain-db, ctr.auth-db]
+    config:
+      tier: db-f1-micro (shared core, 0.6 GB; no SLA) — upgrade trigger in risk.db-tier
+      storage: 10 GB SSD, auto-increase
+      backups: automated daily, 7 retained
+      pitr: enabled, 7 days transaction logs
+      connectivity: Cloud SQL connector (unix socket) from Cloud Run; no authorized networks
+      max_connections_budget: "api 2×5 + worker 1×3 + web 2×3 + migrate 2 = 21 ≤ 25"
+    cost_usd_month: {value: 14, basis: estimate, assumption: "db-f1-micro list $0.0105/h (us-central1) ×1.3 Tokyo uplift ≈ $10 + 10 GB SSD ≈ $2.2 + backup / log ≈ $2"}
+    lifecycle: planned
+  - id: node.prod.secrets
+    env: env.production
+    provider: prov.gcp
+    service: Secret Manager (project tastile-prod)
+    hosts: []
+    cost_usd_month: {value: 1, basis: estimate, assumption: "≈ 15 active versions × $0.06"}
+    lifecycle: planned
+  - id: node.shared.registry
+    env: env.production
+    provider: prov.gcp
+    service: Artifact Registry `tastile` (asia-northeast1) — images promoted by digest to both envs
+    hosts: []
+    cost_usd_month: {value: 0.3, basis: estimate}
+    lifecycle: planned
+  - id: node.shared.build
+    env: env.ci
+    provider: prov.gcp
+    service: Cloud Build (e2-standard-2 default pool) for tastile-core CI and all image builds
+    hosts: []
+    cost_usd_month: {value: 0, max: 3, basis: verified, assumption: "2,500 free build-minutes / month / billing account"}
+    lifecycle: planned
+  - id: node.prod.downloads
+    env: env.production
+    provider: prov.cloudflare
+    service: R2 bucket `tastile-downloads` + custom domain download.tastile.app
+    hosts: [ctr.downloads]
+    cost_usd_month: {value: 0, basis: verified, assumption: "< 10 GB storage, egress free"}
+    lifecycle: retained
+  - id: node.prod.media
+    env: env.production
+    provider: prov.cloudflare
+    service: R2 bucket `tastile-media-prod` + custom domain media.tastile.app
+    hosts: [ctr.media]
+    cost_usd_month: {value: 0, basis: verified}
+    lifecycle: planned
+  - id: node.prod.email
+    env: env.production
+    provider: prov.resend
+    service: Resend (domain tastile.app, sending subdomain mail.tastile.app)
+    hosts: [ext.email]
+    cost_usd_month: {value: 0, max: 20, basis: verified, assumption: "Free 3,000/month & 100/day; Pro $20 before public announcement if volume requires"}
+    lifecycle: planned
+
+  # ============================================================ target: staging
+  - id: node.staging.edge
+    env: env.staging
+    provider: prov.cloudflare
+    service: same Worker `tastile-edge` with staging routes
+    hosts: [ctr.edge, cmp.edge.router]
+    config: {routes: [staging.tastile.app, staging-app.tastile.app, staging-api.tastile.app]}
+    cost_usd_month: {value: 0, basis: verified}
+    lifecycle: planned
+  - id: node.staging.run
+    env: env.staging
+    provider: prov.gcp
+    service: Cloud Run `core-api`, `core-worker`, `web`, job `core-migrate` (project tastile-staging)
+    hosts: [ctr.core-api, ctr.core-worker, ctr.core-migrate, ctr.web]
+    config: {min_instances: 0, sweep_interval: 5 min (paused when environment idle)}
+    identity: cred.gcp-service-identity
+    cost_usd_month: {value: 1, basis: estimate}
+    lifecycle: planned
+  - id: node.staging.db
+    env: env.staging
+    provider: prov.gcp
+    service: Cloud SQL for PostgreSQL 17 `tastile-staging-pg` (db-f1-micro, stopped when idle)
+    hosts: [ctr.domain-db, ctr.auth-db]
+    cost_usd_month: {value: 5, basis: estimate, assumption: "storage ≈ $2.2 + ~25% running time"}
+    lifecycle: planned
+
+  # ============================================================ current (retiring) — for cutover planning
+  - id: node.current.prod.ec2
+    env: env.production
+    provider: prov.aws
+    service: EC2 foundation instance (t3.small default) running tastile-api.service / tastile-worker.service via systemd + tastile-infisical-run; web via systemd + nginx
+    hosts: [ctr.core-api, ctr.core-worker, ctr.web]
+    cost_usd_month: {value: 24, basis: unverified, assumption: "t3.small Tokyo on-demand ≈ $0.0272/h + EBS + public IPv4 $3.65; billing not accessible from this workspace"}
+    lifecycle: retiring
+    retire_by: ms.m8-decommission
+  - id: node.current.prod.rds
+    env: env.production
+    provider: prov.aws
+    service: RDS PostgreSQL db.t4g.micro (20 GB, 7-day backups) in private subnets
+    hosts: [ctr.domain-db, ctr.auth-db]
+    cost_usd_month: {value: 21, basis: unverified}
+    lifecycle: retiring
+    retire_by: ms.m8-decommission
+  - id: node.current.staging.aws
+    env: env.staging
+    provider: prov.aws
+    service: tastile-staging-foundation (EC2 + staging RDS)
+    hosts: [ctr.core-api, ctr.core-worker, ctr.domain-db]
+    cost_usd_month: {value: 45, basis: unverified}
+    lifecycle: retiring
+    retire_by: ms.m8-decommission
+  - id: node.current.staging.worker
+    env: env.staging
+    provider: prov.cloudflare
+    service: Worker tastile-web-staging / tastile-web-preview (OpenNext + Hyperdrive to staging RDS)
+    hosts: [ctr.web]
+    cost_usd_month: {value: 0, basis: verified}
+    lifecycle: retiring
+    retire_by: ms.m4-web-staging
+  - id: node.current.prod.aws-misc
+    env: env.production
+    provider: prov.aws
+    service: S3 + CloudFront (avatar), SES (sandbox), Secrets Manager, SSM, transfer bucket, legacy IdP user pool, ECR
+    hosts: [ctr.media]
+    cost_usd_month: {value: 3, basis: unverified}
+    lifecycle: retiring
+    retire_by: ms.m8-decommission

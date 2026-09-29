@@ -1,0 +1,249 @@
+# Source-of-Truth registry: every fact domain has exactly one canonical location.
+# Canonical for: fd.sot-registry (this file).
+#
+# Rules (enforced by scripts/architecture/validate.ts where mechanically possible):
+#  R1  A fact domain has exactly one `canonical` location. Everything else is `derived` (generated, never
+#      hand-edited) or a `pointer` (a link without restating the fact).
+#  R2  Split by fact type, not by audience:
+#        meaning   (what Tastile is and means: product, domain language/behaviour, API contract, DB schema)
+#                  → tastile-core
+#        mechanism (how Tastile is structured, connected, deployed, secured, operated, governed across repos)
+#                  → tastile-root architecture/
+#        implementation-local facts (commands, directory layout, local toolchain) → the owning child repo.
+#  R3  When two documents disagree, the canonical one wins; the other is a defect to be fixed, not a
+#      competing authority. History (docs/raw, docs/archive, frozen logs) is evidence, never authority.
+#  R4  Child repositories must not copy root ADRs, schemas or skills as authoritative text; they link.
+#      Repository-local ADRs are namespaced by repository (e.g. core ADR-0012 ≠ root ADR-0012).
+#  R5  Live state (what is deployed, what it costs, run results, work status) is owned by the live system
+#      (provider / GitHub). Repository files may only hold dated evidence snapshots of it.
+schema: tastile.architecture/sot-registry@1
+as_of: 2026-09-29
+
+fact_domains:
+  # ------------------------------------------------------------- meaning (core)
+  - id: fd.product-definition
+    name: Product definition
+    description: Tastile の目的、対象 user、product principle、「生活のフレームワーク」の意味、non-goal、Tastile が所有しない範囲。
+    kind: meaning
+    canonical: {repo: repo.core, path: docs/product/README.md, format: markdown}
+    structured: {repo: repo.core, path: docs/product/product.yaml, format: yaml}
+    pointers: [architecture/docs/01-context-and-goals.md]
+  - id: fd.product-kpi
+    name: Product outcome KPIs
+    description: activation、plan adherence、recovery 等の product 成果指標の定義。
+    kind: meaning
+    canonical: {repo: repo.core, path: docs/product/product.yaml, format: yaml}
+  - id: fd.domain-language
+    name: Domain ubiquitous language
+    description: Tile / SourceTile / Placement / Execution / Window / ChangeSet ... の正式語彙と禁止旧語彙。
+    kind: meaning
+    canonical: {repo: repo.core, path: v1/00-glossary.md, format: markdown}
+    notes: root glossary.yaml は domain 語を再定義せず `domain_ref` で参照する。
+  - id: fd.domain-spec
+    name: Domain specification and invariants
+    description: v1 scheduling 仕様、不変条件、受け入れ試験、read model / endpoint 意味論、owner / profile。
+    kind: meaning
+    canonical: {repo: repo.core, path: v1/, format: markdown (00..15)}
+  - id: fd.api-contract
+    name: API contract (source)
+    description: /v1 operation、schema、required scope metadata。
+    kind: meaning
+    canonical: {repo: repo.core, path: crates-v1/api/src/openapi.rs, format: rust (utoipa)}
+    derived:
+      - {repo: repo.openapi, path: openapi.yaml, generator: "cargo run -p api --bin dump_openapi (published by Core release)"}
+  - id: fd.api-contract-distribution
+    name: API contract (distribution)
+    description: consumer が pin する生成済み OpenAPI。手編集禁止。
+    kind: derived
+    canonical: {repo: repo.openapi, path: openapi.yaml, format: openapi 3.1}
+    notes: fd.api-contract の derived。consumer は git tag を pin し、root filesystem を経由しない。
+  - id: fd.db-schema
+    name: Database schema
+    description: domain-db の table / constraint / numeric constant 列。
+    kind: meaning
+    canonical: {repo: repo.core, path: crates-v1/storage/migrations/, format: sql}
+    notes: migrations/v1/ (repo 直下) は旧配置の残骸であり正本ではない (oq.core-legacy-migrations-dir)。
+
+  # ------------------------------------------------------------- mechanism (root)
+  - id: fd.system-architecture
+    name: System structure
+    description: actor / system / container / component / external system と関係・通信・credential。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/elements.yaml, format: yaml}
+    structured: {repo: repo.root, path: architecture/model/relationships.yaml, format: yaml}
+    derived:
+      - {repo: repo.root, path: architecture/views/, generator: bun run architecture:generate}
+      - {repo: repo.root, path: architecture/generated/, generator: bun run architecture:generate}
+  - id: fd.system-language
+    name: System / operations language
+    description: environment、release、edge、drain 等の system・運用語彙と、使用禁止の旧語彙。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/glossary.yaml, format: yaml}
+  - id: fd.repository-ownership
+    name: Repository ownership
+    description: repository の役割・所有 fact domain・visibility・artifact・versioning。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/repositories.yaml, format: yaml}
+  - id: fd.sot-registry
+    name: SoT registry
+    description: 本ファイル。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/sot-registry.yaml, format: yaml}
+  - id: fd.environments
+    name: Environments
+    description: local / ci / staging / production の目的・isolation・data policy・hostname。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/environments.yaml, format: yaml}
+  - id: fd.deployment-topology
+    name: Deployment topology
+    description: provider、region、service、sizing、identity、cost estimate (target と current)。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/deployment.yaml, format: yaml}
+    notes: provider 上の実 resource 定義 (IaC) は target で repo.root `infra/` に置く予定 (ms.m2-foundation)。
+  - id: fd.trust-boundaries
+    name: Trust boundaries and credentials
+    description: trust zone、boundary、credential 種別、data classification、secret store。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/security.yaml, format: yaml}
+  - id: fd.data-lifecycle
+    name: Data stores and lifecycle
+    description: data store、dataset、backup / PITR / RPO / RTO、retention、deletion。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/data.yaml, format: yaml}
+  - id: fd.slo
+    name: SLI / SLO
+    description: 運用上の service level。v1/01-scope の暫定非機能表はここへ移管。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/quality.yaml, format: yaml}
+  - id: fd.engineering-kpi
+    name: Engineering KPIs
+    description: deploy lead time、change failure rate、CI minutes、restore drill 等。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/quality.yaml, format: yaml}
+  - id: fd.cost-budget
+    name: Cost budget
+    description: 月次 infra 予算と estimate。実請求額は provider billing が live state。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/quality.yaml, format: yaml}
+  - id: fd.poc
+    name: PoC definitions and results
+    description: 仮説、方法、機械判定可能な success criteria、status、evidence。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/pocs.yaml, format: yaml}
+  - id: fd.system-risks
+    name: Risks and open questions
+    description: system-level の未検証事項・risk・未決定事項。domain 固有の未決は core v1 に置く。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/risks.yaml, format: yaml}
+  - id: fd.migration-roadmap
+    name: Migration roadmap
+    description: current → target の milestone、exit criteria、gate。
+    kind: mechanism
+    canonical: {repo: repo.root, path: architecture/model/roadmap.yaml, format: yaml}
+  - id: fd.system-adr
+    name: System-level decisions
+    description: 複数 repository / system 全体に効く判断。
+    kind: mechanism
+    canonical: {repo: repo.root, path: docs/adr/, format: markdown ADR}
+    notes: docs/decisions.md は 2026-09-29 で凍結した履歴 log。新しい判断は ADR として書く。
+  - id: fd.dev-workflow
+    name: Development workflow
+    description: branch / Issue / PR / release / recovery / side-effect journal の運用契約。
+    kind: mechanism
+    canonical: {repo: repo.root, path: docs/agent-orchestration.md, format: markdown}
+    notes: ADR-0007 / 0008 / 0009 が判断根拠。child repo の同番号 ADR copy は正本ではない (R4)。
+  - id: fd.agent-tooling
+    name: Agent tooling
+    description: skills、agent-loop、pre-commit review、MCP 構成。
+    kind: mechanism
+    canonical: {repo: repo.root, path: .agents/skills/, format: SKILL.md}
+    structured: {repo: repo.root, path: .agent-loop/repositories.json, format: json}
+  - id: fd.history-corpus
+    name: History corpus
+    description: 前史から現在までの raw evidence。authority ではない (R3)。
+    kind: evidence
+    canonical: {repo: "*", path: docs/raw/, format: markdown}
+    notes: root は product 全史、core は Core/domain/runtime 史を各 repo の docs/raw/ に持つ。docs/archive/ も同じく evidence。
+
+  # ------------------------------------------------------------- implementation-local (children)
+  - id: fd.core-runtime-config
+    name: Core runtime configuration schema
+    description: Core が読む環境変数・feature flag とその validation。
+    kind: implementation
+    canonical: {repo: repo.core, path: crates-v1/api/src/runtime_env.rs, format: rust}
+    notes: 値は secret store / deploy 設定が live state。key 名を他 repo の文書に列挙しない。
+  - id: fd.web-implementation
+    name: Web implementation facts
+    description: command、directory layout、design system、local pitfalls。
+    kind: implementation
+    canonical: {repo: repo.web, path: AGENTS.md, format: markdown}
+  - id: fd.web-runtime-config
+    name: Web runtime configuration schema
+    description: Web が読む環境変数とその validation。
+    kind: implementation
+    canonical: {repo: repo.web, path: src/shared/config/runtime-env.ts, format: typescript}
+    notes: 2026-09-29 時点で src 全体に process.env 参照が 232 箇所あり、集約は未完了 (oq.web-config-module)。
+  - id: fd.auth-schema
+    name: Auth database schema
+    description: Better Auth table 定義。
+    kind: implementation
+    canonical: {repo: repo.web, path: src/shared/auth/better-auth/, format: typescript (better-auth config)}
+  - id: fd.android-implementation
+    name: Android implementation facts
+    kind: implementation
+    description: build、module、test、release 手順。
+    canonical: {repo: repo.android, path: AGENTS.md, format: markdown}
+  - id: fd.desktop-implementation
+    name: Desktop implementation facts
+    kind: implementation
+    description: build、installer、test、release 手順。
+    canonical: {repo: repo.desktop, path: AGENTS.md, format: markdown}
+  - id: fd.download-channel
+    name: Download channel layout
+    kind: implementation
+    description: R2 object layout と channel manifest 形式。
+    canonical: {repo: repo.desktop, path: docs/r2-distribution.md, format: markdown}
+  - id: fd.cli-implementation
+    name: CLI implementation facts
+    kind: implementation
+    description: build、auth flow client 側、release。
+    canonical: {repo: repo.cli, path: AGENTS.md, format: markdown}
+  - id: fd.repo-adr
+    name: Repository-local decisions
+    kind: implementation
+    description: 1 repository 内で完結する判断。番号は repository 内で一意 (R4)。
+    canonical: {repo: "*", path: docs/adr/, format: markdown ADR}
+  - id: fd.brand-assets
+    name: Brand assets
+    kind: implementation
+    description: logo、icon、color、brand guideline。
+    canonical: {repo: repo.brands, path: README.md, format: assets + markdown}
+  - id: fd.blog-content
+    name: Blog content
+    kind: implementation
+    description: blog 記事。
+    canonical: {repo: repo.blogs, path: /, format: markdown}
+
+  # ------------------------------------------------------------- live state (external)
+  - id: fd.work-state
+    name: Work state
+    kind: live
+    description: Issue、priority、status、assignee、PR state。
+    canonical: {repo: external, path: "GitHub Issues / Projects v2 (org tastile)", format: live}
+    notes: docs/releases/*.json 等は初期計画 snapshot (evidence)。
+  - id: fd.deployed-state
+    name: Deployed state
+    kind: live
+    description: どの revision がどこで稼働しているか、traffic split、実 resource 設定。
+    canonical: {repo: external, path: "Cloud Run revisions / Cloudflare / Google Play Console / R2 manifests", format: live}
+    notes: docs/journal/<env>/*.jsonl は deploy / 外部 write の監査 journal。
+  - id: fd.secret-values
+    name: Secret values
+    kind: live
+    description: secret の実値。repository・log・Issue・会話へ出さない。
+    canonical: {repo: external, path: "GCP Secret Manager (target, ADR-0015); self-hosted Infisical (current)", format: live}
+  - id: fd.billing-actuals
+    name: Billing actuals
+    kind: live
+    description: 実請求額。
+    canonical: {repo: external, path: "GCP Billing / Cloudflare / GitHub billing", format: live}

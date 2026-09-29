@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/sot-registry.json",
+  "title": "Tastile Source-of-Truth registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "as_of", "fact_domains"],
+  "$defs": {
+    "location": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "path", "format"],
+      "properties": {
+        "repo": { "type": "string", "pattern": "^(repo\\.[a-z0-9-]+|\\*|external)$" },
+        "path": { "$ref": "common.json#/$defs/text" },
+        "format": { "$ref": "common.json#/$defs/text" }
+      }
+    },
+    "derived": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repo", "path", "generator"],
+      "properties": {
+        "repo": { "type": "string", "pattern": "^repo\\.[a-z0-9-]+$" },
+        "path": { "$ref": "common.json#/$defs/text" },
+        "generator": { "$ref": "common.json#/$defs/text" }
+      }
+    }
+  },
+  "properties": {
+    "schema": { "const": "tastile.architecture/sot-registry@1" },
+    "as_of": { "$ref": "common.json#/$defs/asOf" },
+    "fact_domains": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "description", "kind", "canonical"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^fd\\." },
+          "name": { "$ref": "common.json#/$defs/text" },
+          "description": { "$ref": "common.json#/$defs/text" },
+          "kind": { "enum": ["meaning", "mechanism", "implementation", "derived", "evidence", "live"] },
+          "canonical": { "$ref": "#/$defs/location" },
+          "structured": { "$ref": "#/$defs/location" },
+          "derived": { "type": "array", "items": { "$ref": "#/$defs/derived" } },
+          "pointers": { "type": "array", "items": { "type": "string" } },
+          "notes": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    }
+  }
+}

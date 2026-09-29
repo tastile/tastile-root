@@ -1,0 +1,169 @@
+# PoC definitions, success criteria and results. Canonical for: fd.poc.
+# Every criterion is machine-checkable: `metric` + `op` + `threshold`; `observed` is filled from evidence.
+# status: planned | running | passed | failed | partial.  A decision may only rely on passed criteria;
+# anything else must stay in risks.yaml as unverified.
+schema: tastile.architecture/pocs@1
+as_of: 2026-09-29
+
+pocs:
+  - id: poc.local-runtime
+    title: Core API / Worker on vanilla PostgreSQL 17 (provider-neutral runtime baseline)
+    hypothesis: >-
+      Core は AWS / RDS 固有機能に依存せず、vanilla PostgreSQL 17 上で migration・起動・主要 read が成立し、
+      serverless container に適した起動時間と memory footprint を持つ。
+    method: >-
+      portable PostgreSQL 17.11 (zonky embedded binaries) を local に起動し、crates-v1 を release build。
+      空 DB に api を起動して migration 適用時間・起動時間・RSS を測り、主要 GET を 50 回ずつ計測。
+    decides: [adr.root.0014]
+    status: passed
+    executed_at: 2026-09-29
+    evidence: architecture/evidence/2026-09-29-local-runtime-poc.md
+    criteria:
+      - {id: c1, metric: migrations_apply_on_vanilla_pg17, op: "==", threshold: true, observed: true, result: pass}
+      - {id: c2, metric: required_extensions, op: subset_of, threshold: [plpgsql, pgcrypto], observed: [plpgsql, pgcrypto], result: pass}
+      - {id: c3, metric: "api_start_to_healthy_s (migrated DB, AWS_REGION set)", op: "<", threshold: 1.0, observed: 0.042, result: pass}
+      - {id: c4, metric: "api_start_to_healthy_s (default env)", op: "<", threshold: 1.0, observed: 3.03, result: fail, note: "AWS SDK IMDS region probe blocks startup ≈3 s off-AWS (finding f.imds-startup)"}
+      - {id: c5, metric: api_rss_mb_idle, op: "<", threshold: 128, observed: 22, result: pass}
+      - {id: c6, metric: stripped_api_binary_mb, op: "<", threshold: 100, observed: 44.4, result: pass}
+      - {id: c7, metric: "get_v1_sync_p95_ms (local)", op: "<", threshold: 50, observed: 2.7, result: pass}
+      - {id: c8, metric: "get_v1_tiles_p95_ms (500 tiles, local)", op: "<", threshold: 300, observed: 84.8, result: pass}
+    findings:
+      - id: f.imds-startup
+        text: avatar 用 AWS SDK client が起動時に IMDS region probe を行い、AWS 外では 3 s 起動を遅らせる。
+        action: object storage を provider-neutral port にし、region / endpoint を明示 config にする (ms.m3-core-staging)。
+      - id: f.migrations-at-startup
+        text: api と worker の双方が起動時に DDL 権限で migration を実行する (storage::Store::connect)。
+        action: ctr.core-migrate job に分離し runtime role を DML のみにする (ADR-0017)。
+      - id: f.pool-size
+        text: pool max_connections が 16 固定 (storage/src/pool.rs)。db-f1-micro (max 25) では api+worker+web で超過し得る。
+        action: pool size を config 化し deployment.yaml の connection budget に従う。
+      - id: f.startup-recovery-on-boot
+        text: worker 起動時に ACTIVE Execution 全件へ startup-recovery prompt を出す (worker/src/main.rs)。deploy / scale のたびに user へ prompt が出る。
+        action: prompt 生成を process 起動ではなく domain fact (heartbeat 途絶等) から導出する (ADR-0017, core issue)。
+      - id: f.e2e-harness-drift
+        text: scripts/usecase-e2e は 410 (legacy Recurring writes deprecated) で 15/18 FAIL。受け入れ harness が API から drift。
+        action: SourceTile API へ harness を更新し staging smoke に組み込む。
+
+  - id: poc.core-suite-vanilla-pg
+    title: Core full test suite against vanilla PostgreSQL 17
+    hypothesis: Core の DB 依存 test は provider 非依存で、どこでも同じ結果になる。
+    method: cargo test --workspace --no-fail-fast (crates-v1) with TASTILE_DATABASE_URL → local PG17、4 threads。
+    decides: [adr.root.0014, adr.root.0020]
+    status: partial
+    executed_at: 2026-09-29
+    evidence: architecture/evidence/2026-09-29-local-runtime-poc.md
+    criteria:
+      - {id: c1, metric: tests_executed, op: ">=", threshold: 900, observed: 934, result: pass}
+      - {id: c2, metric: tests_failed, op: "==", threshold: 0, observed: 3, result: fail, note: "api/tests/owner_profile_authz.rs ×2, api/tests/scope_enforcement.rs ×1 — regression on the release line after CI budget block (f729831, 2026-09-27)"}
+      - {id: c3, metric: failures_attributable_to_provider, op: "==", threshold: 0, observed: 0, result: pass, note: "failures are auth / scope expectations, not SQL dialect"}
+      - {id: c4, metric: "wall_clock_min (8 vCPU, cold target dir, build+test)", op: "<", threshold: 25, observed: 6.3, result: pass}
+
+  - id: poc.cloud-run-core
+    title: Core API on Cloud Run (asia-northeast1) with Cloud SQL connector, behind Cloudflare edge router
+    hypothesis: Cloud Run + Cloud SQL は current EC2/RDS 以上の latency / 可用性を低い固定費で満たす。
+    method: >-
+      staging project に core-api image を deploy (min 0 / min 1 の両方)、Cloud SQL f1-micro に接続、
+      Tokyo の client から edge 経由と run.app 直で 1,000 request ずつ計測。
+    decides: [adr.root.0014]
+    status: planned
+    prerequisites: [GCP billing account + projects (operator authority), poc.local-runtime]
+    criteria:
+      - {id: c1, metric: v1_ready_p95_ms_in_region, op: "<", threshold: 50}
+      - {id: c2, metric: cold_start_to_first_byte_p95_s, op: "<", threshold: 2.0}
+      - {id: c3, metric: edge_added_latency_p50_ms, op: "<", threshold: 20}
+      - {id: c4, metric: tokyo_client_v1_sync_p95_ms_via_edge, op: "<", threshold: 150}
+      - {id: c5, metric: cost_7day_extrapolated_usd_month, op: "<=", threshold: 15}
+      - {id: c6, metric: run_app_direct_request_rejected_without_edge_assertion, op: "==", threshold: true}
+
+  - id: poc.worker-drain
+    title: Stateless worker drain triggered by Cloud Scheduler / Cloud Tasks
+    hypothesis: 常駐 process なしで Work Item lag SLO を満たし、多重起動しても二重処理しない。
+    method: >-
+      worker に `drain --until-empty --deadline 55s` entrypoint を追加し、Cloud Scheduler 1 分 sweep と
+      Cloud Tasks wake で起動。2 並行 drain・instance kill・wake 欠落を注入する。
+    decides: [adr.root.0017]
+    status: planned
+    criteria:
+      - {id: c1, metric: work_lag_p95_s, op: "<", threshold: 60}
+      - {id: c2, metric: duplicate_side_effects, op: "==", threshold: 0}
+      - {id: c3, metric: prompts_caused_by_worker_start, op: "==", threshold: 0}
+      - {id: c4, metric: vcpu_seconds_per_day_idle_env, op: "<", threshold: 1500}
+
+  - id: poc.web-cloud-run
+    title: Next.js (standalone) + Better Auth on Cloud Run with Cloud SQL
+    hypothesis: Web を Workers/OpenNext でなく Cloud Run に置くと DB 接続・secret・runtime 差異が消え、SLO を満たす。
+    method: staging に web image を deploy、sign-up / sign-in / OTP / social / bridge / proxy を実 browser (Playwright) で実行。
+    decides: [adr.root.0014]
+    status: planned
+    criteria:
+      - {id: c1, metric: "auth_e2e_pass (email+password, OTP, Google)", op: "==", threshold: true}
+      - {id: c2, metric: dashboard_ttfb_p95_ms_warm, op: "<", threshold: 500}
+      - {id: c3, metric: cold_start_p95_s, op: "<", threshold: 4}
+      - {id: c4, metric: browser_requests_to_non_public_origin, op: "==", threshold: 0, note: "localhost proxy incident regression check"}
+
+  - id: poc.jwt-assertion
+    title: Better Auth JWT (EdDSA, JWKS) replaces the web bridge secret
+    hypothesis: Core が JWKS で短命 JWT を検証すれば、shared secret なしで BFF → Core の user 表明ができる。
+    method: better-auth jwt plugin を有効化、Core に JWKS 検証 credential kind を追加、negative test (aud / exp / alg=none / kid 不一致 / 別 env 鍵) を実行。
+    decides: [adr.root.0016]
+    status: planned
+    criteria:
+      - {id: c1, metric: negative_cases_rejected, op: "==", threshold: "all"}
+      - {id: c2, metric: "added_latency_p95_ms (cached JWKS)", op: "<", threshold: 2}
+      - {id: c3, metric: bridge_secret_references_remaining, op: "==", threshold: 0}
+
+  - id: poc.secret-manager-wif
+    title: Secret Manager + GitHub OIDC WIF as the only secret path
+    hypothesis: runtime / CI / local の secret 取得を long-lived key なしで行え、secret 単位 IAM で repo 間 read を防げる。
+    method: >-
+      public repo (tastile-android) の release job から WIF で Play 用 SA を impersonate、desktop job から R2 token を read、
+      PR job からの read が拒否されることを確認。local は gcloud ADC で dev project から取得。
+    decides: [adr.root.0015]
+    status: planned
+    criteria:
+      - {id: c1, metric: long_lived_keys_created, op: "==", threshold: 0}
+      - {id: c2, metric: pr_job_secret_read_denied, op: "==", threshold: true}
+      - {id: c3, metric: cross_repo_secret_read_denied, op: "==", threshold: true}
+      - {id: c4, metric: cloud_run_start_with_missing_secret_fails, op: "==", threshold: true}
+
+  - id: poc.email-provider
+    title: Transactional email deliverability (Resend)
+    hypothesis: Resend + tastile.app (SPF / DKIM / DMARC) は SES 不承認の代替として日本の主要 mailbox に届く。
+    method: verification / OTP mail を Gmail、iCloud、Outlook、Yahoo! JAPAN、docomo、au、SoftBank 宛に各 5 通送る。
+    decides: [adr.root.0018]
+    status: planned
+    criteria:
+      - {id: c1, metric: inbox_placement_ratio, op: ">=", threshold: 0.95}
+      - {id: c2, metric: delivery_latency_p95_s, op: "<", threshold: 30}
+      - {id: c3, metric: dmarc_alignment_pass, op: "==", threshold: true}
+
+  - id: poc.cloud-build-ci
+    title: Core CI on Cloud Build instead of private GitHub Actions minutes
+    hypothesis: Core の fmt / clippy / test (実 PG) を Cloud Build free tier 内で回せる。
+    method: Cloud Build trigger (GitHub App) で e2-standard-2 + PostgreSQL sidecar を使い CI を 10 回実行。
+    decides: [adr.root.0020]
+    status: planned
+    criteria:
+      - {id: c1, metric: median_duration_min, op: "<=", threshold: 25}
+      - {id: c2, metric: monthly_minutes_at_40_runs, op: "<=", threshold: 1000}
+      - {id: c3, metric: status_reported_to_github_check, op: "==", threshold: true}
+
+  - id: poc.restore-drill
+    title: PITR restore drill
+    hypothesis: Cloud SQL PITR で RPO 5 分 / RTO 60 分を満たし、restore 後に Core が ready になる。
+    method: staging で synthetic write を続けながら PITR clone を作り、row parity と /v1/ready を確認。production では同 project 内の一時 instance で月次実施。
+    decides: [adr.root.0014]
+    status: planned
+    criteria:
+      - {id: c1, metric: rpo_observed_min, op: "<=", threshold: 5}
+      - {id: c2, metric: rto_observed_min, op: "<=", threshold: 60}
+      - {id: c3, metric: row_parity, op: "==", threshold: true}
+
+  - id: poc.cost-30d
+    title: 30-day cost of the target platform
+    hypothesis: staging + production の実請求は quality.yaml cost_budget 以内。
+    method: cutover 前の staging と cutover 後 production の billing export を 30 日集計。
+    decides: [adr.root.0014]
+    status: planned
+    criteria:
+      - {id: c1, metric: monthly_usd_staging_plus_prod, op: "<=", threshold: 45}

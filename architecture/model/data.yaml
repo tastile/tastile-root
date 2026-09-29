@@ -1,0 +1,99 @@
+# Data stores, datasets and lifecycle. Canonical for: fd.data-lifecycle.
+# Semantics of domain data are owned by core (fd.domain-spec / fd.db-schema); this file owns where data
+# lives, how it is protected, backed up, retained and deleted.
+schema: tastile.architecture/data@1
+as_of: 2026-09-29
+
+residency: All user data at rest stays in Japan (GCP asia-northeast1 / Cloudflare R2 jurisdiction default). Edge caches only public data.
+
+stores:
+  - id: store.domain-db
+    element: ctr.domain-db
+    engine: PostgreSQL 17
+    portability: >-
+      vanilla PostgreSQL。必要 extension は pgcrypto のみ。SKIP LOCKED、transaction-scoped advisory lock、
+      session-scoped advisory lock (migration)、pg_notify を使う (evidence: poc.local-runtime)。
+      transaction-mode connection pooler (PgBouncer transaction mode 等) は migration lock と prepared statement のため不可。
+    backup: {automated: daily, retained: 7, pitr_days: 7, logical_export: "weekly pg_dump → GCS (Nearline) in prod project, 35 days"}
+    objectives: {rpo: 5m, rto: 60m}
+    restore_drill: monthly, into a temporary instance inside the production project (iso.no-prod-data-downstream)
+  - id: store.auth-db
+    element: ctr.auth-db
+    engine: PostgreSQL 17 (same instance as store.domain-db, separate database and role)
+    backup: same instance backups as store.domain-db
+    objectives: {rpo: 5m, rto: 60m}
+    restore_drill: included in store.domain-db drill
+  - id: store.media
+    element: ctr.media
+    engine: Cloudflare R2
+    backup: none (re-uploadable user media); object versioning off
+    objectives: {rpo: "n/a (best effort)", rto: 24h}
+  - id: store.downloads
+    element: ctr.downloads
+    engine: Cloudflare R2
+    backup: GitHub Release assets are the durable copy of every published installer
+    objectives: {rpo: 0 (rebuildable from GitHub Release), rto: 4h}
+  - id: store.logs
+    element: null
+    engine: Cloud Logging (per project)
+    backup: none
+    objectives: {retention: 30d default bucket}
+
+datasets:
+  - id: ds.identity
+    store: store.auth-db
+    classes: [dc.pii, dc.credential]
+    owner_repo: repo.web
+    description: Better Auth user / account / session / verification / two_factor。
+    retention: account 削除で即時削除 (session / verification は期限切れで削除)。
+  - id: ds.domain
+    store: store.domain-db
+    classes: [dc.user-content, dc.pii]
+    owner_repo: repo.core
+    description: subject / owner / profile、Tile、SourceTile、Occurrence、Placement、Execution、ChangeSet、Decision、Prompt 等。
+    retention: >-
+      account 削除 (ADR-0010 C06) で owner scope ごと削除し tombstone のみ残す (V1_068)。export は owner 本人が取得できる。
+  - id: ds.api-tokens
+    store: store.domain-db
+    classes: [dc.credential]
+    owner_repo: repo.core
+    description: Core API token の hash、scope、expiry、revoke。
+    retention: revoke / expiry 後 90 日で物理削除。
+  - id: ds.delivery-endpoints
+    store: store.domain-db
+    classes: [dc.credential]
+    owner_repo: repo.core
+    description: FCM token / Web Push subscription / email address (cred.delivery-key で暗号化)。
+    retention: 配送失敗 (invalid token) で即時無効化。
+  - id: ds.work-queue
+    store: store.domain-db
+    classes: [dc.user-content]
+    owner_repo: repo.core
+    description: Outbox / Work Item / lease。transient。
+    retention: 完了後 30 日。
+  - id: ds.billing-refs
+    store: null
+    classes: [dc.billing]
+    owner_repo: repo.web
+    description: >-
+      Tastile 側に保存しない。Stripe customer の metadata `tastile_user_id` で検索し subscription を参照する
+      (tastile-web src/lib/billing/server.ts)。entitlement を Core に持つかは oq.billing-model。
+    retention: Stripe 側 (法定保存期間は Stripe account 設定に従う)。
+  - id: ds.avatars
+    store: store.media
+    classes: [dc.pii]
+    owner_repo: repo.core
+    description: avatar source と 32 / 64 / 128 variant。
+    retention: profile 更新・account 削除で旧 object を削除。
+  - id: ds.installers
+    store: store.downloads
+    classes: [dc.public]
+    owner_repo: repo.desktop
+    description: versioned installer と channel manifest。
+    retention: 恒久 (manifest は stable channel の最新版のみ参照)。
+  - id: ds.request-logs
+    store: store.logs
+    classes: [dc.telemetry]
+    owner_repo: repo.root
+    description: structured JSON request / worker log。owner_id は hash 化、user-content と credential は出力しない。
+    retention: 30 日。

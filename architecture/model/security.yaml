@@ -1,0 +1,212 @@
+# Trust zones, credentials, data classification and secret handling.
+# Canonical for: fd.trust-boundaries.
+# Validator rule: a relationship whose endpoints sit in different trust zones must name a `credential`,
+# unless every data class it carries is dc.public.
+schema: tastile.architecture/security@1
+as_of: 2026-09-29
+
+trust_zones:
+  - id: tz.user-device
+    name: User device
+    description: browser、Android、Windows、terminal。user が完全に制御でき、攻撃者の device でもあり得る。
+    members: [actor.user, actor.api-client, ctr.android, ctr.desktop, ctr.cli, ctr.ios]
+  - id: tz.edge
+    name: Edge
+    description: Cloudflare。TLS 終端と WAF。origin より前に位置するが user identity は判断しない。
+    members: [ctr.edge, cmp.edge.router]
+  - id: tz.app-runtime
+    name: Application runtime (per environment)
+    description: >-
+      Cloud Run services / jobs。environment ごとに別 GCP project。service ごとに別 service account。
+      Web と Core は同じ zone にあるが互いを暗黙に信頼せず、BFF → Core は署名付き assertion で認証する。
+    members: [ctr.core-api, ctr.core-worker, ctr.core-migrate, ctr.web, cmp.core.http, cmp.core.auth, cmp.core.domain, cmp.core.storage, cmp.core.worker-drain, cmp.web.site, cmp.web.dashboard, cmp.web.bff, cmp.web.auth, cmp.web.connect, cmp.web.billing]
+  - id: tz.data
+    name: Data (per environment)
+    description: Cloud SQL。public IP 経由の authorized network を持たず、Cloud SQL connector (IAM) 経由のみ到達可能。
+    members: [ctr.domain-db, ctr.auth-db]
+  - id: tz.public-object
+    name: Public object storage
+    description: R2。download は public read、media は署名付き upload + public read (推測不能 key)。
+    members: [ctr.downloads, ctr.media]
+  - id: tz.third-party
+    name: Third-party services
+    description: 外部 SaaS / platform。
+    members: [ext.google-identity, ext.apple-identity, ext.stripe, ext.email, ext.fcm, ext.webpush, ext.google-calendar, ext.github, ext.google-play, ext.scheduler, ext.infisical, ext.aws]
+  - id: tz.build
+    name: Build and contract distribution
+    description: CI runner と生成 artifact repository。
+    members: [repo.openapi]
+  - id: tz.operator
+    name: Operator & agents
+    description: 開発者 host と開発 agent。production data plane へ直接の常設経路を持たない。
+    members: [actor.operator, actor.dev-agent]
+
+credentials:
+  - id: cred.user-session
+    name: Account session (Better Auth)
+    holder: browser / native client during sign-in
+    verifier: cmp.web.auth
+    properties: httpOnly Secure SameSite cookie (browser) or Better Auth bearer; `__Secure-` prefix 対応
+    lifecycle: retained
+  - id: cred.core-api-token
+    name: Core API token
+    holder: native clients, automation clients
+    verifier: cmp.core.auth
+    properties: >-
+      opaque random、Core DB には hash のみ保存、scope (tastile.read / tastile.write; write は read を含まない)、
+      expiry と revoke を持つ。client は OS secure storage (Keystore / DPAPI / keyring) に保存する。
+    lifecycle: retained
+  - id: cred.web-core-jwt
+    name: Web-to-Core assertion
+    holder: cmp.web.bff (per request)
+    verifier: cmp.core.auth (JWKS cache)
+    properties: EdDSA 署名、aud=tastile-core、iss=web origin、sub=Better Auth user id、exp ≤ 5 min、jti 任意
+    decision: adr.root.0016
+    lifecycle: planned
+  - id: cred.web-bridge-secret
+    name: Web bridge shared secret (retiring)
+    holder: ctr.web
+    verifier: cmp.core.auth
+    properties: >-
+      shared secret + user header。secret を持つ者は任意 user として振る舞える。blast radius が全 user に及ぶため
+      ADR-0016 で廃止する。
+    lifecycle: retiring
+    retire_by: ms.m4-web-staging
+  - id: cred.edge-assertion
+    name: Edge assertion header
+    holder: cmp.edge.router
+    verifier: ctr.web, ctr.core-api (production / staging middleware)
+    properties: origin 直アクセス (run.app) を拒否するための低権限 shared secret。identity を表さない。四半期 rotate。
+    lifecycle: planned
+  - id: cred.gcp-service-identity
+    name: GCP service account (workload identity)
+    holder: each Cloud Run service / job, Cloud Scheduler
+    verifier: Google IAM
+    properties: service ごとに分離 (sa-core-api, sa-core-worker, sa-core-migrate, sa-web, sa-scheduler)。key file を作らない。
+    lifecycle: planned
+  - id: cred.github-oidc-wif
+    name: GitHub OIDC → Workload Identity Federation
+    holder: GitHub Actions jobs
+    verifier: Google IAM (attribute condition = repository + ref + workflow)
+    properties: 長期 key なし。publish / deploy job だけに付与し、PR job には付与しない。
+    lifecycle: planned
+  - id: cred.db-core-runtime
+    name: DB role tastile_app
+    holder: sa-core-api, sa-core-worker
+    verifier: PostgreSQL
+    properties: domain-db の DML のみ。DDL / role 作成権限なし。値は Secret Manager。
+    lifecycle: planned
+  - id: cred.db-core-migrate
+    name: DB role tastile_migrator
+    holder: sa-core-migrate
+    verifier: PostgreSQL
+    properties: domain-db schema owner。migrate job だけが使う。
+    lifecycle: planned
+  - id: cred.db-auth-runtime
+    name: DB role tastile_auth
+    holder: sa-web
+    verifier: PostgreSQL
+    properties: tastile_auth database のみ。domain-db への CONNECT 権限なし。
+    lifecycle: retained
+  - id: cred.r2-media
+    name: R2 token (media bucket)
+    holder: sa-core-api (via Secret Manager)
+    verifier: Cloudflare R2
+    properties: tastile-media-<env> bucket の object read/write のみ。
+    lifecycle: planned
+  - id: cred.r2-downloads-publish
+    name: R2 token (downloads publish)
+    holder: tastile-desktop release job
+    verifier: Cloudflare R2
+    properties: tastile-downloads bucket の write のみ。release environment の approval 後にだけ取得。
+    lifecycle: retained
+  - id: cred.oauth-client
+    name: OAuth client secrets (Google / Apple)
+    holder: sa-web
+    verifier: identity provider
+    lifecycle: retained
+  - id: cred.stripe-api
+    name: Stripe secret key
+    holder: sa-web
+    verifier: Stripe
+    lifecycle: retained
+  - id: cred.stripe-webhook
+    name: Stripe webhook signing secret
+    holder: Stripe (signer) / sa-web (verifier)
+    verifier: cmp.web.billing
+    lifecycle: retained
+  - id: cred.email-api
+    name: Email provider API key
+    holder: sa-web, sa-core-worker
+    verifier: ext.email
+    lifecycle: planned
+  - id: cred.vapid
+    name: Web Push VAPID key pair
+    holder: sa-core-worker
+    verifier: push service
+    lifecycle: planned
+  - id: cred.delivery-key
+    name: Delivery endpoint encryption key
+    holder: sa-core-api, sa-core-worker
+    verifier: Core (AEAD)
+    properties: Delivery endpoint token の保存時暗号化 key (TASTILE_DELIVERY_KEY)。
+    lifecycle: retained
+  - id: cred.android-upload-key
+    name: Android upload key
+    holder: tastile-android release job
+    verifier: Google Play (Play App Signing)
+    properties: Play App Signing を前提とし、repository / CI log に出さない。
+    lifecycle: retained
+
+data_classes:
+  - id: dc.credential
+    name: Credentials
+    description: token、hash、secret、key。log・Issue・会話・artifact に出さない。
+  - id: dc.pii
+    name: Personal data
+    description: email、display name、avatar、IP 等。
+  - id: dc.user-content
+    name: Life schedule content
+    description: >-
+      Tile / SourceTile / Placement / Execution / memo。生活時間そのものであり PII と同等以上に扱う。
+      第三者 analytics へ送らない。
+  - id: dc.billing
+    name: Billing data
+    description: Stripe customer / subscription 参照。card data は Tastile に来ない。
+  - id: dc.telemetry
+    name: Operational telemetry
+    description: request log、metric、trace、push hint。user-content と credential を含めない。
+  - id: dc.public
+    name: Public
+    description: 公開してよい data (installer、manifest、JWKS、LP)。
+
+secret_handling:
+  store: GCP Secret Manager (one GCP project per environment — tastile-staging / tastile-prod / tastile-dev)
+  decision: adr.root.0015
+  rules:
+    - id: sec.single-editable-store
+      rule: secret 実値の編集可能な store は environment ごとに Secret Manager だけ。platform binding (Worker secret、Play) は deploy 時の replica。
+    - id: sec.per-secret-iam
+      rule: accessor 権限は secret 単位で、その secret を使う service account / CI identity だけに付与する。
+    - id: sec.no-long-lived-keys
+      rule: GCP service account key、AWS access key、CI 保存の長期 token を作らない。外部 SaaS が API key しか持たない場合のみ Secret Manager に置く。
+    - id: sec.fail-closed
+      rule: 必須 secret / config が無い場合は起動・build を失敗させる。dotenv や既定値へ fallback しない。
+    - id: sec.no-secret-in-repo
+      rule: secret 実値・ciphertext・dotenv を repository に置かない。key 名の一覧も各 service の config validation code だけに置く。
+    - id: sec.local-dev
+      rule: local 開発は production / staging secret を使わない。provider dev credential が必要な場合 gcloud 認証後に dev project から一時取得し、使用後に消す。
+
+controls:
+  - id: ctl.owner-boundary
+    rule: 他 owner の resource は存在しないものとして扱う (Core が強制; core v1/10-invariants.md §3)。
+  - id: ctl.command-only-writes
+    rule: domain 書き込みは Core Command API だけ。actor と occurredAt は server 側で確定する。
+  - id: ctl.no-client-db
+    rule: client (browser / native / CLI) は DB に接続しない。Web server の DB 接続は auth-db に限る。
+  - id: ctl.webhook-signature
+    rule: 外部 webhook は署名検証なしに処理しない。
+  - id: ctl.rate-limit
+    rule: auth と write endpoint は edge (WAF rate limit) と app (Core rate limit) の二段で制限する。
+  - id: ctl.prod-mutation-authority
+    rule: production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。
