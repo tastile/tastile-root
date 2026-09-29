@@ -42,6 +42,7 @@ jobs:
           curl -fsSL -o d2.tar.gz "https://github.com/terrastruct/d2/releases/download/v${ver}/d2-v${ver}-linux-amd64.tar.gz"
           tar xzf d2.tar.gz
           echo "$PWD/d2-v${ver}/bin" >> "$GITHUB_PATH"
+          export PATH="$PWD/d2-v${ver}/bin:$PATH"
           d2 --version
       - name: Render D2 views to SVG
         run: bun run architecture:render
