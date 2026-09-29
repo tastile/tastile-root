@@ -16,7 +16,6 @@ prod_project="${TASTILE_GCP_PROD_PROJECT:-tastile-prod}"
 parent="${TASTILE_GCP_PARENT:-}"
 
 command -v gcloud >/dev/null || { echo "gcloud is required" >&2; exit 2; }
-command -v tofu >/dev/null || { echo "tofu is required" >&2; exit 2; }
 
 active_account="$(gcloud auth list --filter=status:ACTIVE --format='value(account)' | head -n1)"
 [[ -n "$active_account" ]] || { echo "Run: gcloud auth login" >&2; exit 2; }
