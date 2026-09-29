@@ -4,7 +4,7 @@ status: Accepted
 date: 2026-09-29
 scope: tastile-core, tastile-web, tastile-desktop, tastile-root (edge), all environments
 relates: [adr.root.0013, adr.root.0015, adr.root.0017, adr.root.0020]
-gated_by: [poc.cloud-run-core, poc.web-cloud-run, poc.restore-drill, poc.cost-30d]
+gated_by: [poc.cloud-run-core, poc.web-cloud-run, poc.restore-drill]
 ---
 
 # ADR-0014: Target runtime platform — GCP Tokyo (Cloud Run + Cloud SQL) behind Cloudflare edge
@@ -69,4 +69,4 @@ gated_by: [poc.cloud-run-core, poc.web-cloud-run, poc.restore-drill, poc.cost-30
 ## Verification / gates
 
 cutover (ms.m6-cutover) 前に poc.cloud-run-core、poc.web-cloud-run、poc.restore-drill が passed であること。
-cutover 後 poc.cost-30d で予算内を確認し、超過時は本 ADR を再評価する。
+cutover 後は最初の 14 日の実費を月額へ extrapolate して pre-launch budget を確認する。poc.cost-30d は継続観測として実行し、超過時は本 ADR を再評価するが、30 日経過そのものを公開前 gate にはしない。
