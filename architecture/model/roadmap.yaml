@@ -14,7 +14,7 @@ milestones:
       - bun run architecture:validate passes on root
       - core docs/product and v1 pointers aligned (core#199)
     tracking: [tastile/tastile-root#48, tastile/tastile-core#199]
-    status: completed
+    status: done
   - id: ms.m1-freeze
     title: Observable product behaviour freeze
     depends_on: [ms.m0-sot]
