@@ -31,11 +31,11 @@ validator は「zone をまたぐ関係は credential を持つ (public data の
 
 ## Secrets
 
-- 実値の唯一の編集可能 store は environment ごとの GCP Secret Manager (sec.single-editable-store)。
+- Tastile-managed secret実値の唯一の編集可能 store は Infisical (sec.single-editable-store)。development / CI / staging / production で同じsecret control planeを使う。
 - 付与は secret 単位 IAM (sec.per-secret-iam)。repository 間・service 間で読めない。
 - 長期 key を作らない (sec.no-long-lived-keys)。外部 SaaS の API key だけが例外として store に入る。
 - 必須 secret が無ければ起動しない (sec.fail-closed)。dotenv や既定値に fallback しない。
-- current (AWS) の間は Infisical (ADR-0012) が current runtime の経路。新規の Infisical 統合作業はしない。
+- Infisical は current/target 共通のsecret control planeとして維持する。GitHubはOIDC、AWS current runtimeはAWS IAM、GCP target runtimeはGCP-native authでmachine identityへ入る。
 
 ## Data classification
 
