@@ -355,10 +355,7 @@ function checkPocs(model: Model) {
     const executed = results.filter(Boolean);
     if (p.status === "planned" && executed.length) add("error", "poc.status", `${p.id}: planned but has results`);
     if (p.status === "passed" && results.some((r) => r !== "pass")) {
-      // A passed PoC may contain explicitly-noted failed criteria only if they are recorded as findings.
-      const failedWithoutNote = (p.criteria as Doc[]).filter((c) => c.result === "fail" && !c.note);
-      const unexecuted = (p.criteria as Doc[]).filter((c) => !c.result);
-      if (failedWithoutNote.length || unexecuted.length) add("error", "poc.status", `${p.id}: passed requires every criterion executed; failures must carry a note`);
+      add("error", "poc.status", `${p.id}: passed requires every criterion to be executed and pass`);
     }
     if (p.status === "failed" && !results.includes("fail")) add("error", "poc.status", `${p.id}: failed without a failing criterion`);
     if (p.status === "partial" && !(results.includes("fail") && results.includes("pass"))) add("error", "poc.status", `${p.id}: partial requires both pass and fail`);
