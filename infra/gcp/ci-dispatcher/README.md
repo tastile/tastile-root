@@ -38,9 +38,14 @@ Configure GCP Auth on a dedicated identity:
 
 - type: `gce`
 - allowed service account: `sa-ci-dispatcher@tastile-dev.iam.gserviceaccount.com`
-- allowed project: `tastile-dev`
 - project/environment/path access: only the CI secret location
 - secret required: `GITHUB_CI_APP_PRIVATE_KEY`
+
+For Cloud Run, the allowed service account email is the effective GCP Auth
+restriction. Infisical's allowed-project check applies only to GCE instances.
+The current self-hosted Free plan does not provide folder-level access control;
+configure the dedicated identity only after a valid self-hosted license enables
+that control, and verify that reads outside the CI path are denied.
 
 The dispatcher uses the machine identity ID as the GCP ID-token audience,
 matching Infisical's current GCP Auth verifier contract.

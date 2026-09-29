@@ -20,6 +20,11 @@ type Build = {
   logUrl?: string;
 };
 
+type BuildOperation = {
+  metadata?: { build?: Build };
+  response?: Build;
+};
+
 const STATUS_CONTEXT = "tastile/cloud-build-ci";
 const FINAL_BUILD_STATES = new Set(["SUCCESS", "FAILURE", "INTERNAL_ERROR", "TIMEOUT", "CANCELLED", "EXPIRED"]);
 const SUCCESS_BUILD_STATES = new Set(["SUCCESS"]);
@@ -82,12 +87,13 @@ async function metadataAccessToken(): Promise<string> {
 
 async function infisicalAccessToken(): Promise<string> {
   const jwt = await metadataIdentityToken(config.infisicalIdentityId);
+  const body = new URLSearchParams({ identityId: config.infisicalIdentityId, jwt });
   const payload = await fetchJson<{ accessToken: string }>(
     `${config.infisicalDomain}/api/v1/auth/gcp-auth/login`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ identityId: config.infisicalIdentityId, jwt }),
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
     },
     "Infisical GCP auth",
   );
@@ -246,6 +252,16 @@ async function buildConfigFromArchive(sha: string, archive: Uint8Array): Promise
   const path = `/tmp/tastile-core-${sha}.tar.gz`;
   await Bun.write(path, archive);
   try {
+    const listing = Bun.spawnSync(["tar", "-tzf", path, "--wildcards", "*/cloudbuild/ci.yaml"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    if (listing.exitCode !== 0) throw new Error("Core source archive could not be listed");
+    const manifest = listing.stdout.toString().trim().split("\n")[0];
+    const root = manifest?.replace(/\/cloudbuild\/ci\.yaml$/, "");
+    if (!root || !/^[a-zA-Z0-9._-]+$/.test(root)) {
+      throw new Error("Core source archive has no safe top-level directory");
+    }
     const proc = Bun.spawnSync(["tar", "-xOzf", path, "--wildcards", "*/cloudbuild/ci.yaml"], {
       stdout: "pipe",
       stderr: "pipe",
@@ -255,6 +271,17 @@ async function buildConfigFromArchive(sha: string, archive: Uint8Array): Promise
     if (!Array.isArray(parsed.steps) || parsed.steps.length === 0) {
       throw new Error("cloudbuild/ci.yaml contains no build steps");
     }
+    parsed.steps = parsed.steps.map((step) => {
+      if (typeof step !== "object" || step === null || Array.isArray(step)) {
+        throw new Error("cloudbuild/ci.yaml contains an invalid build step");
+      }
+      const buildStep = step as Record<string, unknown>;
+      const dir = buildStep.dir;
+      if (dir !== undefined && (typeof dir !== "string" || dir.startsWith("/") || dir.split("/").includes(".."))) {
+        throw new Error("cloudbuild/ci.yaml contains an unsafe step directory");
+      }
+      return { ...buildStep, dir: dir ? `${root}/${dir}` : root };
+    });
     return parsed;
   } finally {
     await unlink(path).catch(() => {});
@@ -279,7 +306,7 @@ async function createBuild(
     serviceAccount: config.buildServiceAccount,
     tags: ["tastile-core-ci", sha.slice(0, 12)],
   };
-  return fetchJson<Build>(
+  const operation = await fetchJson<BuildOperation>(
     `https://cloudbuild.googleapis.com/v1/projects/${config.gcpProjectId}/locations/${config.gcpRegion}/builds`,
     {
       method: "POST",
@@ -291,6 +318,9 @@ async function createBuild(
     },
     "Cloud Build create",
   );
+  const build = operation.metadata?.build ?? operation.response;
+  if (!build?.id) throw new Error("Cloud Build operation returned no build id");
+  return build;
 }
 
 async function waitForBuild(gcpToken: string, id: string): Promise<Build> {
