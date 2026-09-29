@@ -69,4 +69,5 @@
 | `ctl.no-client-db` | client (browser / native / CLI) は DB に接続しない。Web server の DB 接続は auth-db に限る。 |
 | `ctl.webhook-signature` | 外部 webhook は署名検証なしに処理しない。 |
 | `ctl.rate-limit` | auth と write endpoint は edge (WAF rate limit) と app (Core rate limit) の二段で制限する。 |
+| `ctl.pr-ci-least-privilege` | PR-triggered Cloud Build は sa-cloud-build-ci を使い、cloudbuild.builds.create + Logging Writer のみ。Artifact Registry write、Secret Manager、deploy 権限を持たない。 |
 | `ctl.prod-mutation-authority` | production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。 |
