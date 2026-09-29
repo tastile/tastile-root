@@ -64,7 +64,7 @@ slos:
     goal: qg.timeliness
     sli: "completed_at - available_at for Work Item / Outbox rows (SQL over ds.work-queue)"
     target: {p95_s: 60, p99_s: 120}
-    note: sweep 1 分 + targeted wake を前提。current EC2 worker は 5 秒 loop。
+    note: 初期構成は 1 分 sweep。targeted wake は実測で SLO 未達の場合だけ追加する。current EC2 worker は 5 秒 loop。
     status: unmeasured
   - id: slo.sync-convergence
     goal: qg.convergence
@@ -108,7 +108,7 @@ engineering_kpis:
     goal: qg.data-integrity
     definition: share of Core DB-dependent tests that actually ran against PostgreSQL in the last release candidate
     target: "100% (no silent skip)"
-    baseline: "2026-09-29 local run on vanilla PG17: 2 failing tests in api/tests/owner_profile_authz.rs on the release line, undetected because CI was budget-blocked"
+    baseline: "2026-09-29 local run on vanilla PG17: 3 failing tests (owner_profile_authz ×2, scope_enforcement ×1) on the release line, undetected because CI was budget-blocked"
   - id: kpi.restore-drill
     goal: qg.data-integrity
     definition: restore drills passed in the last 3 months

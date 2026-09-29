@@ -72,6 +72,12 @@ desktop.ini
 node_modules/
 .terraform/
 
+# OpenTofu local state / environment inputs (provider lock files are committed)
+*.tfstate
+*.tfstate.*
+*.auto.tfvars
+*.auto.tfvars.json
+
 # Legacy tile-create-e2e-wiring (moved to tastile-web/docs/plans and tastile-core/docs/plans on 2026-08-04)
 /tile-create-e2e-wiring/
 
