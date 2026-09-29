@@ -131,7 +131,7 @@ Each task is a fresh implementer subagent + task reviewer + (if needed) fix roun
 - Per-file commit pattern with structured briefs/reports
 - i18n hardcoded literals MUST NOT be added (i18n-literal-guard skill active)
 - `src/lib/vendored/mantine-schedule` MUST NOT be touched
-- Pre-commit review of agent-initiated commits must go through `.agents/skills/tastile-precommit-review`
+- Pre-commit review of agent-initiated commits must go through `.agents/skills/verify-tastile-change` (the legacy `.agents/skills/tastile-precommit-review` Skill was retired 2026-09-29 per ADR-0021; binding verification is provided by `verify-tastile-change`)
 
 ## Design decisions (resolved during brainstorming)
 

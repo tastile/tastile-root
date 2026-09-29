@@ -168,8 +168,7 @@
       ],
       "validation": [
         "bun scripts/check-release-plan.ts",
-        "pwsh -NoProfile -File scripts/check-agent-environment.ps1",
-        "pwsh -NoProfile -File .agent-loop/gate-root.ps1"
+        "pwsh -NoProfile -File scripts/check-agent-environment.ps1"
       ],
       "status": "Ready",
       "releaseBlocking": true,

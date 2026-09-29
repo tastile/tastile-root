@@ -27,7 +27,7 @@ Coreの実装詳細と安全性情報を公開Issueへ転載していない。
 | 検査 | 実行内容 | 結果 |
 | --- | --- | --- |
 | 初期計画 | `bun scripts/check-release-plan.ts` | exit 0 / PLAN_VALID / 33件・29必須・106h・Ready R02/R03 |
-| root gate | `pwsh -NoProfile -File .agent-loop/gate-root.ps1` | exit 0 / Agent environment check passed |
+| root gate | `pwsh -NoProfile -File scripts/check-agent-environment.ps1` | exit 0 / Agent environment check passed |
 | task schema | PowerShell `Test-Json -SchemaFile` | 正常task受理、241分budgetを拒否 |
 | result schema | PowerShell `Test-Json -SchemaFile` | 正常result受理、VERIFIED＋exit 2を拒否 |
 | 変更の空白検査 | 対象path限定 `git diff --check` | exit 0。AGENTS.mdにGitのLF→CRLF通知あり |

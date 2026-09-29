@@ -30,11 +30,16 @@ pwsh -NoProfile -File .\scripts\check-agent-environment.ps1
 
 終了コードは `0=全通過`、`1=コード/テスト失敗`、`2=外部環境不足による BLOCKED`。
 
-## Agent pre-commit review
+## Agent commit / binding verification
 
-Claude Code、Codex、OpenCode をこのディレクトリから起動すると、agent が実行する `git commit` は、対象リポジトリの
-fast gate と別 CLI エージェントの承認が揃うまで拒否される。Git hook ではないため、人間が通常のターミナルから行う
-commit には影響しない。詳細は [agent loop](./.agent-loop/README.md)。
+Claude Code / Codex / OpenCode から agent-initiated commit を行う場合は per-repo fast
+gate (例: `pwsh -NoProfile -File scripts\check-agent-environment.ps1` / `bun run check`)
+と `verify-tastile-change` Skill による PR 直前 binding verification を実施する。
+Git hook ではないため、人間が通常のターミナルから行う commit には影響しない。
+
+2026-09-29 付で旧 per-commit reviewer loop (`.agent-loop/` + `tastile-precommit-review`
+Skill) は廃止済み (ADR-0021)。残存する destructive / process wrapper hook は
+`git-guard.mjs` と `tastile-command-guard.ps1` のみ。
 
 ## Child repositories
 

@@ -79,21 +79,13 @@ init / orchestration 再構成時に全文を読む**。
 
 - `cross-repo-contract-check`: 複数 child、API / schema / auth / 共有 UI contract の変更。
 - `architecture-sot`: `architecture/model/*.yaml`、SoT registry、生成 view、ADR 0013-0020 の変更・検証・review。
-- `verify-tastile-change`: PASS、DONE、GREEN、commit / merge / ship 可能と述べる直前。
-- `tastile-precommit-review`: root 変更を agent が commit する直前の独立 review。
+- `verify-tastile-change`: PASS、DONE、GREEN、commit / merge / ship 可能と述べる直前。pre-commit
+  reviewer loop (旧 `tastile-precommit-review` + `.agent-loop/`) は 2026-09-29 に廃止済み
+  (ADR-0021)。binding verification は本 Skill に統一する。
 - `plugin-version-audit`: pinned 依存（MCP / Bun / Node / Biome / Knip / Vitest / Playwright / Next /
   openapi-typescript）の drift と advisory を release 前、または bump 直前に read-only で確認する。
 - `parallel-orchestration`: worker への実装委譲、並列化、再割当、停止、成果物統合。
 - `github-delivery`: Issue の着手、Draft PR、release branch、検証証跡、明示的な完了処理。
-- `release-branch-workflow`: sprint planning、Issue 起票、PR 開始、release 統合の直前
-  (ADR-0007)。
-- `recover-task`: agent context / session / sandbox 消失後、または fresh agent が前
-  タスクを引き継ぐとき (ADR-0008)。
-- `project-board`: Issue status 遷移、Project field 操作、WIP 確認 (ADR-0009)。
-- `subagent-coordination`: sub-agent を spawn / integrate / 監視 / cancel /
-  recover-task するとき、Codex trio (Sol / Luna / Terra) と Claude role catalog を
-  参照する (ADR-0005 + ADR-0008)。
-
 ## 検証と commit
 
 変更した各 child の local instruction が指定する全 applicable gate を実行する。root の
@@ -119,5 +111,11 @@ pwsh -NoProfile -File .\scripts\check-agent-environment.ps1
 終了コードは `0=PASS`、`1=code/test failure`、`2=external prerequisite により BLOCKED`。
 skip、broad ignore、warning suppression、古い出力で green を作らない。UI は実 browser、
 PostgreSQL は到達可能な実 DB、Android は対象 device、Rust は Linux (WSL / wslc / Linux host)
-で確認する。agent が commit する場合は `.agent-loop/README.md` の独立 review gate を通し、
+で確認する。commit 前の binding verification は `verify-tastile-change` Skill で実施する。
 英語の `<type>: <concise title>` を使う。
+
+## Constitution / operating profile
+
+- Top-level contract: [`constitution/CONSTITUTION.md`](constitution/CONSTITUTION.md)
+- Current Operating Model: [`organization/profiles/release-driven-solo.md`](organization/profiles/release-driven-solo.md)
+- Project-specific canonical docs and ADRs remain more specific than replaceable upstream Practices when they preserve the Constitution.

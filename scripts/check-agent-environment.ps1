@@ -54,7 +54,6 @@ $requiredFiles = @(
     ".claude/skills/cross-repo-contract-check/SKILL.md",
     ".claude/skills/verify-tastile-change/SKILL.md",
     ".agents/skills/cross-repo-contract-check/SKILL.md",
-    ".agents/skills/tastile-precommit-review/SKILL.md",
     ".agents/skills/verify-tastile-change/SKILL.md",
     ".agents/skills/plugin-version-audit/SKILL.md",
     "CODEX_ROLES.ja.md",

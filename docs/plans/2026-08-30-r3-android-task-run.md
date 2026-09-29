@@ -25,7 +25,7 @@
 - **android 単体テストは emulator 不要**: `./gradlew testDebugUnitTest` / `lintKotlinMain` のみ。device 不要。
 - **web openapi drift check**: Task C3 Step 7 で `cd tastile-web && bun run check:release` を実行し drift 0 を確認 (本 PR で web 側に新規 file は作らない、openapi submodule の re-read が走れば OK)。
 - **final verify gate**: `pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile fast -KeepGoing` が exit 0。
-- **agent-initiated commit**: `.agents/skills/tastile-precommit-review` を通す (各 Task Step 7 / 9 末尾)。
+- **agent-initiated commit**: PR 直前 binding verification を `.agents/skills/verify-tastile-change` Skill で実施 (各 Task Step 7 / 9 末尾)。旧 `.agents/skills/tastile-precommit-review` は 2026-09-29 廃止 (ADR-0021)。
 - **hash / bracket / commit メッセージ規約**: `<type>: <concise title>` 英語、`Co-Authored-By: Claude Code <noreply@anthropic.com>` 付き (ただし agent commit の場合は precommit review 規約に従う)。
 
 ---
@@ -391,7 +391,7 @@ git commit -m "feat(storage): add V1_059 index + latest_task_run_per_task_def qu
 
 - [ ] **Step 9: precommit review (agent-initiated なら実行)**
 
-`pwsh -NoProfile -File .\.agents\skills\tastile-precommit-review\Run.ps1 -Last 2`
+`pwsh -NoProfile -File .\.agents\skills\verify-tastile-change\Run.ps1 -Last 2`
 Expected: PASS。
 
 ---
@@ -658,7 +658,7 @@ git commit -m "feat(domain): apply_record_task_run (append + replay + conflict +
 
 - [ ] **Step 9: precommit review (agent-initiated なら)**
 
-`pwsh -NoProfile -File .\.agents\skills\tastile-precommit-review\Run.ps1 -Last 2`
+`pwsh -NoProfile -File .\.agents\skills\verify-tastile-change\Run.ps1 -Last 2`
 Expected: PASS。
 
 ---
@@ -958,7 +958,7 @@ git commit -m "feat(api): POST /v1/executions/{id}/task-runs handler + openapi"
 
 - [ ] **Step 11: precommit review (agent-initiated なら)**
 
-`pwsh -NoProfile -File .\.agents\skills\tastile-precommit-review\Run.ps1 -Last 1`
+`pwsh -NoProfile -File .\.agents\skills\verify-tastile-change\Run.ps1 -Last 1`
 Expected: PASS。
 
 ---
@@ -1942,7 +1942,7 @@ bun run check:release
 pwsh -NoProfile -File .\.agents\skills\tastile-verifier\Run.ps1 -Last 9
 ```
 
-Expected: すべて exit 0、verify-tastile-change PASS、tastile-precommit-review PASS。
+Expected: すべて exit 0、verify-tastile-change PASS。
 
 PR description に書く内容（spec §10 acceptance criteria と 1:1 対応）:
 
@@ -1955,7 +1955,7 @@ PR description に書く内容（spec §10 acceptance criteria と 1:1 対応）
 - [x] Conflict (409) 時 brief 表示 + 自動 reconcile (Task A3 / A4)
 - [x] web openapi drift 0 (`bun run check:release` PASS、Task C3 Step 7)
 - [x] workspace check fast profile exit 0 (final gate)
-- [x] agent-initiated commit は `tastile-precommit-review` 通過 (各 Step 9)
+- [x] agent-initiated commit は `verify-tastile-change` を PR 直前に通過 (各 Step 9) (`tastile-precommit-review` は 2026-09-29 廃止、ADR-0021)
 - [x] `verify-tastile-change` PR 完了直前 PASS
 
 ---
@@ -1966,7 +1966,7 @@ PR description に書く内容（spec §10 acceptance criteria と 1:1 対応）
 - TDD source: `superpowers:test-driven-development` + `superpowers:executing-plans`
 - vocabularies (referenced in spec §2-3): mattpocock `codebase-design` / `loop-me` / `grilling` / `implement-spec`
 - implementation: `superpowers:subagent-driven-development` (推奨) or `superpowers:executing-plans`
-- gates: `.agents/skills/verify-tastile-change` (PR 直前) + `.agents/skills/tastile-precommit-review` (各 commit 直前) + `.agents/skills/cross-repo-contract-check` (openapi drift 確認)
+- gates: `.agents/skills/verify-tastile-change` (PR 直前) + `.agents/skills/cross-repo-contract-check` (openapi drift 確認)。旧 `.agents/skills/tastile-precommit-review` は 2026-09-29 廃止 (ADR-0021)。
 - memories leveraged:
   - `Use wslc for Rust backend` — core の `cargo` / `clippy` は wslc 内実行
   - `wslc engine data layout` — `bash .wslc/verify-up.sh` を先に通す

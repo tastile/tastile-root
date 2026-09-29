@@ -1,10 +1,10 @@
 # ADR-0011: 同一名 Agent Skill の canonical precedence と `.claude/skills/` thin adapter rule
 
 - 日付: 2026-09-20
-- 状態: Accepted
+- 状態: Superseded by [ADR-0021](./0021-deprecate-tastile-precommit-review.md) (2026-09-29)
 - 対象: Tastile root workspace および全 child repository の Agent Skill 配置 (`.agents/skills/`, `.claude/skills/`, `.codex/skills/`) と、同一 `name` を持つ Skill 間の precedence 解決
 - 先行 ADR: [ADR-0001](./0001-agent-toolchain.md) (関連, root agent 構成), [ADR-0005](./0005-skills-and-mcp-extensions.md) (関連, Skills catalog 境界)
-- 後続 ADR: なし
+- 後続 ADR: [ADR-0021](./0021-deprecate-tastile-precommit-review.md) (本 ADR を Supersede)
 - canonical policy: [agent orchestration policy](../agent-orchestration.md) §1, §5
 
 ## Context

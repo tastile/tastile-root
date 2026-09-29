@@ -19,7 +19,9 @@
 - **依存追加は最小**: 新規 npm package を追加しない。既存 devDeps（postcss-preset-mantine, postcss-simple-vars, tailwind-merge, clsx 等）で完結する。ESLint custom rule は .mjs ファイルとして local 配置。
 - **i18n hardcoded literal を新規追加しない**: P1 で生成する comment / identifier / doc-comment はすべて英語。
 - **完了基準**: `bun run check:release` が 0 error / 0 actionable warning で通過。`bun audit` の 4 ignore（`GHSA-qx2v-qp2m-jg93` / `GHSA-6g55-p6wh-862q` / `GHSA-r28c-9q8g-f849` / `GHSA-f88m-g3jw-g9cj`）は変更禁止。
-- **コミット**: 各タスク末で `git commit`。agent-initiated commit は `.agents/skills/tastile-precommit-review` 経由。コミットメッセージは英語（`feat:` / `chore:` / `test:` prefix）。
+- **コミット**: 各タスク末で `git commit`。PR 直前の binding verification は
+  `.agents/skills/verify-tastile-change` Skill 経由 (`.agents/skills/tastile-precommit-review`
+  は 2026-09-29 廃止、ADR-0021)。コミットメッセージは英語（`feat:` / `chore:` / `test:` prefix）。
 - **`src/lib/vendored/mantine-schedule` には触らない**（Knip ガード対象）。
 - **既存 `eslint.config.mts` の `ignore` に新規 directory を追加しない**（production source を丸ごと ignore させない）。
 

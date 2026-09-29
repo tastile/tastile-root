@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "scope": ["core", "web", "android"],
-  "policyRevision": "9081339e95264c3205553208c2f55fbf23c9745b",
+  "policyRevision": "57fb4a2e5abe6f52e4fd9cb2cb88234496e47d4b",
   "versionSource": "Pinned manifests/lockfiles at planningBaseline in 2026-09-19-tickets.json; resolve again into task snapshot at dispatch, never silently change them during validation.",
   "officialReferences": [
-    "https://github.com/rebuildup/project-init/tree/9081339e95264c3205553208c2f55fbf23c9745b",
+    "https://github.com/rebuildup/project-init/tree/57fb4a2e5abe6f52e4fd9cb2cb88234496e47d4b",
     "https://doc.rust-lang.org/cargo/commands/cargo-test.html",
     "https://playwright.dev/docs/test-cli",
     "https://developer.android.com/studio/test/command-line",
@@ -12,7 +12,7 @@
   ],
   "testTaxonomy": {"unit": "isolated domain / client logic", "integration": "real PostgreSQL / API / provider contract", "e2e": "real browser or installed signed device against deployed candidate"},
   "changeToGates": {
-    "root-docs-or-agent-policy": ["release-plan", "agent-environment", "root-fast-gate"],
+    "root-docs-or-agent-policy": ["release-plan", "agent-environment"],
     "core-domain-api-storage": ["core-fast", "core-full", "real-postgres", "cross-repo-contract"],
     "web-ui-auth": ["web-fast", "web-full", "real-browser"],
     "android": ["android-fast", "android-full", "signed-device"],
@@ -22,7 +22,6 @@
   "commands": {
     "release-plan": "bun scripts/check-release-plan.ts",
     "agent-environment": "pwsh -NoProfile -File scripts/check-agent-environment.ps1",
-    "root-fast-gate": "pwsh -NoProfile -File .agent-loop/gate-root.ps1",
     "core-fast": "cargo test --manifest-path crates-v1/Cargo.toml -p domain",
     "core-full": "bash .wslc/verify-up.sh && bash .wslc/verify-run.sh 'cargo test --manifest-path crates-v1/Cargo.toml --workspace --no-fail-fast'",
     "web-fast": "bun run check",
@@ -37,5 +36,5 @@
   "platformMatrix": {"browser": ["Chromium desktop", "mobile viewport", "Google OAuth callback in real browser"], "android": ["API 26 emulator where supported by repository tests", "physical device with signed candidate and real FCM"], "database": ["clean PostgreSQL", "restored current-schema backup"]},
   "requiredArtifacts": ["input and result SHA/digest", "generation", "command and exit code", "full CI URL", "browser trace", "APK/AAB SHA and signing metadata", "DB migration/restore evidence", "review verdict"],
   "failurePolicy": {"codeFailure": 1, "externalBlocked": 2, "allowSkipAsPass": false, "allowMockOnlyIntegration": false, "allowStaleEvidence": false, "allowSuppressionForGreen": false},
-  "note": "This is a release routing profile, not proof that gates passed. Existing child instructions remain authoritative. Shell commands run from the owning repository; Rust uses WSL/wslc on this host. Web check:release currently includes advisory ignores; the release must also collect unsuppressed bun audit --production evidence and resolve applicable findings. No runner integration is claimed until R03 is merged."
+  "note": "This is a release routing profile, not proof that gates passed. Existing child instructions remain authoritative. Shell commands run from the owning repository; Rust uses WSL/wslc on this host. Web check:release currently includes advisory ignores; the release must also collect unsuppressed bun audit --production evidence and resolve applicable findings. Per-commit reviewer loop (`.agent-loop/` + `tastile-precommit-review`) retired 2026-09-29 (ADR-0021); root fast gate is replaced by `pwsh -NoProfile -File scripts/check-agent-environment.ps1` + `bun scripts/check-release-plan.ts` for plan validation, and binding verification is provided by the `verify-tastile-change` Skill. project-init `quality-gate` Skill is the upstream SoT for adaptive project profiles."
 }
