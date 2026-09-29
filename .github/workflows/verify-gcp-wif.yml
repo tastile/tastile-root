@@ -64,4 +64,5 @@ jobs:
 
       - name: Record successful isolation proof
         if: steps.secret_probe.outcome == 'failure'
-        run: echo "PASS: WIF authentication succeeded and cross-repository Secret Manager read was denied."
+        run: |
+          echo "PASS: WIF authentication succeeded and cross-repository Secret Manager read was denied."
