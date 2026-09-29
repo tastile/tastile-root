@@ -129,7 +129,7 @@
       }
     },
     "findings": {
-      "description": "Optional findings list, reusing review-result.schema.json severity/file/line/message shape (so the parent's reviewer engine can validate without re-shaping).",
+      "description": "Optional findings list with severity, file, line, and message for parent validation.",
       "type": "array",
       "items": {
         "type": "object",
