@@ -32,38 +32,44 @@ locals {
     "dev-android-poc" = {
       environment = "dev"
       account_id  = "gha-android-poc"
-      repository  = "tastile/tastile-android"
-      workflow    = "verify-gcp-wif.yml"
+      repository   = "tastile/tastile-android"
+      repository_id = "1180525654"
+      workflow     = "verify-gcp-wif.yml"
     }
     "staging-core" = {
       environment = "staging"
       account_id  = "gha-core-deploy"
-      repository  = "tastile/tastile-core"
-      workflow    = "deploy-staging.yml"
+      repository   = "tastile/tastile-core"
+      repository_id = "1180525566"
+      workflow     = "deploy-staging.yml"
     }
     "production-core" = {
       environment = "production"
       account_id  = "gha-core-deploy"
-      repository  = "tastile/tastile-core"
-      workflow    = "deploy.yml"
+      repository   = "tastile/tastile-core"
+      repository_id = "1180525566"
+      workflow     = "deploy.yml"
     }
     "production-web" = {
       environment = "production"
       account_id  = "gha-web-deploy"
-      repository  = "tastile/tastile-web"
-      workflow    = "deploy.yml"
+      repository   = "tastile/tastile-web"
+      repository_id = "1180525602"
+      workflow     = "deploy.yml"
     }
     "production-android" = {
       environment = "production"
       account_id  = "gha-android-release"
-      repository  = "tastile/tastile-android"
-      workflow    = "release.yml"
+      repository   = "tastile/tastile-android"
+      repository_id = "1180525654"
+      workflow     = "release.yml"
     }
     "production-desktop" = {
       environment = "production"
       account_id  = "gha-desktop-release"
-      repository  = "tastile/tastile-desktop"
-      workflow    = "release.yml"
+      repository   = "tastile/tastile-desktop"
+      repository_id = "1180525633"
+      workflow     = "release.yml"
     }
   }
 
@@ -184,8 +190,10 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   attribute_mapping = {
     "google.subject"           = "assertion.sub"
     "attribute.repository"     = "assertion.repository"
-    "attribute.repository_owner" = "assertion.repository_owner"
-    "attribute.ref"            = "assertion.ref"
+    "attribute.repository_owner"    = "assertion.repository_owner"
+    "attribute.repository_owner_id" = "assertion.repository_owner_id"
+    "attribute.repository_id"       = "assertion.repository_id"
+    "attribute.ref"                 = "assertion.ref"
     "attribute.workflow_ref"   = "assertion.workflow_ref"
   }
 
@@ -193,7 +201,9 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   # repository owner/repository to avoid trusting arbitrary workflows.
   attribute_condition = <<-CEL
     assertion.repository_owner == "tastile" &&
+    assertion.repository_owner_id == "267846510" &&
     assertion.repository == "${each.value.repository}" &&
+    assertion.repository_id == "${each.value.repository_id}" &&
     (assertion.ref.startsWith("refs/heads/release-") || assertion.ref.startsWith("refs/tags/v")) &&
     (
       assertion.workflow_ref.startsWith("${each.value.repository}/.github/workflows/${each.value.workflow}@refs/heads/release-") ||
