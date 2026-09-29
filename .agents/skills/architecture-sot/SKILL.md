@@ -9,7 +9,7 @@ description: Tastile の architecture Source of Truth (architecture/model/*.yaml
 
 | 変えたいもの | 触る場所 |
 | --- | --- |
-| Tastile 是什么 (product 定義、principle、product KPI) | `tastile-core/docs/product/` |
+| Tastile とは何か (product 定義、principle、product KPI) | `tastile-core/docs/product/` |
 | domain 語彙・仕様・不変条件・API contract の生成元・DB schema | `tastile-core/v1/`, `tastile-core/crates-v1/` |
 | repository 構成、container、通信、trust、data、environment、deployment、SLO / KPI / cost、PoC、risk、roadmap | `architecture/model/*.yaml` + 必要なら新規 ADR |
 | 実装局所の事実 (command、directory、toolchain) | 対象 child repository |
@@ -40,7 +40,7 @@ bun run architecture:audit      # sibling repository の古い主張 (advisory)
 - **server-side container に production target node が無いと ERROR** (`deploy.unhosted`)。
 - **fact domain の owner が canonical と一致しないと ERROR**。child は root ADR を authoritative text として copy しない (R4)。
 - **model の sum が `quality.yaml` の予算を超えると ERROR**。`node.cost_usd_month.value` を根拠付きで更新する。
-- **生成物は commit plete aginative されてい���と ERROR**。手で直さない。
+- **生成物が current model と一致していないと ERROR**。手で直さない。
 - ADR ≥ 0013 は front matter 必須。ID 重複は ERROR。
 
 ## review 時の確認順
