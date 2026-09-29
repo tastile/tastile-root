@@ -17,7 +17,7 @@
 
 ## ms.m2-foundation — Target platform foundation
 
-- status: **planned** · authority: **operator** · depends on: ms.m0-sot · tracking: tastile/tastile-root#50
+- status: **in_progress** · authority: **operator** · depends on: ms.m0-sot · tracking: tastile/tastile-root#50
 - work:
   - GCP billing account, projects tastile-dev / tastile-staging / tastile-prod, budget alerts (cost_budget)
   - Artifact Registry, Cloud Build GitHub connection, WIF pools per repository
