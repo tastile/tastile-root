@@ -30,10 +30,10 @@ milestones:
     work:
       - GCP billing account, projects tastile-dev / tastile-staging / tastile-prod, budget alerts (cost_budget)
       - Artifact Registry, Cloud Build GitHub connection, WIF pools per repository
-      - Secret Manager per env; per-secret IAM
+      - Infisical machine identities for GitHub OIDC and GCP-native workload auth; environment/service access boundaries
       - IaC under root infra/ (OpenTofu or gcloud scripts; tool choice is part of ms.m2-foundation) — becomes canonical for real resources
     exit_criteria:
-      - poc.secret-manager-wif passed
+      - poc.infisical-workload-auth passed for GitHub OIDC path; GCP workload path may complete in ms.m3 staging before production cutover
       - poc.cloud-build-ci passed
     tracking: [tastile/tastile-root#50]
     status: in_progress
@@ -101,17 +101,17 @@ milestones:
       - production restore drill passed
     status: planned
   - id: ms.m8-decommission
-    title: Decommission AWS and Infisical
+    title: Decommission AWS and legacy secret paths
     depends_on: [ms.m7-soak]
     authority: operator
     work:
       - delete AWS stacks (foundation, staging-foundation), SES identities, S3 / CloudFront, IAM roles, SSM parameters
       - final encrypted snapshot export of RDS to GCS, then delete RDS
-      - remove Infisical projects / identities / .infisical.json / infisical scripts from every repository
+      - retire AWS-specific Infisical auth bindings / obsolete secret replicas while retaining Infisical as the canonical secret control plane
       - remove core deploy/aws, deploy/systemd, docs/production AWS runbooks (history stays in git)
     exit_criteria:
       - kpi.secret-stores == 1 per environment
-      - no repository references AWS runtime or Infisical except history
+      - no repository references AWS runtime or a second editable application-secret store; Infisical remains canonical
     status: planned
   - id: ms.m9-public-announcement
     title: Broad public announcement
