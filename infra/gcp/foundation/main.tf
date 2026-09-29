@@ -7,7 +7,6 @@ locals {
     "iamcredentials.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com",
-    "secretmanager.googleapis.com",
     "serviceusage.googleapis.com",
     "sts.googleapis.com",
   ])
@@ -18,6 +17,7 @@ locals {
       "billingbudgets.googleapis.com",
       "cloudbilling.googleapis.com",
       "cloudbuild.googleapis.com",
+      "secretmanager.googleapis.com", # provider-managed Cloud Build GitHub connection only
       "storage.googleapis.com",
     ]))
     staging = setunion(local.common_services, toset([
@@ -45,20 +45,6 @@ locals {
   # WIF is intentionally limited to workflows that need an external GCP identity.
   # PR refs are rejected by every provider condition.
   github_identities = {
-    "dev-root-poc" = {
-      environment   = "dev"
-      account_id    = "gha-root-poc"
-      repository    = "tastile/tastile-root"
-      repository_id = "1287977553"
-      workflow      = "verify-gcp-wif.yml"
-    }
-    "dev-android-poc" = {
-      environment = "dev"
-      account_id  = "gha-android-poc"
-      repository   = "tastile/tastile-android"
-      repository_id = "1180525654"
-      workflow     = "verify-gcp-wif.yml"
-    }
     "staging-core" = {
       environment = "staging"
       account_id  = "gha-core-deploy"
@@ -281,26 +267,6 @@ resource "google_service_account_iam_member" "github_wif" {
   role               = "roles/iam.workloadIdentityUser"
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github[each.key].name}/attribute.repository/${each.value.repository}"
 }
-
-# Metadata only. No secret version/value is ever placed in OpenTofu state.
-resource "google_secret_manager_secret" "wif_probe" {
-  project   = var.projects.dev
-  secret_id = "poc-wif-probe"
-
-  replication {
-    auto {}
-  }
-
-  depends_on = [google_project_service.enabled]
-}
-
-resource "google_secret_manager_secret_iam_member" "wif_probe_android_only" {
-  project   = var.projects.dev
-  secret_id = google_secret_manager_secret.wif_probe.secret_id
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.github["dev-android-poc"].email}"
-}
-
 
 resource "google_cloudbuild_trigger" "core_pr_ci" {
   count = var.core_repository_resource == null ? 0 : 1
