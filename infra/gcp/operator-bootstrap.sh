@@ -77,23 +77,53 @@ for project in "${projects[@]}"; do
   fi
 done
 
+if [[ "$apply" == true ]]; then
+  # Budget calls need a quota project with the Billing Budget API enabled.
+  # Storage is also enabled here so state-bucket creation never relies on an
+  # implicit service activation.
+  gcloud services enable \
+    serviceusage.googleapis.com \
+    cloudbilling.googleapis.com \
+    billingbudgets.googleapis.com \
+    storage.googleapis.com \
+    --project "$dev_project"
+fi
+
 state_bucket="gs://${dev_project}-tastile-tofu-state"
 if gcloud storage buckets describe "$state_bucket" >/dev/null 2>&1; then
   echo "exists: state bucket $state_bucket"
 elif [[ "$apply" == true ]]; then
-  gcloud services enable storage.googleapis.com serviceusage.googleapis.com --project "$dev_project"
-  gcloud storage buckets create "$state_bucket"     --project "$dev_project"     --location "$region"     --default-storage-class STANDARD     --uniform-bucket-level-access     --public-access-prevention
+  gcloud storage buckets create "$state_bucket" \
+    --project "$dev_project" \
+    --location "$region" \
+    --default-storage-class STANDARD \
+    --uniform-bucket-level-access \
+    --public-access-prevention
   gcloud storage buckets update "$state_bucket" --versioning
 else
   echo "missing: state bucket $state_bucket"
 fi
 
 budget_name="tastile-prelaunch"
-budget_resource="$(gcloud billing budgets list   --billing-account "$billing_account"   --filter="displayName=$budget_name"   --format='value(name)' --limit=1 2>/dev/null || true)"
+budget_resource="$(gcloud billing budgets list \
+  --project "$dev_project" \
+  --billing-account "$billing_account" \
+  --filter="displayName=$budget_name" \
+  --format='value(name)' \
+  --limit=1 2>/dev/null || true)"
 if [[ -n "$budget_resource" ]]; then
   echo "exists: budget $budget_resource"
 elif [[ "$apply" == true ]]; then
-  gcloud billing budgets create     --billing-account "$billing_account"     --display-name "$budget_name"     --budget-amount 45USD     --calendar-period month     --filter-projects "projects/$dev_project,projects/$staging_project,projects/$prod_project"     --threshold-rule percent=0.50     --threshold-rule percent=0.90     --threshold-rule percent=1.00
+  gcloud billing budgets create \
+    --project "$dev_project" \
+    --billing-account "$billing_account" \
+    --display-name "$budget_name" \
+    --budget-amount 45USD \
+    --calendar-period month \
+    --filter-projects "projects/$dev_project,projects/$staging_project,projects/$prod_project" \
+    --threshold-rule percent=0.50 \
+    --threshold-rule percent=0.90 \
+    --threshold-rule percent=1.00
 else
   echo "missing: budget $budget_name (45 USD, thresholds 50/90/100%)"
 fi
