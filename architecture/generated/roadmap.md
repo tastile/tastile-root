@@ -20,7 +20,7 @@
 - status: **in_progress** · authority: **operator** · depends on: ms.m0-sot · tracking: tastile/tastile-root#50
 - work:
   - GCP billing account, projects tastile-dev / tastile-staging / tastile-prod, budget alerts (cost_budget)
-  - Artifact Registry, Cloud Build GitHub connection, WIF pools per repository
+  - Artifact Registry, private Core CI dispatcher + source bucket + Cloud Build, GCP WIF pools for deploy/publish
   - Infisical machine identities for GitHub OIDC and GCP-native workload auth; environment/service access boundaries
   - IaC under root infra/ (OpenTofu or gcloud scripts; tool choice is part of ms.m2-foundation) — becomes canonical for real resources
 - exit criteria:
