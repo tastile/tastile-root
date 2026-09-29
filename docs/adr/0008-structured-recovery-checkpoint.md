@@ -135,9 +135,9 @@ checkpoint `status`、child result `verdict`、journal `result` のいずれと�
 
 `checkpoint.schema.json` / `agent-result.schema.json` は fresh clone + Bun + PowerShell
 で再現できる project-local artifact。fencing token は process memory / short-lived
-Sidecar に置き、repository には commit しない。secret が checkpoint に混入した場合の
-検知は `agent-result.schema.json` の `fencing_token` と
-`scripts/check-agent-environment.ps1` の JSON parse で担保する。
+Sidecar に置き、repository には commit しない。JSON schema / parse は構造だけを検証し、
+secret 混入の検知は保証しない。checkpoint / result を durable remote に送る前に、
+実値を含まないことを確認する。
 
 ## Consequences and re-evaluation
 
