@@ -3,7 +3,7 @@
 
 | id | title | status | decides | executed | evidence |
 | --- | --- | --- | --- | --- | --- |
-| `poc.local-runtime` | Core API / Worker on vanilla PostgreSQL 17 (provider-neutral runtime baseline) | passed | adr.root.0014 | 2026-09-29 | architecture/evidence/2026-09-29-local-runtime-poc.md |
+| `poc.local-runtime` | Core API / Worker on vanilla PostgreSQL 17 (provider-neutral runtime baseline) | partial | adr.root.0014 | 2026-09-29 | architecture/evidence/2026-09-29-local-runtime-poc.md |
 | `poc.core-suite-vanilla-pg` | Core full test suite against vanilla PostgreSQL 17 | partial | adr.root.0014, adr.root.0020 | 2026-09-29 | architecture/evidence/2026-09-29-local-runtime-poc.md |
 | `poc.cloud-run-core` | Core API on Cloud Run (asia-northeast1) with Cloud SQL connector, behind Cloudflare edge router | planned | adr.root.0014 |  |  |
 | `poc.worker-drain` | Stateless worker drain triggered by Cloud Scheduler sweep | planned | adr.root.0017 |  |  |
@@ -17,7 +17,7 @@
 
 ## poc.local-runtime — Core API / Worker on vanilla PostgreSQL 17 (provider-neutral runtime baseline)
 
-- status: **passed**
+- status: **partial**
 - hypothesis: Core は AWS / RDS 固有機能に依存せず、vanilla PostgreSQL 17 上で migration・起動・主要 read が成立し、 serverless container に適した起動時間と memory footprint を持つ。
 - method: portable PostgreSQL 17.11 (zonky embedded binaries) を local に起動し、crates-v1 を release build。 空 DB に api を起動して migration 適用時間・起動時間・RSS を測り、主要 GET を 50 回ずつ計測。
 
