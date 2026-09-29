@@ -112,19 +112,28 @@ pocs:
       - {id: c2, metric: "added_latency_p95_ms (cached JWKS)", op: "<", threshold: 2}
       - {id: c3, metric: bridge_secret_references_remaining, op: "==", threshold: 0}
 
-  - id: poc.secret-manager-wif
-    title: Secret Manager + GitHub OIDC WIF as the only secret path
-    hypothesis: runtime / CI / local の secret 取得を long-lived key なしで行え、secret 単位 IAM で repo 間 read を防げる。
+  - id: poc.infisical-workload-auth
+    title: Infisical as the only Tastile-managed secret path
+    hypothesis: >-
+      development / CI/CD / GCP runtime は long-lived Infisical credential や provider key を保存せず、
+      workload identity だけで必要な secret を Infisical から取得でき、repository / service / environment 境界を越えた read を拒否できる。
     method: >-
-      public repo (tastile-android) の release job から WIF で Play 用 SA を impersonate、desktop job から R2 token を read、
-      PR job からの read が拒否されることを確認。local は gcloud ADC で dev project から取得。
+      (1) GitHub Actions release workflow が GitHub OIDC → Infisical machine identity で scoped secret を取得する。
+      pull_request / 許可されていない workflow では同 identity auth を拒否する。
+      (2) staging Cloud Run service account が GCP-native identity token → Infisical machine identity で runtime secret を取得し、
+      別 service / production project の secret read を拒否する。
+      (3) secret を欠落させた canary revision は ready にならず fail-closed する。
+      secret value / token は evidence log に出さない。
     decides: [adr.root.0015]
     status: planned
+    prerequisites: [self-hosted Infisical reachable, GCP staging project + service accounts]
     criteria:
-      - {id: c1, metric: long_lived_keys_created, op: "==", threshold: 0}
-      - {id: c2, metric: pr_job_secret_read_denied, op: "==", threshold: true}
-      - {id: c3, metric: cross_repo_secret_read_denied, op: "==", threshold: true}
-      - {id: c4, metric: cloud_run_start_with_missing_secret_fails, op: "==", threshold: true}
+      - {id: c1, metric: static_infisical_credentials_in_github_or_gcp, op: "==", threshold: 0}
+      - {id: c2, metric: github_oidc_infisical_read_succeeds, op: "==", threshold: true}
+      - {id: c3, metric: pull_request_or_untrusted_workflow_infisical_auth_denied, op: "==", threshold: true}
+      - {id: c4, metric: gcp_workload_infisical_read_succeeds, op: "==", threshold: true}
+      - {id: c5, metric: cross_service_or_environment_secret_read_denied, op: "==", threshold: true}
+      - {id: c6, metric: runtime_missing_secret_fails_closed, op: "==", threshold: true}
 
   - id: poc.email-provider
     title: Transactional email deliverability (Resend)
