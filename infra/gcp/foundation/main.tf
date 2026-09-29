@@ -242,3 +242,31 @@ resource "google_secret_manager_secret_iam_member" "wif_probe_android_only" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.github["dev-android-poc"].email}"
 }
+
+
+resource "google_cloudbuild_trigger" "core_pr_ci" {
+  count = var.core_repository_resource == null ? 0 : 1
+
+  project     = var.projects.dev
+  location    = var.region
+  name        = "tastile-core-ci"
+  description = "Tastile Core real-PostgreSQL CI (ADR-0020)"
+  filename    = "cloudbuild/ci.yaml"
+
+  service_account  = google_service_account.cloud_build.id
+  include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
+
+  repository_event_config {
+    repository = var.core_repository_resource
+
+    pull_request {
+      branch          = "^release-.*$"
+      comment_control = "COMMENTS_DISABLED"
+    }
+  }
+
+  depends_on = [
+    google_project_service.enabled,
+    google_project_iam_member.cloud_build_log_writer,
+  ]
+}

@@ -7,7 +7,7 @@ Tastile の target infrastructure 実装。architecture の正本は `architectu
 
 - `gcp/operator-bootstrap.sh`: operator authority が必要な初回だけの bootstrap。
   GCP project / billing link / OpenTofu state bucket / pre-launch budget を作る。
-- `gcp/foundation/`: OpenTofu 管理。API、service account、Artifact Registry、GitHub OIDC WIF、PoC secret metadata。
+- `gcp/foundation/`: OpenTofu 管理。API、service account、Artifact Registry、GitHub OIDC WIF、PoC secret metadata、Core Cloud Build PR trigger。
 - Cloud Run / Cloud SQL / service-specific secrets は ms.m3 / ms.m4 で environment stack として追加する。
 - secret **value** は repository / tfvars / OpenTofu state に入れない。
 
@@ -17,7 +17,8 @@ Tastile の target infrastructure 実装。architecture の正本は `architectu
 2. `TASTILE_GCP_BILLING_ACCOUNT` を指定するか、active billing account が1個だけであることを確認
 3. `infra/gcp/operator-bootstrap.sh` で read-only preflight
 4. operator が内容を確認して `infra/gcp/operator-bootstrap.sh --apply`
-5. script が生成した `infra/gcp/foundation/foundation.auto.tfvars.json` を使って `tofu init / plan`
-6. plan review 後だけ `tofu apply`
+5. GitHub App で Core repository を Cloud Build 2nd gen に接続し、resource name を `core_repository_resource` に設定
+6. script が生成した `infra/gcp/foundation/foundation.auto.tfvars.json` を使って `tofu init / plan`
+7. plan review 後だけ `tofu apply`
 
 production/staging mutation は operator authority。agent は plan と repository changes までを自律実行してよい。

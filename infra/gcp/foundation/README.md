@@ -10,6 +10,7 @@ ms.m2-foundation の durable resources。3 environment project は operator boot
 - shared Artifact Registry in `tastile-dev`
 - GitHub Actions OIDC workload identity pools/providers with repository + ref + workflow restrictions
 - WIF PoC secret **metadata** only
+- Core PR Cloud Build trigger when a 2nd-gen repository resource is supplied
 
 The Artifact Registry / Cloud Build control plane intentionally lives in the dev project. Production/staging runtime identities receive only the
 specific read/deploy grants added by later environment stacks; CI does not gain broad production project permissions.
@@ -44,3 +45,17 @@ The dev-only `dev-android-poc` identity is reserved for `poc.secret-manager-wif`
 Other repository identities must fail that read.
 
 Application secret names and values are **not** declared here. They are created from the owning service's runtime-config contract in ms.m3/m4.
+
+
+## Core repository connection
+
+The GitHub App connection is the only operator-created external binding. After
+connecting `tastile/tastile-core` in Cloud Build 2nd gen, set:
+
+```hcl
+core_repository_resource = "projects/tastile-dev/locations/asia-northeast1/connections/<connection>/repositories/<repository>"
+```
+
+If this variable is `null`, the foundation intentionally creates no Core trigger.
+When set, OpenTofu creates one pull-request trigger for target branches matching
+`^release-.*$`, using `cloudbuild/ci.yaml` and `sa-cloud-build`.
