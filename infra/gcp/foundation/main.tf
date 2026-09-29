@@ -164,6 +164,23 @@ resource "google_project_iam_member" "cloud_build_ci_log_writer" {
   member  = "serviceAccount:${google_service_account.cloud_build_ci.email}"
 }
 
+resource "google_project_iam_custom_role" "cloud_build_ci_trigger" {
+  project     = var.projects.dev
+  role_id     = "tastileCloudBuildCi"
+  title       = "Tastile Cloud Build PR CI trigger"
+  description = "Minimal permission required for the PR CI trigger identity to create its build."
+  permissions = ["cloudbuild.builds.create"]
+
+  depends_on = [google_project_service.enabled]
+}
+
+resource "google_project_iam_member" "cloud_build_ci_trigger" {
+  project = var.projects.dev
+  role    = google_project_iam_custom_role.cloud_build_ci_trigger.name
+  member  = "serviceAccount:${google_service_account.cloud_build_ci.email}"
+}
+
+
 resource "google_project_iam_member" "cloud_build_publish_log_writer" {
   project = var.projects.dev
   role    = "roles/logging.logWriter"
@@ -309,5 +326,6 @@ resource "google_cloudbuild_trigger" "core_pr_ci" {
   depends_on = [
     google_project_service.enabled,
     google_project_iam_member.cloud_build_ci_log_writer,
+    google_project_iam_member.cloud_build_ci_trigger,
   ]
 }

@@ -67,9 +67,9 @@ When set, OpenTofu creates one pull-request trigger for target branches matching
 Pull-request build configs are controlled by the proposed commit, so PR CI must
 not run with artifact/deploy authority.
 
-- `sa-cloud-build-ci`: PR CI only. Logging Writer only.
+- `sa-cloud-build-ci`: PR CI only. Logging Writer + project custom role containing only `cloudbuild.builds.create`.
 - `sa-cloud-build-publish`: trusted image publication only. Logging Writer +
   Artifact Registry Writer on the `tastile` repository.
-- The PR trigger references only `sa-cloud-build-ci`.
+- The PR trigger references only `sa-cloud-build-ci`; it is never granted `roles/cloudbuild.builds.builder`.
 - A future trusted publish trigger/job must reference `sa-cloud-build-publish`
   explicitly; it must never reuse the PR trigger.
