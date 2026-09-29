@@ -108,6 +108,12 @@ credentials:
     verifier: GitHub App authentication
     properties: private key の canonical value は Infisical のみ。App ID / installation ID は non-secret。installation token は短命で永続化しない。
     lifecycle: planned
+  - id: cred.ci-github-app
+    name: Tastile CI GitHub App private key
+    holder: trusted ci-dispatcher process only (Infisical-injected)
+    verifier: GitHub App authentication
+    properties: long-lived private keyのcanonical valueはInfisicalのみ。App ID / installation IDはnon-secret。PR buildには渡さず、dispatcherが短命installation tokenへ交換する。
+    lifecycle: planned
   - id: cred.db-core-runtime
     name: DB role tastile_app
     holder: sa-core-api, sa-core-worker
