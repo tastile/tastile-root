@@ -49,6 +49,8 @@ gated_by: [poc.cloud-build-ci]
 ## Consequences
 
 - Cloud Build free tier 2,500 分 / 月で core CI ≈ 100 run 相当。超過分は $0.006 / 分。
+- private Core CI の唯一の長期GitHub credentialは Tastile CI GitHub App private keyで、Infisicalだけに保存する。
+  App ID / installation IDはnon-secret pointer。dispatcher以外へprivate keyを渡さない。
 - 各 repo の release workflow を「tag = manifest version」「digest promotion」に揃える作業が ms.m3-core-staging〜ms.m5-clients に入る。
 
 ## Verification
