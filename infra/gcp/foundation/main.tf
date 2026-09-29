@@ -17,7 +17,6 @@ locals {
       "billingbudgets.googleapis.com",
       "cloudbilling.googleapis.com",
       "cloudbuild.googleapis.com",
-      "secretmanager.googleapis.com", # provider-managed Cloud Build GitHub connection only
       "storage.googleapis.com",
     ]))
     staging = setunion(local.common_services, toset([
@@ -144,28 +143,45 @@ resource "google_service_account" "cloud_build_publish" {
   depends_on = [google_project_service.enabled]
 }
 
+resource "google_service_account" "ci_dispatcher" {
+  project      = var.projects.dev
+  account_id   = "sa-ci-dispatcher"
+  display_name = "Tastile private CI dispatcher"
+
+  depends_on = [google_project_service.enabled]
+}
+
 resource "google_project_iam_member" "cloud_build_ci_log_writer" {
   project = var.projects.dev
   role    = "roles/logging.logWriter"
   member  = "serviceAccount:${google_service_account.cloud_build_ci.email}"
 }
 
-resource "google_project_iam_custom_role" "cloud_build_ci_trigger" {
+resource "google_project_iam_custom_role" "ci_dispatcher" {
   project     = var.projects.dev
-  role_id     = "tastileCloudBuildCi"
-  title       = "Tastile Cloud Build PR CI trigger"
-  description = "Minimal permission required for the PR CI trigger identity to create its build."
-  permissions = ["cloudbuild.builds.create"]
+  role_id     = "tastileCiDispatcher"
+  title       = "Tastile private CI dispatcher"
+  description = "Submit and observe Cloud Build runs without deploy/artifact privileges."
+  permissions = [
+    "cloudbuild.builds.create",
+    "cloudbuild.builds.get",
+    "serviceusage.services.use",
+  ]
 
   depends_on = [google_project_service.enabled]
 }
 
-resource "google_project_iam_member" "cloud_build_ci_trigger" {
+resource "google_project_iam_member" "ci_dispatcher" {
   project = var.projects.dev
-  role    = google_project_iam_custom_role.cloud_build_ci_trigger.name
-  member  = "serviceAccount:${google_service_account.cloud_build_ci.email}"
+  role    = google_project_iam_custom_role.ci_dispatcher.name
+  member  = "serviceAccount:${google_service_account.ci_dispatcher.email}"
 }
 
+resource "google_service_account_iam_member" "ci_dispatcher_act_as_build" {
+  service_account_id = google_service_account.cloud_build_ci.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.ci_dispatcher.email}"
+}
 
 resource "google_project_iam_member" "cloud_build_publish_log_writer" {
   project = var.projects.dev
@@ -200,6 +216,37 @@ resource "google_artifact_registry_repository_iam_member" "cloud_build_writer" {
   repository = google_artifact_registry_repository.tastile.name
   role       = "roles/artifactregistry.writer"
   member     = "serviceAccount:${google_service_account.cloud_build_publish.email}"
+}
+
+resource "google_storage_bucket" "ci_source" {
+  project                     = var.projects.dev
+  name                        = "${var.projects.dev}-tastile-ci-source"
+  location                    = var.region
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+
+  lifecycle_rule {
+    condition {
+      age = 7
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  depends_on = [google_project_service.enabled]
+}
+
+resource "google_storage_bucket_iam_member" "ci_dispatcher_source_writer" {
+  bucket = google_storage_bucket.ci_source.name
+  role   = "roles/storage.objectAdmin"
+  member = "serviceAccount:${google_service_account.ci_dispatcher.email}"
+}
+
+resource "google_storage_bucket_iam_member" "cloud_build_ci_source_reader" {
+  bucket = google_storage_bucket.ci_source.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.cloud_build_ci.email}"
 }
 
 resource "google_service_account" "github" {
@@ -268,30 +315,3 @@ resource "google_service_account_iam_member" "github_wif" {
   member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github[each.key].name}/attribute.repository/${each.value.repository}"
 }
 
-resource "google_cloudbuild_trigger" "core_pr_ci" {
-  count = var.core_repository_resource == null ? 0 : 1
-
-  project     = var.projects.dev
-  location    = var.region
-  name        = "tastile-core-ci"
-  description = "Tastile Core real-PostgreSQL CI (ADR-0020)"
-  filename    = "cloudbuild/ci.yaml"
-
-  service_account  = google_service_account.cloud_build_ci.id
-  include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
-
-  repository_event_config {
-    repository = var.core_repository_resource
-
-    pull_request {
-      branch          = "^release-.*$"
-      comment_control = "COMMENTS_DISABLED"
-    }
-  }
-
-  depends_on = [
-    google_project_service.enabled,
-    google_project_iam_member.cloud_build_ci_log_writer,
-    google_project_iam_member.cloud_build_ci_trigger,
-  ]
-}
