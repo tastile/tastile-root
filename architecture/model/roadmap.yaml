@@ -36,7 +36,7 @@ milestones:
       - poc.secret-manager-wif passed
       - poc.cloud-build-ci passed
     tracking: [tastile/tastile-root#50]
-    status: planned
+    status: in_progress
   - id: ms.m3-core-staging
     title: Core on Cloud Run staging
     depends_on: [ms.m2-foundation]

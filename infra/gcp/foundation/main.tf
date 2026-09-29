@@ -1,22 +1,38 @@
 locals {
   environment_projects = var.projects
 
-  enabled_services = toset([
-    "artifactregistry.googleapis.com",
-    "billingbudgets.googleapis.com",
-    "cloudbuild.googleapis.com",
+  common_services = toset([
     "cloudresourcemanager.googleapis.com",
-    "cloudtasks.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com",
-    "run.googleapis.com",
     "secretmanager.googleapis.com",
     "serviceusage.googleapis.com",
-    "sqladmin.googleapis.com",
     "sts.googleapis.com",
   ])
+
+  environment_services = {
+    dev = setunion(local.common_services, toset([
+      "artifactregistry.googleapis.com",
+      "billingbudgets.googleapis.com",
+      "cloudbilling.googleapis.com",
+      "cloudbuild.googleapis.com",
+      "storage.googleapis.com",
+    ]))
+    staging = setunion(local.common_services, toset([
+      "cloudscheduler.googleapis.com",
+      "run.googleapis.com",
+      "sqladmin.googleapis.com",
+    ]))
+    production = setunion(local.common_services, toset([
+      "cloudscheduler.googleapis.com",
+      "run.googleapis.com",
+      "sqladmin.googleapis.com",
+    ]))
+  }
+
+  runtime_environments = toset(["staging", "production"])
 
   runtime_service_accounts = toset([
     "sa-core-api",
@@ -81,16 +97,20 @@ locals {
   }
 
   api_matrix = {
-    for pair in setproduct(keys(local.environment_projects), local.enabled_services) :
-    "${pair[0]}:${pair[1]}" => {
-      environment = pair[0]
-      service     = pair[1]
-      project     = local.environment_projects[pair[0]]
-    }
+    for item in flatten([
+      for environment, services in local.environment_services : [
+        for service in services : {
+          key         = "${environment}:${service}"
+          environment = environment
+          service     = service
+          project     = local.environment_projects[environment]
+        }
+      ]
+    ]) : item.key => item
   }
 
   runtime_sa_matrix = {
-    for pair in setproduct(keys(local.environment_projects), local.runtime_service_accounts) :
+    for pair in setproduct(local.runtime_environments, local.runtime_service_accounts) :
     "${pair[0]}:${pair[1]}" => {
       environment = pair[0]
       account_id  = pair[1]
