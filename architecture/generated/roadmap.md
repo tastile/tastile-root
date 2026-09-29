@@ -3,21 +3,21 @@
 
 ## ms.m0-sot — Architecture SoT established
 
-- status: **in_progress** · tracking: tastile/tastile-root#48, tastile/tastile-core#199
+- status: **done** · tracking: tastile/tastile-root#48, tastile/tastile-core#199
 - exit criteria:
   - bun run architecture:validate passes on root
   - core docs/product and v1 pointers aligned (core#199)
 
 ## ms.m1-freeze — Observable product behaviour freeze
 
-- status: **planned** · depends on: ms.m0-sot
+- status: **in_progress** · depends on: ms.m0-sot · tracking: tastile/tastile-core#201, tastile/tastile-web#169
 - exit criteria:
   - only bug fixes and platform-neutral refactors merge to release branches until ms.m6-cutover
   - core full gate green on real PostgreSQL (fix 3 failing tests; kpi.ci-real-db)
 
 ## ms.m2-foundation — Target platform foundation
 
-- status: **planned** · authority: **operator** · depends on: ms.m0-sot
+- status: **planned** · authority: **operator** · depends on: ms.m0-sot · tracking: tastile/tastile-root#50
 - work:
   - GCP billing account, projects tastile-dev / tastile-staging / tastile-prod, budget alerts (cost_budget)
   - Artifact Registry, Cloud Build GitHub connection, WIF pools per repository
@@ -29,7 +29,7 @@
 
 ## ms.m3-core-staging — Core on Cloud Run staging
 
-- status: **planned** · depends on: ms.m2-foundation
+- status: **planned** · depends on: ms.m2-foundation · tracking: tastile/tastile-core#202
 - work:
   - OCI image with api / worker / migrate entrypoints; stripped binary; no AWS SDK default-chain probing (f.imds-startup)
   - migration job + DML-only runtime role (f.migrations-at-startup)
@@ -44,7 +44,7 @@
 
 ## ms.m4-web-staging — Web on Cloud Run staging, JWT assertion, edge router
 
-- status: **planned** · depends on: ms.m3-core-staging
+- status: **planned** · depends on: ms.m3-core-staging · tracking: tastile/tastile-web#171
 - work:
   - web image on Cloud Run (standalone); Better Auth on Cloud SQL auth DB
   - Better Auth jwt plugin + Core JWKS verification; remove bridge secret (ADR-0016)
@@ -58,7 +58,7 @@
 
 ## ms.m5-clients — Client alignment
 
-- status: **planned** · depends on: ms.m4-web-staging
+- status: **planned** · depends on: ms.m4-web-staging · tracking: tastile/tastile-android#65, tastile/tastile-desktop#44, tastile/tastile-cli#5
 - work:
   - connect flow (Authorization Code + PKCE) for Android and Desktop; retire /api/mobile/api-token
   - Desktop uses Core API token as v1 Bearer (oq.desktop-bearer); Desktop contract drift check
