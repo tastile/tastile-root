@@ -15,7 +15,7 @@ pocs:
       portable PostgreSQL 17.11 (zonky embedded binaries) を local に起動し、crates-v1 を release build。
       空 DB に api を起動して migration 適用時間・起動時間・RSS を測り、主要 GET を 50 回ずつ計測。
     decides: [adr.root.0014]
-    status: passed
+    status: partial
     executed_at: 2026-09-29
     evidence: architecture/evidence/2026-09-29-local-runtime-poc.md
     criteria:
