@@ -159,6 +159,8 @@ pocs:
       - {id: c1, metric: median_duration_min, op: "<=", threshold: 25}
       - {id: c2, metric: monthly_minutes_at_40_runs, op: "<=", threshold: 1000}
       - {id: c3, metric: status_reported_to_github_check, op: "==", threshold: true}
+      - {id: c4, metric: provider_managed_github_credentials_in_gcp, op: "==", threshold: 0}
+      - {id: c5, metric: pr_build_identity_can_read_infisical_or_github_app_key, op: "==", threshold: false}
       - {id: c4, metric: provider_managed_github_credentials_outside_infisical, op: "==", threshold: 0}
       - {id: c5, metric: github_private_key_visible_to_pr_build, op: "==", threshold: false}
 
