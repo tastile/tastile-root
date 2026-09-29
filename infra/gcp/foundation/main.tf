@@ -17,6 +17,8 @@ locals {
       "billingbudgets.googleapis.com",
       "cloudbilling.googleapis.com",
       "cloudbuild.googleapis.com",
+      "cloudscheduler.googleapis.com",
+      "run.googleapis.com",
       "storage.googleapis.com",
     ]))
     staging = setunion(local.common_services, toset([
