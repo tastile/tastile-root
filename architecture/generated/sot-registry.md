@@ -3,7 +3,7 @@
 
 | fact domain | kind | name | canonical | structured | derived | notes |
 | --- | --- | --- | --- | --- | --- | --- |
-| `fd.product-definition` | meaning | Product definition | repo.core:docs/product/README.md | repo.core:docs/product/product.yaml |  |  |
+| `fd.product-definition` | meaning | Product definition | repo.core:docs/product/product.yaml |  |  | README は人間向け narrative / pointer。product fact を独立に再定義しない。 |
 | `fd.product-kpi` | meaning | Product outcome KPIs | repo.core:docs/product/product.yaml |  |  |  |
 | `fd.domain-language` | meaning | Domain ubiquitous language | repo.core:v1/00-glossary.md |  |  | root glossary.yaml は domain 語を再定義せず `domain_ref` で参照する。 |
 | `fd.domain-spec` | meaning | Domain specification and invariants | repo.core:v1/ |  |  |  |
