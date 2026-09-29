@@ -29,6 +29,13 @@ locals {
   # WIF is intentionally limited to workflows that need an external GCP identity.
   # PR refs are rejected by every provider condition.
   github_identities = {
+    "dev-root-poc" = {
+      environment   = "dev"
+      account_id    = "gha-root-poc"
+      repository    = "tastile/tastile-root"
+      repository_id = "1287977553"
+      workflow      = "verify-gcp-wif.yml"
+    }
     "dev-android-poc" = {
       environment = "dev"
       account_id  = "gha-android-poc"
