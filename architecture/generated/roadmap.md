@@ -34,7 +34,7 @@
   - OCI image with api / worker / migrate entrypoints; stripped binary; no AWS SDK default-chain probing (f.imds-startup)
   - migration job + DML-only runtime role (f.migrations-at-startup)
   - configurable pool sizes (f.pool-size)
-  - worker drain entrypoint + Cloud Scheduler / Tasks (ADR-0017); startup-recovery prompt derived from facts (f.startup-recovery-on-boot)
+  - worker drain entrypoint + Cloud Scheduler 1 min sweep (ADR-0017); targeted wake は SLO 未達時だけ provider-neutral port 経由で追加; startup-recovery prompt derived from facts (f.startup-recovery-on-boot)
   - object storage port → R2 media bucket
   - FCM HTTP v1 direct delivery via service account (ADR-0018)
 - exit criteria:
@@ -83,7 +83,7 @@
 - status: **planned** · depends on: ms.m6-cutover
 - exit criteria:
   - 14 consecutive days meeting slo.api-availability / slo.web-availability / slo.work-lag pre-launch targets
-  - poc.cost-30d passed (or budget re-decided by operator)
+  - first 14 days actual spend extrapolates to cost_budget.pre_launch 以下 (or operator-recorded budget exception); poc.cost-30d continues after launch
   - production restore drill passed
 
 ## ms.m8-decommission — Decommission AWS and Infisical
