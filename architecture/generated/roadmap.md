@@ -25,7 +25,7 @@
   - Infisical machine identities for GitHub OIDC and GCP-native workload auth; environment/service access boundaries
   - IaC under root infra/ (OpenTofu or gcloud scripts; tool choice is part of ms.m2-foundation) — becomes canonical for real resources
 - exit criteria:
-  - poc.infisical-workload-auth passed for GitHub OIDC path; GCP workload path may complete in ms.m3 staging before production cutover
+  - poc.infisical-workload-auth passed for GitHub OIDC path; GCP workload path may complete in ms.m3-core-staging before production cutover
   - poc.cloud-build-ci passed
 
 ## ms.m3-core-staging — Core on Cloud Run staging
