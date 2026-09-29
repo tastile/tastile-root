@@ -76,11 +76,11 @@ pocs:
       - {id: c6, metric: run_app_direct_request_rejected_without_edge_assertion, op: "==", threshold: true}
 
   - id: poc.worker-drain
-    title: Stateless worker drain triggered by Cloud Scheduler / Cloud Tasks
+    title: Stateless worker drain triggered by Cloud Scheduler sweep
     hypothesis: 常駐 process なしで Work Item lag SLO を満たし、多重起動しても二重処理しない。
     method: >-
-      worker に `drain --until-empty --deadline 55s` entrypoint を追加し、Cloud Scheduler 1 分 sweep と
-      Cloud Tasks wake で起動。2 並行 drain・instance kill・wake 欠落を注入する。
+      worker に `drain --until-empty --deadline 55s` entrypoint を追加し、まず Cloud Scheduler 1 分 sweep のみで起動。
+      2 並行 drain・instance kill・sweep 1 回欠落を注入する。60 秒 SLO を満たせない場合だけ provider-neutral wake port の PoC を追加する。
     decides: [adr.root.0017]
     status: planned
     criteria:
