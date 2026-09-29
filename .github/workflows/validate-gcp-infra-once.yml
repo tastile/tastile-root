@@ -25,18 +25,19 @@ jobs:
       - uses: opentofu/setup-opentofu@000eeb8522f0572907c393e8151076c205fdba1b # v1.0.6
         with:
           tofu_version: "1.10.7"
-      - name: Validate foundation
+      - name: Format and validate foundation
         working-directory: infra/gcp/foundation
         run: |
           set -euo pipefail
-          tofu fmt -check -recursive
+          tofu fmt -recursive
           tofu init -backend=false
           tofu validate
-      - name: Remove this one-shot workflow
+      - name: Commit formatting and remove this one-shot workflow
         run: |
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add infra/gcp/foundation
           git rm .github/workflows/validate-gcp-infra-once.yml
-          git commit -m "ci: remove one-shot GCP infra validator"
+          git commit -m "infra: format and validate GCP foundation"
           git push origin HEAD:68
