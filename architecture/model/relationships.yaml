@@ -1,0 +1,318 @@
+# Runtime and build-time relationships between elements.
+# Canonical for: fd.system-architecture (communication part).
+# credential refers to security.yaml credentials; data refers to security.yaml data_classes.
+schema: tastile.architecture/relationships@1
+as_of: 2026-09-29
+
+relationships:
+  # ------------------------------------------------ user-facing entry points
+  - id: rel.user-web
+    from: actor.user
+    to: ctr.web
+    description: ブラウザで公開サイトと dashboard を使う
+    protocol: HTTPS via ctr.edge
+    credential: cred.user-session
+    data: [dc.user-content, dc.pii]
+    lifecycle: retained
+  - id: rel.user-android
+    from: actor.user
+    to: ctr.android
+    description: Android app を操作し OS 通知を受ける
+    protocol: local UI
+    lifecycle: retained
+  - id: rel.user-desktop
+    from: actor.user
+    to: ctr.desktop
+    description: Windows app を操作し toast / 介入 window を受ける
+    protocol: local UI
+    lifecycle: retained
+  - id: rel.user-cli
+    from: actor.user
+    to: ctr.cli
+    description: terminal から CLI / TUI を使う
+    protocol: local process
+    lifecycle: retained
+  - id: rel.apiclient-core
+    from: actor.api-client
+    to: ctr.core-api
+    description: user 発行の scoped token で公開 /v1 API を呼ぶ
+    protocol: HTTPS REST (/v1) via ctr.edge
+    credential: cred.core-api-token
+    data: [dc.user-content]
+    lifecycle: retained
+
+  # ------------------------------------------------------------ edge routing
+  - id: rel.edge-web
+    from: ctr.edge
+    to: ctr.web
+    description: app.tastile.app / tastile.app を Web origin へ転送
+    protocol: HTTPS (Worker fetch to run.app)
+    credential: cred.edge-assertion
+    lifecycle: planned
+  - id: rel.edge-core
+    from: ctr.edge
+    to: ctr.core-api
+    description: api.tastile.app を Core API origin へ転送
+    protocol: HTTPS (Worker fetch to run.app)
+    credential: cred.edge-assertion
+    lifecycle: planned
+
+  # ------------------------------------------------------------ web ↔ core
+  - id: rel.web-core
+    from: cmp.web.bff
+    to: ctr.core-api
+    description: browser 操作を Core Command / Read / Sync API に中継する
+    protocol: HTTPS REST (/v1)
+    credential: cred.web-core-jwt
+    data: [dc.user-content]
+    lifecycle: retained
+    current:
+      credential: cred.web-bridge-secret
+      note: >-
+        現在は shared secret `x-tastile-web-bridge-secret` + `x-tastile-web-session-user` header で
+        Web が任意 user を主張できる (god-mode)。ADR-0016 で JWT に置換し retire。
+  - id: rel.core-jwks
+    from: ctr.core-api
+    to: cmp.web.auth
+    description: Better Auth JWT 検証用の公開鍵 (JWKS) を取得・cache する
+    protocol: HTTPS GET /api/auth/jwks
+    data: [dc.public]
+    lifecycle: planned
+  - id: rel.web-core-mint
+    from: cmp.web.connect
+    to: ctr.core-api
+    description: >-
+      native client 認可完了時に、認証済み user に対する scoped Core API token の発行を Core に依頼する
+    protocol: HTTPS POST /v1/api-tokens
+    credential: cred.web-core-jwt
+    data: [dc.credential]
+    lifecycle: retained
+    current:
+      credential: cred.web-bridge-secret
+      note: /api/mobile/api-token と /api/cli/token が bridge secret で mint している。
+
+  # ------------------------------------------------------ native clients
+  - id: rel.android-core
+    from: ctr.android
+    to: ctr.core-api
+    description: /v1 Read / Command / Sync
+    protocol: HTTPS REST (/v1) via ctr.edge, generated client pinned to tastile-openapi tag
+    credential: cred.core-api-token
+    data: [dc.user-content]
+    lifecycle: retained
+  - id: rel.desktop-core
+    from: ctr.desktop
+    to: ctr.core-api
+    description: /v1 Read / Command / Sync (poll)
+    protocol: HTTPS REST (/v1) via ctr.edge
+    credential: cred.core-api-token
+    data: [dc.user-content]
+    lifecycle: retained
+    current:
+      credential: cred.user-session
+      note: desktop は mint した API token ではなく Better Auth session token を v1 Bearer に送っている (oq.desktop-bearer)。
+  - id: rel.cli-core
+    from: ctr.cli
+    to: ctr.core-api
+    description: /v1 Read / Command
+    protocol: HTTPS REST (/v1) via ctr.edge
+    credential: cred.core-api-token
+    data: [dc.user-content]
+    lifecycle: retained
+  - id: rel.native-connect
+    from: ctr.android
+    to: cmp.web.connect
+    description: system browser で sign-in し Authorization Code + PKCE で Core API token を得る
+    protocol: HTTPS (system browser / Custom Tabs) + app link / loopback redirect
+    credential: cred.user-session
+    data: [dc.credential]
+    lifecycle: planned
+    current:
+      note: android / desktop は /api/mobile/api-token に session bearer を送り PKCE なしで mint している。
+  - id: rel.desktop-connect
+    from: ctr.desktop
+    to: cmp.web.connect
+    description: rel.native-connect と同じ flow (loopback redirect)
+    protocol: HTTPS (system browser) + loopback redirect
+    credential: cred.user-session
+    data: [dc.credential]
+    lifecycle: planned
+  - id: rel.cli-connect
+    from: ctr.cli
+    to: cmp.web.connect
+    description: /cli/authorize + /api/cli/token (PKCE S256、TTL ≤ 5 min、single-use)
+    protocol: HTTPS (system browser) + loopback redirect
+    credential: cred.user-session
+    data: [dc.credential]
+    lifecycle: retained
+  - id: rel.desktop-downloads
+    from: ctr.desktop
+    to: ctr.downloads
+    description: update channel manifest と installer を取得する
+    protocol: HTTPS GET download.tastile.app/channels/<channel>/desktop.json
+    data: [dc.public]
+    lifecycle: retained
+  - id: rel.android-google
+    from: ctr.android
+    to: ext.google-identity
+    description: Credential Manager で Google ID token を得る
+    protocol: Google Identity Services
+    credential: cred.oauth-client
+    lifecycle: retained
+
+  # ------------------------------------------------------ data access
+  - id: rel.core-db
+    from: ctr.core-api
+    to: ctr.domain-db
+    description: domain read / write (DML only in target)
+    protocol: PostgreSQL wire (Cloud SQL connector unix socket)
+    credential: cred.db-core-runtime
+    data: [dc.user-content, dc.pii, dc.credential]
+    lifecycle: retained
+    current:
+      note: RDS 上で専用 application role (core#155) を Infisical 経由で使用。api / worker 起動時に同 role で DDL migration も実行している (f.migrations-at-startup)。
+  - id: rel.worker-db
+    from: ctr.core-worker
+    to: ctr.domain-db
+    description: Work Item lease / drain (FOR UPDATE SKIP LOCKED)
+    protocol: PostgreSQL wire (Cloud SQL connector unix socket)
+    credential: cred.db-core-runtime
+    data: [dc.user-content, dc.pii, dc.credential]
+    lifecycle: retained
+    current:
+      note: rel.core-db と同じ role。5 秒間隔の常駐 loop。
+  - id: rel.migrate-db
+    from: ctr.core-migrate
+    to: ctr.domain-db
+    description: schema migration (DDL)
+    protocol: PostgreSQL wire
+    credential: cred.db-core-migrate
+    lifecycle: planned
+  - id: rel.web-auth-db
+    from: cmp.web.auth
+    to: ctr.auth-db
+    description: Better Auth store
+    protocol: PostgreSQL wire (Cloud SQL connector unix socket)
+    credential: cred.db-auth-runtime
+    data: [dc.pii, dc.credential]
+    lifecycle: retained
+  - id: rel.core-media
+    from: ctr.core-api
+    to: ctr.media
+    description: avatar の presigned upload / commit
+    protocol: S3 API (R2 endpoint)
+    credential: cred.r2-media
+    data: [dc.user-content]
+    lifecycle: planned
+
+  # ------------------------------------------------------ background work
+  - id: rel.scheduler-worker
+    from: ext.scheduler
+    to: ctr.core-worker
+    description: 1 分ごとの drain 起動と、available_at 指定の targeted wake
+    protocol: HTTPS POST (OIDC-authenticated, internal ingress)
+    credential: cred.gcp-service-identity
+    lifecycle: planned
+  - id: rel.worker-fcm
+    from: ctr.core-worker
+    to: ext.fcm
+    description: Android への wake-up push (Session / Prompt 更新の hint)
+    protocol: FCM HTTP v1
+    credential: cred.gcp-service-identity
+    data: [dc.telemetry]
+    lifecycle: planned
+  - id: rel.worker-webpush
+    from: ctr.core-worker
+    to: ext.webpush
+    description: browser への wake-up push
+    protocol: Web Push (VAPID)
+    credential: cred.vapid
+    data: [dc.telemetry]
+    lifecycle: planned
+  - id: rel.worker-email
+    from: ctr.core-worker
+    to: ext.email
+    description: Delivery channel としての email
+    protocol: HTTPS API
+    credential: cred.email-api
+    data: [dc.pii]
+    lifecycle: planned
+
+  # ------------------------------------------------------ web ↔ third parties
+  - id: rel.web-email
+    from: cmp.web.auth
+    to: ext.email
+    description: verification / OTP / password reset mail
+    protocol: HTTPS API
+    credential: cred.email-api
+    data: [dc.pii]
+    lifecycle: retained
+    current:
+      note: AWS SES (sandbox; production access 不承認) を @aws-sdk/client-sesv2 で使用。
+  - id: rel.web-google
+    from: cmp.web.auth
+    to: ext.google-identity
+    description: Google OAuth / ID token 検証
+    protocol: OAuth 2.0 / OIDC
+    credential: cred.oauth-client
+    lifecycle: retained
+  - id: rel.web-apple
+    from: cmp.web.auth
+    to: ext.apple-identity
+    description: Sign in with Apple
+    protocol: OAuth 2.0 / OIDC
+    credential: cred.oauth-client
+    lifecycle: retained
+  - id: rel.web-stripe
+    from: cmp.web.billing
+    to: ext.stripe
+    description: Checkout / Portal session 作成、subscription 参照
+    protocol: HTTPS API
+    credential: cred.stripe-api
+    data: [dc.billing]
+    lifecycle: retained
+  - id: rel.stripe-web
+    from: ext.stripe
+    to: cmp.web.billing
+    description: webhook (署名検証必須)
+    protocol: HTTPS POST /api/stripe/webhook
+    credential: cred.stripe-webhook
+    data: [dc.billing]
+    lifecycle: retained
+
+  # ------------------------------------------------------ build-time / contract
+  - id: rel.core-contract
+    from: ctr.core-api
+    to: repo.openapi
+    description: Rust OpenAPI 定義 (api/src/openapi.rs) から openapi.yaml を生成し tag 付きで publish する
+    protocol: build artifact (git tag vX.Y.Z)
+    data: [dc.public]
+    lifecycle: retained
+  - id: rel.contract-web
+    from: repo.openapi
+    to: ctr.web
+    description: openapi-typescript で型生成 (pinned tag)
+    protocol: build-time pin
+    data: [dc.public]
+    lifecycle: retained
+  - id: rel.contract-android
+    from: repo.openapi
+    to: ctr.android
+    description: openapi-generator で client 生成 (pinned tag)
+    protocol: build-time pin
+    data: [dc.public]
+    lifecycle: retained
+  - id: rel.contract-cli
+    from: repo.openapi
+    to: ctr.cli
+    description: operation contract drift check (pinned submodule)
+    protocol: build-time pin
+    data: [dc.public]
+    lifecycle: retained
+  - id: rel.contract-desktop
+    from: repo.openapi
+    to: ctr.desktop
+    description: 手書き DTO を pinned contract と照合する drift check (現状 contract 参照なし)
+    protocol: build-time pin
+    data: [dc.public]
+    lifecycle: planned

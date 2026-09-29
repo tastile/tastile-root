@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/glossary.json",
+  "title": "Tastile system / operations glossary",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "as_of", "terms", "disambiguation", "forbidden_terms"],
+  "properties": {
+    "schema": { "const": "tastile.architecture/glossary@1" },
+    "as_of": { "$ref": "common.json#/$defs/asOf" },
+    "terms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "term"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^term\\." },
+          "term": { "$ref": "common.json#/$defs/text" },
+          "definition": { "$ref": "common.json#/$defs/text" },
+          "domain_ref": { "type": "string", "pattern": "^core:[^#]+(#.+)?$" }
+        },
+        "oneOf": [
+          { "required": ["definition"], "not": { "required": ["domain_ref"] } },
+          { "required": ["domain_ref"], "not": { "required": ["definition"] } }
+        ]
+      }
+    },
+    "disambiguation": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["words", "rule"],
+        "properties": {
+          "words": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+          "rule": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    },
+    "forbidden_terms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pattern", "reason", "replacement"],
+        "properties": {
+          "pattern": { "type": "string", "minLength": 1 },
+          "reason": { "$ref": "common.json#/$defs/text" },
+          "replacement": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    }
+  }
+}

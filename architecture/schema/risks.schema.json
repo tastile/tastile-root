@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/risks.json",
+  "title": "Tastile risks and open questions",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "as_of", "risks", "open_questions"],
+  "properties": {
+    "schema": { "const": "tastile.architecture/risks@1" },
+    "as_of": { "$ref": "common.json#/$defs/asOf" },
+    "risks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "likelihood", "impact", "mitigation", "status"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^risk\\." },
+          "title": { "$ref": "common.json#/$defs/text" },
+          "likelihood": { "enum": ["low", "medium", "high"] },
+          "impact": { "enum": ["low", "medium", "high", "critical"] },
+          "evidence": { "$ref": "common.json#/$defs/text" },
+          "mitigation": { "$ref": "common.json#/$defs/text" },
+          "status": { "enum": ["open", "accepted", "mitigated", "closed"] }
+        }
+      }
+    },
+    "open_questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "owner_repo", "question", "reference"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^oq\\." },
+          "owner_repo": { "$ref": "common.json#/$defs/ref" },
+          "question": { "$ref": "common.json#/$defs/text" },
+          "reference": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    }
+  }
+}

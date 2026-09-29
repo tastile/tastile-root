@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/relationships.json",
+  "title": "Tastile relationships",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "as_of", "relationships"],
+  "properties": {
+    "schema": { "const": "tastile.architecture/relationships@1" },
+    "as_of": { "$ref": "common.json#/$defs/asOf" },
+    "relationships": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "from", "to", "description", "protocol", "lifecycle"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^rel\\." },
+          "from": { "$ref": "common.json#/$defs/ref" },
+          "to": { "$ref": "common.json#/$defs/ref" },
+          "description": { "$ref": "common.json#/$defs/text" },
+          "protocol": { "$ref": "common.json#/$defs/text" },
+          "credential": { "$ref": "common.json#/$defs/ref" },
+          "data": { "$ref": "common.json#/$defs/refList" },
+          "lifecycle": { "$ref": "common.json#/$defs/lifecycle" },
+          "retire_by": { "$ref": "common.json#/$defs/ref" },
+          "current": { "$ref": "common.json#/$defs/currentDeviation" }
+        }
+      }
+    }
+  }
+}

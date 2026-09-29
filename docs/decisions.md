@@ -1,4 +1,13 @@
-# Decisions
+# Decisions (frozen log)
+
+> **2026-09-29 で凍結した履歴 log (ADR-0013)。** 新しい判断は `docs/adr/NNNN-*.md` (≥ 0013 は YAML front matter 付き) に書く。
+> 以下の entry は当時の判断の記録であり、現在の状態は `architecture/` と各 ADR が正本。
+>
+> - 2026-09-23 Infisical: target runtime については ADR-0015 で superseded。
+> - 2026-08-22 Better Auth: identity provider としての決定は有効。BFF → Core の bridge secret 契約 (決定 3) は ADR-0016 で
+>   JWT assertion に置換予定。auth DB を「同一 private RDS」に置く点 (決定 2) は ADR-0014 で Cloud SQL の別 database に読み替える。
+>   メール送信を SES で行う点 (決定 5) は ADR-0018 で Resend に置換。
+> - 2026-06-19 zero-warning sweep: 当時の snapshot。
 
 ## 2026-09-23 — Infisical を workspace secret SoT に採用 (ADR-0012)
 

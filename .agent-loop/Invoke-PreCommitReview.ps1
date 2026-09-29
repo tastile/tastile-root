@@ -277,16 +277,26 @@ function Test-ReviewResult {
     return $true
 }
 
+# Trace log is diagnostic only: a failure to write must not deny an otherwise valid command.
 $segments = @(Split-CommandSegments $Command)
-Add-Content -Path "C:/Users/rebui/Desktop/tastile/.tmp/hook-trace.log" -Value "Command=[$Command] segments.Count=$($segments.Count)"
+$script:traceLog = $null
+try {
+    $traceDir = Join-Path $WorkspaceRoot ".tmp"
+    if (-not (Test-Path -LiteralPath $traceDir)) { New-Item -ItemType Directory -Path $traceDir -Force | Out-Null }
+    $script:traceLog = Join-Path $traceDir "hook-trace.log"
+} catch { $script:traceLog = $null }
+function Write-Trace([string]$Message) {
+    if ($script:traceLog) { Add-Content -Path $script:traceLog -Value $Message -ErrorAction SilentlyContinue }
+}
+Write-Trace "Command=[$Command] segments.Count=$($segments.Count)"
 foreach ($s in $segments) {
-    Add-Content -Path "C:/Users/rebui/Desktop/tastile/.tmp/hook-trace.log" -Value "  segment=[$s]"
+    Write-Trace "  segment=[$s]"
 }
 if (Test-UnsafeCommandBoundary $Command $segments) {
-    Add-Content -Path "C:/Users/rebui/Desktop/tastile/.tmp/hook-trace.log" -Value "  REJECTED at Test-UnsafeCommandBoundary"
+    Write-Trace "  REJECTED at Test-UnsafeCommandBoundary"
     Stop-Denied "Only simple direct executable commands are permitted through the commit boundary"
 }
-Add-Content -Path "C:/Users/rebui/Desktop/tastile/.tmp/hook-trace.log" -Value "  passed Test-UnsafeCommandBoundary"
+Write-Trace "  passed Test-UnsafeCommandBoundary"
 $intent = Get-CommitIntent $Command
 $wrappedCommit = $Command -match '(?is)^\s*(?:cmd|pwsh|powershell|bash|sh)(?:\.exe)?\b.*\bgit(?:\.exe)?\b.*\bcommit\b'
 $substitutedCommit = $Command -match '(?s)(?:\$\(|`|<\().*\bgit(?:\.exe)?\b.*\bcommit\b'
