@@ -11,11 +11,11 @@ production cutover → soak → 一般公開告知) に従う。公開後に移�
 | ms.m0-sot | 本 SoT | architecture:validate PASS、core#199 | — |
 | ms.m1-freeze | behaviour freeze、Core の壊れた 3 test を修正 | core full gate green (実 PG) | — |
 | ms.m2-foundation | GCP projects、billing、budget、Artifact Registry、Cloud Build、WIF、Secret Manager、IaC | poc.secret-manager-wif、poc.cloud-build-ci | operator |
-| ms.m3-core-staging | Core image、migrate job、pool config、IMDS 除去、drain worker、prompt 導出変更、R2 media、FCM | poc.cloud-run-core、poc.worker-drain、poc.restore-drill | — |
+| ms.m3-core-staging | Core image、migrate job、pool config、IMDS 除去、drain worker + 1分 sweep、prompt 導出変更、R2 media、FCM | poc.cloud-run-core、poc.worker-drain、poc.restore-drill | — |
 | ms.m4-web-staging | Web on Cloud Run、JWT assertion、edge router、Resend、preview retire | poc.web-cloud-run、poc.jwt-assertion、poc.email-provider | — |
 | ms.m5-clients | connect flow、Desktop bearer 修正、通知予定 read model、contract pin 統一、root openapi 削除 | 実 device / 実 Windows smoke | — |
 | ms.m6-cutover | AWS → GCP (dump / restore、DNS)、AWS は 7 日停止保持 | production smoke、journal | operator |
-| ms.m7-soak | 14 日 SLO evidence、30 日 cost、production restore drill | slo.* pre-launch、poc.cost-30d | — |
+| ms.m7-soak | 14 日 SLO evidence、14日実費からの月額 extrapolation、production restore drill | slo.* pre-launch、pre-launch cost budget | — |
 | ms.m8-decommission | AWS と Infisical を削除 | kpi.secret-stores = 1 | operator |
 | ms.m9-public-announcement | 一般公開告知 | operator の記録された判断 | operator |
 
