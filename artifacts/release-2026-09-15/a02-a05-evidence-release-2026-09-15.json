@@ -1,0 +1,322 @@
+{
+  "release": "release-0-6-0",
+  "release_date": "2026-09-19",
+  "audit_date": "2026-09-15",
+  "sprint": "Sprint 2 Day 3",
+  "device": {
+    "model": "XIG03",
+    "manufacturer": "Sony",
+    "android_release": "15",
+    "api_level": 35,
+    "abi": "arm64-v8a",
+    "screen_size": "1080x2460",
+    "density": "440",
+    "device_serial": "redacted",
+    "device_serial_private": "see private operator evidence; public artifacts redact per operator instruction"
+  },
+  "operator_actions": [
+    {
+      "id": "B",
+      "description": "Mark release-E2E test user emailVerified=true in production BetterAuth DB",
+      "tool": "AWS SSM Run Command (AWS-StartShellScript)",
+      "command_id": "923ef710-a1b8-475d-9a3f-f0bb4de5121d",
+      "target_ec2": "helper-fix-disk",
+      "target_user": {
+        "id": "pTw8rxEWJXSRI3XsjIb6HwjMZ64g2YVi",
+        "email": "releasetest-tastile@tastile.app"
+      },
+      "result": "OK",
+      "timestamp_utc": "2026-09-15T06:18:40Z",
+      "schema_observed": {
+        "tables": ["account", "session", "twoFactor", "user", "verification"],
+        "user_columns": [
+          {"name": "id", "type": "text", "nullable": false},
+          {"name": "name", "type": "text", "nullable": false},
+          {"name": "email", "type": "text", "nullable": false},
+          {"name": "emailVerified", "type": "boolean", "nullable": false},
+          {"name": "image", "type": "text", "nullable": true},
+          {"name": "createdAt", "type": "timestamp", "nullable": false},
+          {"name": "updatedAt", "type": "timestamp", "nullable": false},
+          {"name": "twoFactorEnabled", "type": "boolean", "nullable": false}
+        ]
+      },
+      "rows_updated": 1,
+      "constraints_honored": [
+        "did not touch requireEmailVerification",
+        "did not touch SES config",
+        "did not touch E2E_BYPASS_AUTH",
+        "did not touch TASTILE_WEB_BRIDGE_SECRET"
+      ]
+    },
+    {
+      "id": "A",
+      "description": "Fix Android BetterAuthHttpClient.extractSessionToken to accept both plain and __Secure- prefixed cookie names (Option A from prior blocker)",
+      "scope": "tastile-android/app/src/main/java/app/tastile/android/data/auth/BetterAuthHttpClient.kt",
+      "change": "Added SESSION_COOKIE_NAME_SECURE constant; modified extractSessionToken to scan [SESSION_COOKIE_NAME, SESSION_COOKIE_NAME_SECURE] in priority order (plain name wins when both present, e.g. proxy echo)",
+      "unit_tests_added": [
+        "extractSessionToken_parsesSecurePrefixedCookieFromProductionHttps",
+        "signIn_succeedsWithSecurePrefixedProductionCookie",
+        "extractSessionToken_prefersPlainNameWhenBothPresent",
+        "extractSessionToken_fallsBackToSecurePrefixWhenPlainMissing"
+      ],
+      "verification_gate": {
+        "command": "./gradlew verify",
+        "result": "BUILD SUCCESSFUL",
+        "tests_total": 599,
+        "tests_failed": 0,
+        "constraints_honored": [
+          "production BetterAuth cookie contract unchanged",
+          "did not introduce server-side bypass",
+          "did not touch E2E_BYPASS_AUTH",
+          "did not weaken Secure cookie attributes"
+        ]
+      },
+      "branch": "5",
+      "aab_sha256_pre": "3feb748568a25561d11b3f87198a2b01f2fe670663d22bcbf3856a370be71bca",
+      "aab_sha256_post": "7d1aa6043f0048387740a455d0607a1ffa081455fb03a4c5f72f7ca2610f252b",
+      "versionCode": 33,
+      "versionName": "0.4.0",
+      "timestamp_utc": "2026-09-15T07:05:00Z"
+    }
+  ],
+  "api_signin_check": {
+    "endpoint": "POST https://app.tastile.app/api/auth/sign-in/email",
+    "status": 200,
+    "user_emailVerified": true,
+    "cookie_name": "__Secure-better-auth.session_token",
+    "timestamp_utc": "2026-09-15T06:30:00Z"
+  },
+  "aab_install_on_device": {
+    "aab_sha256": "7d1aa6043f0048387740a455d0607a1ffa081455fb03a4c5f72f7ca2610f252b",
+    "status": "installed (re-install on top of pre-fix AAB via bundletool install-apks)",
+    "launch": "ok",
+    "login_screen_rendered": true,
+    "signin_with_production_backend": "ok (production BetterAuth over HTTPS, __Secure- prefix)",
+    "sticky_signin_verified": true,
+    "sticky_signin_method": "kill app + cold relaunch; timeline renders directly with logged-in avatar (no login screen)",
+    "timestamp_utc": "2026-09-15T07:10:00Z"
+  },
+  "a05_minimum_loop": {
+    "scope": "read (timeline tiles + tile detail) + write (QuickCreate -> API create)",
+    "artifact": "AAB sha256 7d1aa6043f0048387740a455d0607a1ffa081455fb03a4c5f72f7ca2610f252b (post-A02-fix)",
+    "device": "XIG03 (API 35, arm64-v8a)",
+    "backend": "app.tastile.app (production)",
+    "user": "pTw8rxEWJXSRI3XsjIb6HwjMZ64g2YVi (releasetest-tastile@tastile.app, emailVerified=true)",
+    "read_side": {
+      "status": "PARTIAL (corrected after re-inspection of evidence on 2026-09-15 20:20 JST against the same AAB / XIG03 / production backend)",
+      "verified": [
+        "Timeline placement rendering: 'Start Point' tile placement 15:23–16:23 visible in Day view at the bottom of the hour grid (screenshot 44-cold-relaunch.png and prior 33-timeline-pre-fab.png)."
+      ],
+      "not_verified": [
+        "Tile-detail sheet content. Tapping the Start Point tile opens a ModalBottomSheet in peek state showing only the heading 'Tile', the workflow tabs (Tile / イベント / タスク / 繰り返し), a '—' placeholder, and a 'Retry' button. No basic info, no body, no scrollable content. Screenshots 27-tile-detail.png, 28-tile-detail-scrolled.png, 29-sheet-expanded.png all show this identical peek state — the earlier evidence summary 'tile detail panel with the full sheet (basic info + sheet expand + scrollable content)' overstated what was achieved."
+      ],
+      "open_questions_for_triage": [
+        "Whether the sheet has any Expanded state reachable from peek via swipe (multiple drag-up swipes at the handle wrapper [474,1818][606,1951] did not transition the sheet on this connection).",
+        "Why Tile-tab content area shows '—' even after on-device cold relaunch + cold BetterAuth re-sign (sticky session cookie present)."
+      ],
+      "d2_retry_logcat": "artifacts/release-2026-09-15/48-tile-notfound.logcat.txt — three TileRepository readSourceTile NOT_FOUND (kindValue=4) responses recorded for source tile UUID 01a0a3f2-e09e-7ea1-a58b-58ee70b7eea5 at 20:20:34, 20:20:36, 20:20:37 (one per Retry press). The tap pipeline DOES reach the API; the server returns NOT_FOUND."
+    },
+    "d2_path_status": "Tap on the Retry button DOES reach /v1/tiles/{id} (Compose onClick wires correctly here). v1 returns Api(kindValue=4, kindName=NOT_FOUND, message='source tile 01a0a3f2-e09e-7ea1-a58b-58ee70b7eea5', currentRevision=null). Because the source-tile lookup 404s, the sheet content remains '—' and there is no edit/start/complete affordance to drive. The 'Start Point' tile visible on the timeline has no backing source-tile row on the v1 backend for this user.",
+    "d2_evidence_files": [
+      "44-cold-relaunch.png (sticky sign-in re-verified post-reconnect; timeline shows Start Point tile placement 15:23–16:23 at the bottom of the Day grid)",
+      "45-tile-detail.png (sheet opens in peek state)",
+      "46-sheet-expanded.png (drag-up swipe at handle did not transition sheet state; content unchanged)",
+      "47-after-retry.png (Retry tap; uiautomator XML still shows only tabs + '—' + Retry)",
+      "48-tile-notfound.logcat.txt (three consecutive Api(NOT_FOUND) responses for source tile UUID)"
+    ],
+    "write_side": {
+      "status": "BLOCKED",
+      "blocker_class": "QuickCreate validation/UI wiring mismatch (PM-directed attribution per A05 #8)",
+      "blocker_summary": "QuickCreate Create button shows clickable=true enabled=true long-clickable=true in the uiautomator accessibility snapshot but Compose onClick never fires on tap. Multiple MotionEvent deliveries register in logcat with no follow-up Compose click handler log and no API call to /v1/timeline.",
+      "quickcreate_state_at_block": {
+        "title": "A05-loop-C1test",
+        "workflow": "Event",
+        "start": "2026-09-15T19:15+09:00",
+        "end": "2026-09-15T20:45+09:00",
+        "allday": false,
+        "project": "No project (ownerSubjectId=null; visible as the default project label at bounds [187,1155][381,1211] with the blue check swatch selected by default)",
+        "memo": "",
+        "validation_inputs": "title non-empty + valid start/end span => quickCreateSubmissionValidation returns isValid=true",
+        "create_button_attributes_snapshot": {
+          "wrapper_bounds": "[804,105][1036,237]",
+          "wrapper_clickable": "true",
+          "wrapper_enabled": "true",
+          "wrapper_long_clickable": "true",
+          "inner_button_bounds": "[804,116][1036,226]",
+          "inner_text": "Create",
+          "drag_region_bounds": "[0,104][1080,237] clickable=true (ModalBottomSheet swipe-to-dismiss region overlays the top bar)"
+        }
+      },
+      "tap_methods_attempted": [
+        {
+          "method": "input tap",
+          "coords": "(920, 171)",
+          "result": "MotionEvent registered (logcat); QuickCreate stays open; no API call observed"
+        },
+        {
+          "method": "input tap (alternate coords above button center to avoid drag)",
+          "coords": "(920, 165)",
+          "result": "MotionEvent registered; QuickCreate stays open; no API call observed"
+        },
+        {
+          "method": "input swipe x y x y 100ms (zero-displacement press)",
+          "coords": "(920, 171) -> (920, 171) duration=100ms",
+          "result": "MotionEvent DOWN+UP registered; QuickCreate stays open; no API call observed"
+        },
+        {
+          "method": "input motionevent DOWN / sleep / input motionevent UP",
+          "coords": "DOWN 920 171; sleep 0.15s; UP 920 171",
+          "result": "MotionEvent DOWN+UP registered; QuickCreate stays open; no API call observed"
+        },
+        {
+          "method": "input -d 0 tap (default-display, no display-id override)",
+          "coords": "(920, 171)",
+          "result": "MotionEvent registered; QuickCreate stays open; no API call observed"
+        }
+      ],
+      "control_comparator": "X (close) button at (77, 171) via 'input swipe 77 171 77 171 80ms' (single zero-displacement press) DOES close the panel and return to timeline. The same raw-tap path works for the close button but not for Create, ruling out a global tap pipeline break and pointing to a per-handler wiring issue or a ModalBottomSheet drag-region gesture interception at the top of the sheet.",
+      "evidence_files": [
+        "34-qc-title-typed.png (QuickCreate with title typed, defaults loaded)",
+        "35-qc-create-enabled.png (Create button shows enabled=true after title typed)",
+        "36-after-create-tap.png through 42-after-d0-tap.png (every variant of Create tap leaves QuickCreate open with no API call, no panel dismiss, no state mutation)"
+      ],
+      "previous_wrong_attribution_corrected": "Earlier versions of this file listed 'QuickCreate requires a project to be selected' and proposed C1/C2/C3 paths (project seed / project=null API relaxation / Start Point edit fallback). PM verified the release branch and confirmed: (a) MetaSubpanel exposes 'No project' as the default ownerSubjectId=null; (b) quickCreateSubmissionValidation at QuickCreateSubmission.kt:108-129 checks title + start + end (plus tasks for Task workflow) only, no project; (c) the Projects screen has no project-creation entry in the release build, so seeding a project here would hide a 'new users cannot QuickCreate' defect. The earlier attribution was a misread of mine; the C1/C2/C3 paths and any earlier DB-INSERT / API-contract-change plan are retired and must not be re-opened without further PM authorization per A05 #8.",
+      "pm_correction_recorded_in": "A05 #8 (per operator's verbatim instruction: 'release版Projects画面にはproject作成導線もないため、ここでprojectをseedすると『新規ユーザーだけQuickCreateできない』問題を隠す危険があります')",
+      "data_path_tested": "POST /v1/timeline/event via QuickCreate panel: never invoked. The Android Compose Click handler attached to the 'Create' Button never fires despite the clickable=true accessibility attribute, so no CreateEvent payload is constructed and no v1 API call is issued. The single-blocker is local to the Compose onClick wiring on this Button, not to v1 behavior or DB state."
+    }
+  },
+  "current_blocker": {
+    "ticket": "A05",
+    "type": "ui_wiring + data_404",
+    "description": "A05 is scope-reduced per PM-directive 2026-09-15 (Release Board #2 / A05 #8): A05 minimum loop is reduced from 'QuickCreate create→place→start→complete' to 'tile-detail peek + Retry on existing Start Point tile' as the documented Android 9/19 minimum. Two distinct defects are now in evidence under that scope-reduced loop.",
+    "defect_list": [
+      {
+        "id": "A05-A",
+        "title": "QuickCreate Create button onClick never fires",
+        "kind": "ui_wiring",
+        "evidence_summary": "uiautomator shows the Create button wrapper at [804,105][1036,237] with clickable=true enabled=true long-clickable=true, yet Compose onClick never fires on tap. Multiple input-tap / input-swipe (zero-displacement) / input-motionevent DOWN/UP variants register MotionEvent in logcat but no follow-up Compose click handler fires; no /v1/timeline/* POST issued. X (close) button on the same panel header closes the panel correctly via swipe-tap, ruling out a global gesture pipeline break. (Carry-over from prior blocker; unchanged.)",
+        "evidence_files": [
+          "34-qc-title-typed.png",
+          "35-qc-create-enabled.png",
+          "36-after-create-tap.png through 42-after-d0-tap.png"
+        ],
+        "deferred_to": "post-Beta P1 per PM-directive 2026-09-15"
+      },
+      {
+        "id": "A05-B",
+        "title": "Tile-detail source-tile 404: /v1/tiles/{id} returns NOT_FOUND for the Start Point tile visible on the timeline",
+        "kind": "data_404",
+        "discovered_during": "D2 path continuation after XIG03 reconnect 2026-09-15 20:18 JST (PM-directive step 'D2 → start/completionまで連続実行')",
+        "evidence_summary": "Tapping the Start Point tile on the timeline opens a ModalBottomSheet in peek state (heading 'Tile', tabs イベント/タスク/繰り返し, '—' placeholder, 'Retry' button). Drag-up swipe at the handle [474,1818][606,1951] does not transition the sheet to Expanded on this connection. Tapping the Retry button DOES fire Compose onClick and DOES call /v1/tiles/{id} on the production backend, but v1 returns Api(kindValue=4, kindName=NOT_FOUND, message='source tile 01a0a3f2-e09e-7ea1-a58b-58ee70b7eea5', currentRevision=null). Three consecutive Retry taps produced three identical NOT_FOUND responses in logcat at 20:20:34, 20:20:36, 20:20:37 (3-second client-side back-off between attempts).",
+        "logcat_evidence": "artifacts/release-2026-09-15/48-tile-notfound.logcat.txt",
+        "open_question_distinct_from_A05_A": "This is NOT a UI-wiring issue (the onClick fires, the API is called). It is a v1 backend state inconsistency: the same 'Start Point' placement renders on the Day view timeline (so the timeline aggregate endpoint returns it), but the corresponding source-tile row referenced by that placement returns NOT_FOUND in /v1/tiles/{id}. Without a resolved tile-detail payload, no edit / start / complete affordance is reachable in this view.",
+        "scope_decision_pending_pm": "Per PM directive this is 'the next failure point in the D2 chain' and qualifies as the new single blocker. Underlying cause is a v1 seed-state inconsistency (a placement references a source tile that does not exist on the v1 backend for this user); fixing requires either v1 data-state repair or an Android client fallback. As of 2026-09-15 20:20 JST, this is recorded without a fix-attempt; no DB INSERT and no API contract change is being applied. Re-judgement only after PM authorizes a tier of repair (seed-DB via operator action B / Android client 404 placeholder / API relax), which is presently out of scope."
+      }
+    ],
+    "overall_a05_status": "RED. Scope-reduced from create→place→start→complete to a tile-detail peek that 404s. Both defect ids (A05-A and A05-B) are open and unrelated.",
+    "explicitly_out_of_scope_until_pm_authorization": [
+      "DB INSERT of any project / tile / event / source-tile row to any environment (per operator instruction: 'DB INSERTは禁止' and per data-state-repair forbidding under 'downstreamで実際にproject=nullが拒否される証拠が出た場合だけ' rule applied analogously to source-tile lookup)",
+      "API contract change on /v1/timeline/event or /v1/tiles/{id} (e.g. relaxing server-side source-tile lookup) before a tier-of-repair decision",
+      "Any change to BetterAuth cookie name handling, E2E_BYPASS_AUTH, TASTILE_WEB_BRIDGE_SECRET, or requireEmailVerification",
+      "Server-side bypass / bridge secret / Secure cookie weakening (per standing release-0-6-0 constraints)"
+    ],
+    "evidence_file": "artifacts/release-2026-09-15/a02-a05-evidence-release-2026-09-15.json (this file, a05_minimum_loop)",
+    "fix_options_for_next_sprint": [
+      {
+        "id": "F1",
+        "summary": "Investigate QuickCreate Create button onClick unwiring (A05-A) under post-Beta P1 triage",
+        "scope": "tastile-android Compose QuickCreate panel + dispatch chain; debug session in feature branch",
+        "risk": "diagnostic-only; no production behavior change until PM signs off"
+      },
+      {
+        "id": "F2",
+        "summary": "Investigate v1 source-tile lookup 404 inconsistency (A05-B). Either v1 seed-state repair (operator-action-tier equivalent for the Start Point tile source row) or Android client fallback (404 → seed placeholder)",
+        "scope": "tastile-v1 seed-state OR tastile-android tile-detail fallback; PM ownership to confirm scope",
+        "risk": "tier-of-repair decision pending; might require DB INSERT of a source-tile row that maps to the existing Start Point placement (would still need PM authorization; would be a separate operator action distinct from prior action B)"
+      }
+    ],
+    "blocked_subsequent_steps": [
+      "A05 minimum loop write-side complete via QuickCreate path (Create event -> POST /v1/timeline/event) — Blocked by A05-A",
+      "A05 minimum loop read-side complete via tile detail (full sheet content + edit / start / complete affordances) — Blocked by A05-B (source-tile 404)",
+      "release-0-6-0 acceptance criteria for A05 (full)"
+    ],
+    "previously_resolved": [
+      {
+        "ticket": "A02",
+        "summary": "Cookie prefix mismatch (Android expected plain 'better-auth.session_token', production BetterAuth emits '__Secure-better-auth.session_token' over HTTPS)",
+        "resolution": "Operator action A: Android client extractSessionToken now scans both names in priority order. 599/0 unit tests green. Signed AAB rebuilt + reinstalled + production sign-in successful. Sticky sign-in verified across cold relaunch and again post-reconnect at 2026-09-15 20:18 JST."
+      }
+    ]
+  },
+  "screenshots": [
+    "01-login-screen.png",
+    "02-credentials-entered.png",
+    "03-email-only.png",
+    "04-both-fields.png",
+    "05-clean-state.png",
+    "06-password-via-tab.png",
+    "07-ready-to-signin.png",
+    "08-post-signin.png",
+    "09-after-wait.png",
+    "10-after-swipe-tap.png",
+    "11-after-motionevent.png",
+    "12-correct-tap.png",
+    "13-cold-start-after-rebuild.png",
+    "14-rebuilt-credentials-entered.png",
+    "15-rebuilt-post-signin.png",
+    "16-after-tap-immediate.png",
+    "17-after-tap-6s.png",
+    "18-after-swipe-press.png",
+    "19-permission-dialog.png",
+    "20-after-notification-allow.png",
+    "21-after-permission-allowed.png",
+    "22-quickcreate.png",
+    "23-after-create.png",
+    "24-date-picker.png",
+    "25-after-create-click.png",
+    "26-back-on-timeline.png",
+    "27-tile-detail.png",
+    "28-tile-detail-scrolled.png",
+    "29-sheet-expanded.png",
+    "30-event-create.png",
+    "31-event-after-create.png",
+    "32-relaunch-sticky-signin.png",
+    "33-timeline-pre-fab.png",
+    "34-qc-title-typed.png",
+    "35-qc-create-enabled.png",
+    "36-after-create-tap.png",
+    "37-qc-keyboard-closed.png",
+    "38-after-create.png",
+    "39-after-create-retry.png",
+    "40-after-create-swipe.png",
+    "41-after-motionevent-create.png",
+    "42-after-d0-tap.png"
+  ],
+  "pm_instruction_honored": [
+    "Step 1: BetterAuthHttpClient modified on branch 5 (A02 fix)",
+    "Step 2: 4 unit tests pin both cookie names (599 tests total, 0 failures)",
+    "Step 3: ./gradlew verify green",
+    "Step 4: Signed AAB rebuilt (sha256 7d1aa6043f0048387740a455d0607a1ffa081455fb03a4c5f72f7ca2610f252b)",
+    "Step 5: Reinstalled on XIG03, production sign-in successful, sticky sign-in verified",
+    "Step 6: A05 re-run on same artifact/device/production backend per PM re-direction; no DB INSERT, no API contract change",
+    "Step 7: Re-checked QuickCreate defaults (No project is default ownerSubjectId; quickCreateSubmissionValidation requires only title + valid start/end); confirmed earlier 'project required' attribution was a misread",
+    "Step 8: A05 minimum loop re-run with project left at 'No project' default, title typed, start/end at default nextSlot+90min, no DB seed, no API change",
+    "Step 9: uiautomator re-confirms Create button clickable=true enabled=true long-clickable=true",
+    "Step 10: Multiple MotionEvent deliveries to Create wrapper bounds (920, 171) and inner button bounds fail to fire Compose onClick; X (close) at (77, 171) via zero-displacement swipe DOES close panel",
+    "Step 11: New single blocker recorded as 'QuickCreate validation/UI wiring mismatch' per PM instruction, NOT 'project missing'",
+    "Step 12: DB INSERT and API contract change remain out of scope until PM re-authorizes after downstream evidence shows project=null is rejected"
+  ],
+  "constraints_honored_throughout": [
+    "no DB INSERT executed",
+    "no API contract change applied",
+    "no server-side bypass introduced",
+    "E2E_BYPASS_AUTH untouched",
+    "TASTILE_WEB_BRIDGE_SECRET untouched",
+    "Secure cookie attributes not weakened",
+    "production BetterAuth cookie contract unchanged",
+    "no Cognito regression (BetterAuth remains authoritative per 2026-08-22 ADR)"
+  ],
+  "no_db_credentials_in_artifact": true,
+  "no_tokens_in_artifact": true,
+  "abstain_from_blind_recovery": "Operator did not attempt to re-flash AAB, mutate the release branch, or apply speculative Create-button click patches because the operator's instruction was: 'それでもdisabledなら、その時点で 「project不足」ではなくQuickCreate validation/UI wiring mismatch を次の単一blockerとして扱います。 DB INSERTは禁止、API contract変更もまだ禁止です。 downstreamで実際にproject=nullが拒否される証拠が出た場合だけ、その時点で再判断します'. This artifact documents the as-observed state; no further action is taken without PM authorization."
+}

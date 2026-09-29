@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/security.json",
+  "title": "Tastile trust boundaries",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "as_of", "trust_zones", "credentials", "data_classes", "secret_handling", "controls"],
+  "$defs": {
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "rule"],
+      "properties": { "id": { "$ref": "common.json#/$defs/id" }, "rule": { "$ref": "common.json#/$defs/text" } }
+    }
+  },
+  "properties": {
+    "schema": { "const": "tastile.architecture/security@1" },
+    "as_of": { "$ref": "common.json#/$defs/asOf" },
+    "trust_zones": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "description", "members"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^tz\\." },
+          "name": { "$ref": "common.json#/$defs/text" },
+          "description": { "$ref": "common.json#/$defs/text" },
+          "members": { "$ref": "common.json#/$defs/refList" }
+        }
+      }
+    },
+    "credentials": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "holder", "verifier", "lifecycle"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^cred\\." },
+          "name": { "$ref": "common.json#/$defs/text" },
+          "holder": { "$ref": "common.json#/$defs/text" },
+          "verifier": { "$ref": "common.json#/$defs/text" },
+          "properties": { "$ref": "common.json#/$defs/text" },
+          "decision": { "$ref": "common.json#/$defs/ref" },
+          "lifecycle": { "$ref": "common.json#/$defs/lifecycle" },
+          "retire_by": { "$ref": "common.json#/$defs/ref" }
+        }
+      }
+    },
+    "data_classes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "description"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^dc\\." },
+          "name": { "$ref": "common.json#/$defs/text" },
+          "description": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    },
+    "secret_handling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["store", "decision", "rules"],
+      "properties": {
+        "store": { "$ref": "common.json#/$defs/text" },
+        "decision": { "$ref": "common.json#/$defs/ref" },
+        "rules": { "type": "array", "items": { "$ref": "#/$defs/rule" } }
+      }
+    },
+    "controls": { "type": "array", "items": { "$ref": "#/$defs/rule" } }
+  }
+}

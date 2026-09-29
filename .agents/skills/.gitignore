@@ -1,0 +1,3 @@
+# Skill-local runtime state only. Source Skills remain trackable.
+.runtime/
+.cache/

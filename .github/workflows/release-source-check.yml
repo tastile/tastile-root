@@ -1,0 +1,52 @@
+name: Release-source check
+
+# canonical policy: project-init §11 (public repository main protection)
+#   - base=main の PR は head が release-x-y-z pattern + intended target release
+#     であることを必須化する
+#   - branch protection / ruleset だけでは head pattern を制約できない場合、
+#     この required check で代替する
+#
+# canonical Tastile references:
+#   - docs/adr/0007-release-branch-and-ticket-workflow.md
+#   - docs/agent-orchestration.md §2 sprint workflow
+#   - .agents/skills/release-branch-workflow/SKILL.md
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, edited]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  release-source:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify PR head matches release-* pattern
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          if [[ "${BASE_REF}" != "main" ]]; then
+            echo "::notice::base is ${BASE_REF}, not main — skipping release-source check"
+            exit 0
+          fi
+          if [[ ! "${HEAD_REF}" =~ ^release-[0-9]+-[0-9]+-[0-9]+$ ]]; then
+            echo "::error::PR to main requires head_ref matching ^release-[0-9]+-[0-9]+-[0-9]+\$"
+            echo "::error::actual head_ref=${HEAD_REF} head_sha=${HEAD_SHA}"
+            exit 1
+          fi
+          echo "OK: head_ref=${HEAD_REF} matches release-* pattern"
+      - name: Annotate head SHA on PR
+        if: success()
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "Head ref: ${HEAD_REF}"
+          echo "Head SHA: ${HEAD_SHA}"

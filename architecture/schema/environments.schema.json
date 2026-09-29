@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/environments.json",
+  "title": "Tastile environments",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "as_of", "isolation_rules", "environments"],
+  "properties": {
+    "schema": { "const": "tastile.architecture/environments@1" },
+    "as_of": { "$ref": "common.json#/$defs/asOf" },
+    "isolation_rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "rule"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^iso\\." },
+          "rule": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    },
+    "environments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "purpose", "data", "database", "secrets", "hostnames", "lifecycle"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^env\\." },
+          "name": { "enum": ["local", "ci", "staging", "production", "preview"] },
+          "purpose": { "$ref": "common.json#/$defs/text" },
+          "data": { "$ref": "common.json#/$defs/text" },
+          "database": { "$ref": "common.json#/$defs/text" },
+          "secrets": { "$ref": "common.json#/$defs/text" },
+          "hostnames": {
+            "type": "object",
+            "additionalProperties": { "type": "string", "pattern": "^https?://[a-z0-9.:-]+$" }
+          },
+          "scale": { "$ref": "common.json#/$defs/text" },
+          "lifecycle": { "$ref": "common.json#/$defs/lifecycle" },
+          "retire_by": { "$ref": "common.json#/$defs/ref" },
+          "current": { "$ref": "common.json#/$defs/currentDeviation" },
+          "notes": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    }
+  }
+}

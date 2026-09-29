@@ -31,7 +31,7 @@ Step 6: verify gate
 Step 7: commit
   - RED test は test-only commit (prefix: test:)
   - GREEN impl は別 commit (prefix: feat: / chore:)
-  - agent-initiated commit は .agents/skills/verify-tastile-change (PR 直前 binding verification) 経由 — `.agents/skills/tastile-precommit-review` は 2026-09-29 廃止 (ADR-0012)
+  - agent-initiated commit は .agents/skills/verify-tastile-change (PR 直前 binding verification) 経由 — `.agents/skills/tastile-precommit-review` は 2026-09-29 廃止 (ADR-0021)
 ```
 
 RED → GREEN → REFACTOR を 1 commit にまとめない。
@@ -458,7 +458,7 @@ test 命名規約: `<method>_<scenario>_<expected>` (例: `recordTaskRun_409_ret
 - [ ] Conflict (409) 時に brief 表示 + 自動 reconcile が起きる
 - [ ] web は本 PR では触らないが、`bun run check:release` で openapi drift 0
 - [ ] workspace check: `pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile fast` が exit 0
-- [ ] agent-initiated commit は `.agents/skills/verify-tastile-change` を PR 直前に通過 (TDD §0 Step 7) — 旧 `.agents/skills/tastile-precommit-review` は 2026-09-29 廃止 (ADR-0012)
+- [ ] agent-initiated commit は `.agents/skills/verify-tastile-change` を PR 直前に通過 (TDD §0 Step 7) — 旧 `.agents/skills/tastile-precommit-review` は 2026-09-29 廃止 (ADR-0021)
 - [ ] `verify-tastile-change` を PR 完了直前に実行し PASS 確認
 
 ## §11. Open questions (resolved)
@@ -503,4 +503,4 @@ test 命名規約: `<method>_<scenario>_<expected>` (例: `recordTaskRun_409_ret
 - TDD source: `superpowers:test-driven-development` + `superpowers:executing-plans`
 - vocabularies: mattpocock `codebase-design`, mattpocock `loop-me`, mattpocock `grilling` (Q&A discipline)
 - implementation: mattpocock `implement-spec` (task graph, frontier, subagent worktree)
-- gate: `.agents/skills/verify-tastile-change` + `.agents/skills/cross-repo-contract-check` (`tastile-precommit-review` は 2026-09-29 廃止、ADR-0012)
+- gate: `.agents/skills/verify-tastile-change` + `.agents/skills/cross-repo-contract-check` (`tastile-precommit-review` は 2026-09-29 廃止、ADR-0021)

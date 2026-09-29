@@ -132,5 +132,5 @@ package は各 child の lockfile を正本とし、`@latest` を許可しない
 - `.agents/skills/cross-repo-contract-check/`: 複数 child contract 変更時の検証。
 - `.agents/skills/verify-tastile-change/`: PASS / DONE / GREEN 宣言前の binding
   verification。本 ADR の D-1 はその前段。`tastile-precommit-review` /
-  `.agent-loop/` は 2026-09-29 に廃止済み (ADR-0012) で、本 Skill に統合。
+  `.agent-loop/` は 2026-09-29 に廃止済み (ADR-0021) で、本 Skill に統合。
 - `CODEX_ROLES.ja.md`: 本 ADR の D-3 が導入する canonical reference。

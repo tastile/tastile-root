@@ -1,0 +1,153 @@
+# Repository catalogue and ownership.
+# Canonical for: fd.repository-ownership.
+# `owns` lists fact domains (sot-registry.yaml). `local_path` is the conventional sibling checkout under the
+# workspace shell; it is never a build dependency of another repository.
+schema: tastile.architecture/repositories@1
+as_of: 2026-09-29
+
+repositories:
+  - id: repo.root
+    github: tastile/tastile-root
+    local_path: .
+    visibility: public
+    role: >-
+      workspace shell。system architecture SoT、cross-repo governance、agent tooling、workspace validation、
+      edge 設定の宣言、履歴 corpus を所有する。production artifact / build / runtime dependency にならない。
+    entrypoint: AGENTS.md
+    owns:
+      - fd.system-architecture
+      - fd.system-language
+      - fd.repository-ownership
+      - fd.sot-registry
+      - fd.environments
+      - fd.deployment-topology
+      - fd.trust-boundaries
+      - fd.data-lifecycle
+      - fd.slo
+      - fd.engineering-kpi
+      - fd.cost-budget
+      - fd.poc
+      - fd.system-risks
+      - fd.migration-roadmap
+      - fd.system-adr
+      - fd.dev-workflow
+      - fd.agent-tooling
+      - fd.history-corpus
+    versioning: none (tags `v0.1.N` are historical; architecture model carries `as_of`)
+    ci: GitHub Actions (public, free minutes) — Root quality gate
+    gate: bun run architecture:validate
+  - id: repo.core
+    github: tastile/tastile-core
+    local_path: tastile-core
+    visibility: private
+    role: >-
+      意味の正本 (product definition、domain language / spec / invariants、API contract の生成元、DB schema) と、
+      Core API / Worker / Migration job の実装・image build を所有する。
+    entrypoint: AGENTS.md
+    owns:
+      - fd.product-definition
+      - fd.product-kpi
+      - fd.domain-language
+      - fd.domain-spec
+      - fd.api-contract
+      - fd.db-schema
+      - fd.core-runtime-config
+      - fd.repo-adr
+      - fd.history-corpus
+    versioning: SemVer; single source `crates-v1/Cargo.toml [workspace.package].version`
+    artifact: OCI image `tastile-core` (api / worker / migrate entrypoints) — target; current は tar artifact + systemd
+    ci: target Cloud Build (private minutes 不使用, ADR-0020); current GitHub Actions (budget blocked since 2026-09-26)
+    gate: cargo fmt / clippy -D warnings / cargo test --workspace (real PostgreSQL)
+  - id: repo.web
+    github: tastile/tastile-web
+    local_path: tastile-web
+    visibility: public
+    role: Web application (site / dashboard / BFF / Better Auth / native connect / billing) の実装と image build。
+    entrypoint: AGENTS.md
+    owns:
+      - fd.web-implementation
+      - fd.auth-schema
+      - fd.web-runtime-config
+      - fd.repo-adr
+    versioning: SemVer; single source `package.json#version`
+    artifact: OCI image `tastile-web` (Next.js standalone)
+    ci: GitHub Actions (public)
+    gate: bun run check:release
+  - id: repo.android
+    github: tastile/tastile-android
+    local_path: tastile-android
+    visibility: public
+    role: Android thin client の実装・署名 build・Play 配布。
+    entrypoint: AGENTS.md
+    owns: [fd.android-implementation, fd.repo-adr]
+    versioning: SemVer `versionName`; `versionCode` is derived monotonically at release time (ADR-0020)
+    artifact: signed AAB → Google Play (internal → beta → production)
+    ci: GitHub Actions (public)
+    gate: ./gradlew verify (+ instrumented canary on emulator; real device evidence for release)
+  - id: repo.desktop
+    github: tastile/tastile-desktop
+    local_path: tastile-desktop
+    visibility: public
+    role: Windows thin client の実装・installer build・download channel publish。
+    entrypoint: AGENTS.md
+    owns: [fd.desktop-implementation, fd.download-channel, fd.repo-adr]
+    versioning: SemVer three-part (four-part assembly version is derived) (ADR-0020)
+    artifact: Inno Setup installer → R2 (download.tastile.app) + GitHub Release
+    ci: GitHub Actions (public, windows-latest)
+    gate: pwsh scripts/check.ps1
+  - id: repo.cli
+    github: tastile/tastile-cli
+    local_path: tastile-cli
+    visibility: public
+    role: 公式 CLI / TUI client。公開 API だけに依存する standalone Rust workspace。
+    entrypoint: AGENTS.md
+    owns: [fd.cli-implementation, fd.repo-adr]
+    versioning: SemVer; `Cargo.toml [workspace.package].version`
+    artifact: GitHub Release binaries (未整備, risk.cli-distribution)
+    ci: GitHub Actions (public; ubuntu / macos / windows)
+    gate: cargo fmt / clippy / test + openapi drift
+  - id: repo.openapi
+    github: tastile/tastile-openapi
+    local_path: null
+    visibility: public
+    role: >-
+      Core が生成した OpenAPI 3.1 の配布用 repository。手編集しない derived artifact。consumer は tag を pin する。
+    entrypoint: README.md
+    owns: [fd.api-contract-distribution]
+    versioning: tag = Core release version that generated it
+    ci: GitHub Actions (public) — lint (Redocly)
+    gate: redocly lint
+  - id: repo.brands
+    github: tastile/tastile-brands
+    local_path: null
+    visibility: public
+    role: logo・icon・brand guideline の正本。consumer は copy して使い、相対参照しない。
+    entrypoint: README.md
+    owns: [fd.brand-assets]
+    versioning: none
+    ci: GitHub Actions (public) — Verify
+    gate: bun run verify
+  - id: repo.ios
+    github: tastile/tastile-ios
+    local_path: null
+    visibility: private
+    role: 将来の iOS client placeholder (Initial commit のみ)。
+    entrypoint: null
+    owns: []
+    versioning: none
+  - id: repo.mac
+    github: tastile/tastile-mac
+    local_path: null
+    visibility: private
+    role: 将来の macOS client placeholder (Initial commit のみ)。
+    entrypoint: null
+    owns: []
+    versioning: none
+  - id: repo.blogs
+    github: tastile/tastile-blogs
+    local_path: null
+    visibility: private
+    role: blog content。product runtime 外。private minutes を消費する (risk.ci-budget)。
+    entrypoint: null
+    owns: [fd.blog-content]
+    versioning: none

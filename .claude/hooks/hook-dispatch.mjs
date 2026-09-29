@@ -3,24 +3,20 @@
 //
 // WHY THIS EXISTS
 // ---------------
-// Two Bash guards used to be registered as separate hooks, so every Bash tool
-// call paid for two process spawns even when neither was interested in the
-// command. Measured on this host: tastile-command-guard.ps1 ~540ms +
-// git-guard.mjs ~100ms = ~640ms of latency on *every* command, including
-// `ls`, `cat`, and `rg`. Over a long build session that is minutes of dead
-// time. (The third guard, the per-commit reviewer, was retired along with
-// `.agent-loop/`; see ADR-0012.)
+// Two Bash guards are routed through one dispatcher so routine commands avoid
+// unnecessary process spawns. The legacy per-commit reviewer was retired with
+// `.agent-loop/`; see ADR-0021.
 //
 // This dispatcher reads the PreToolUse event once and runs only the guards
-// whose subject matter actually appears in the command string. The guards
-// themselves are unmodified and keep their own full-string regex checks, so
-// routing here narrows *how often* a guard runs, never *what it decides*.
+// whose subject matter actually appears in the command string. Each selected
+// guard still checks the full command string, so routing narrows how often a
+// guard runs, never what it decides.
 //
 // SAFETY PROPERTIES
 // -----------------
 //  - Routing matches raw substrings/word-boundaries against the whole command
 //    string, not a prefix. `cd tastile-core && git commit -m x` still routes to
-//    the commit-review gate.
+//    the applicable policy guard.
 //  - git-guard.mjs is cheap and broadly protective, so it always runs.
 //  - Fail closed: if stdin is unparseable, or a guard cannot be spawned, every
 //    guard is run / the call is denied rather than silently allowed.
@@ -36,6 +32,12 @@ import { fileURLToPath } from "node:url";
 
 const HOOK_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(HOOK_DIR, "..", "..");
+const caller = process.argv[2];
+
+if (caller !== "claude" && caller !== "codex") {
+  process.stderr.write("hook-dispatch requires a claude or codex caller argument\n");
+  process.exit(2);
+}
 
 // `spawn` with shell:false does no PATHEXT resolution, so a bare "bun" or
 // "pwsh" is ENOENT on Windows. Resolve against PATH once, keeping shell:false
@@ -80,9 +82,10 @@ if (event && !command) process.exit(0);
 // uninteresting, so we do not get to skip anything.
 const unparseable = event === null;
 
-// The command-policy guard cares about package managers, cargo, and gradle,
-// plus root-level git add/commit.
-const POLICY = /(?:^|[^\w.-])(?:npm|npx|yarn|pnpm|cargo|gradlew(?:\.bat)?)\b|\bgit(?:\.exe)?\s+(?:add|commit)\b/i;
+// The command-policy guard cares about package managers, cargo, Gradle, and
+// root-level child-repository mutations. Route every git command because `-C`
+// and command chaining make action-only routing easy to bypass.
+const POLICY = /(?:^|[^\w.-])(?:npm|npx|yarn|pnpm|cargo|gradlew(?:\.bat)?|git(?:\.exe)?)\b/i;
 
 const GUARDS = [
   {
@@ -97,14 +100,11 @@ const GUARDS = [
   {
     name: "tastile-command-guard",
     when: () => unparseable || POLICY.test(command),
-    exec: "pwsh",
-    args: [
-      "-NoProfile",
-      "-File",
-      join(REPO_ROOT, ".claude", "hooks", "tastile-command-guard.ps1"),
-    ],
-    requires: join(REPO_ROOT, ".claude", "hooks", "tastile-command-guard.ps1"),
+    exec: "bun",
+    args: [join(REPO_ROOT, ".claude", "hooks", "tastile-command-guard.mjs")],
+    requires: join(REPO_ROOT, ".claude", "hooks", "tastile-command-guard.mjs"),
   },
+
 ];
 
 // The guards read cwd from the event payload themselves; the child's own cwd
@@ -115,6 +115,16 @@ const guardCwd =
 
 function runGuard(guard) {
   return new Promise((done) => {
+    if (!existsSync(guard.requires)) {
+      done({
+        guard,
+        code: 2,
+        out: "",
+        err: `${guard.name} required file is missing: ${guard.requires}`,
+      });
+      return;
+    }
+
     const child = spawn(resolveExecutable(guard.exec), guard.args, {
       cwd: guardCwd,
       stdio: ["pipe", "pipe", "pipe"],
@@ -134,11 +144,7 @@ function runGuard(guard) {
   });
 }
 
-const selected = GUARDS.filter((g) => {
-  // A guard whose script is missing is a broken install, not a pass.
-  if (!existsSync(g.requires)) return false;
-  return g.when();
-});
+const selected = GUARDS.filter((guard) => guard.when());
 
 const results = await Promise.all(selected.map(runGuard));
 
@@ -149,8 +155,12 @@ const results = await Promise.all(selected.map(runGuard));
 let exitCode = 0;
 for (const r of results) {
   if (r.out.trim()) process.stdout.write(r.out.endsWith("\n") ? r.out : `${r.out}\n`);
-  if (r.code === 2) {
-    if (r.err.trim()) process.stderr.write(r.err.endsWith("\n") ? r.err : `${r.err}\n`);
+  if (r.code !== 0) {
+    const error = r.err.trim() || `${r.guard.name} failed with exit ${r.code}`;
+    process.stderr.write(error.endsWith("\n") ? error : `${error}\n`);
+    if (!error.includes(`exit ${r.code}`)) {
+      process.stderr.write(`${r.guard.name} failed with exit ${r.code}\n`);
+    }
     exitCode = 2;
   }
 }

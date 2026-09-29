@@ -1,171 +1,170 @@
-# ADR-0011: `tastile-precommit-review` canonical Skill の配置 precedence
+# ADR-0011: 同一名 Agent Skill の canonical precedence と `.claude/skills/` thin adapter rule
 
-- 日付: 2026-09-12
-- 状態: Superseded by [ADR-0012](./0012-deprecate-tastile-precommit-review.md) (2026-09-29)
-- 対象: Tastile root workspace + 全 child repository の `tastile-precommit-review` / thin-adapter 解決
-- 先行 ADR: [ADR-0005](./0005-skills-and-mcp-extensions.md) (Skills catalog), [ADR-0007](./0007-ticket-driven-isolated-agent-delivery.md) (pre-commit reviewer の発火位置)
-- 後続 ADR: なし (本 ADR は [ADR-0012](./0012-deprecate-tastile-precommit-review.md) で Superseded)
-- canonical policy: [agent orchestration policy](../agent-orchestration.md) §3 (Skill routing)
+- 日付: 2026-09-20
+- 状態: Superseded by [ADR-0021](./0021-deprecate-tastile-precommit-review.md) (2026-09-29)
+- 対象: Tastile root workspace および全 child repository の Agent Skill 配置 (`.agents/skills/`, `.claude/skills/`, `.codex/skills/`) と、同一 `name` を持つ Skill 間の precedence 解決
+- 先行 ADR: [ADR-0001](./0001-agent-toolchain.md) (関連, root agent 構成), [ADR-0005](./0005-skills-and-mcp-extensions.md) (関連, Skills catalog 境界)
+- 後続 ADR: [ADR-0021](./0021-deprecate-tastile-precommit-review.md) (本 ADR を Supersede)
+- canonical policy: [agent orchestration policy](../agent-orchestration.md) §1, §5
 
 ## Context
 
-2026-09-12 時点で `tastile-precommit-review` という同名の Skill が 2 箇所に canonical
-本文として存在する。
+2026-08 〜 2026-09 の運用で、Agent Skill 配置に関する次の gap が顕在化した。
 
-1. workspace root: `.agents/skills/tastile-precommit-review/SKILL.md`
-   — root workspace + 5 child repositories + 共有 `.agent-loop/`、`.claude/`、
-   `.codex/` の構造を review する。証跡は `pwsh -NoProfile -File .agent-loop/gate-root.ps1`
-   の出力。
-2. `tastile-web`: `tastile-web/.agents/skills/tastile-precommit-review/SKILL.md`
-   — web 固有 security boundary (Cognito, cookies, server-only secrets, Stripe,
-   proxy, production env isolation) を review する。証跡は `bun run check` + focused
-   tests on auth / billing / event / deploy 変更。
+1. **canonical location が ADR で pin されていない**: ADR-0005 は Skills catalog
+   と Codex role canonical を導入したが、Skill file 自体は全て `.agents/skills/<name>/SKILL.md`
+   だけを扱い、Claude Code が読む `.claude/skills/<name>/SKILL.md` の位置づけを pin
+   していない。`tastile-web/CLAUDE.md` および `tastile-web/AGENTS.md` は
+   `[ADR-0011]` を back-reference しているが、`docs/adr/0011-*.md` が存在せず、
+   broken pointer 状態が続いていた。
+2. **`.claude/skills/` adapter の形状が統一されていない**: 2026-09 時点で
+   `.claude/skills/` 配下の 8 Skill のうち 7 は thin adapter (canonical への pointer)
+   だが、`react-doctor` のみ canonical と byte-for-byte 同形で重複している。Skill の
+   正本性が失われ、canonical 側を編集しても adapter が追従しない事故が起きうる。
+3. **同名 Skill が web と workspace の両方に存在する場合の precedence rule が未定義**:
+   `.agents/skills/tastile-precommit-review/SKILL.md` は workspace 側にあり、
+   `tastile-web/.agents/skills/tastile-precommit-review/SKILL.md` も同名で存在する。
+   同一 agent 起動時にどちらが binding かが Skill 記述内で個別の "precedence" 注記
+   (`.claude/skills/tastile-precommit-review/SKILL.md` の `## precedence (per recon
+   audit 2026-09-12)`) で暫定的に運用されている。ADR 化されていないため、fresh agent
+   や別 contributor が同じ衝突を再生成しうる。
+4. **`tastile-web/AGENTS.md:18` の ADR 件数記述**: 「`../docs/adr/` 配下 11 件
+   (Accepted)」と書かれているが、カタログは `0001` … `0010` の 10 件で 1 件不足して
+   いた。本 ADR 採択で記述と実態が一致する。
 
-両者は scope が直交しており、reconcile するときの canonical が曖昧である。さらに
-`.claude/skills/tastile-precommit-review/SKILL.md` という thin-adapter も 2 箇所
-(`.claude/skills/`, `tastile-web/.claude/skills/`) に存在する。Claude Code は起動時に同名 Skill を発見すると発火経路が不定となる。
-
-なお、Codex / Cursor / 他の AI agent harness は `.claude/skills/` を読まない可能性が
-高いため、`.agents/skills/` が真の canonical 本文である (canonical は thin-adapter
-側ではなく `.agents/skills/` 側に置く)。`.claude/skills/` は Claude Code 専用の
-binding 解決器としてのみ機能する。
+これらを解決するため、Skill 配備と precedence を ADR で pin する。
 
 ## Decision
 
-### D-1. canonical Skill 本文は常に `.agents/skills/` に置く
+### D-1. canonical Skill location の固定
 
-`.agents/skills/<name>/SKILL.md` が canonical であり、`reasoning_effort = binding` で
-再読込される。`.claude/skills/<name>/SKILL.md` は canonical を 1 行で指す thin
-adapter であり、手順の複製を禁止する。
+- **canonical location は `.agents/skills/<name>/SKILL.md` のみ**とする。`.codex/skills/`
+  を含む他ディレクトリ配下に同名 Skill を canonical として複製しない。`.codex/`
+  配下は Codex 固有の role / agent 設定 (`.codex/agents/*.toml`) の置き場であり、
+  Skill 本体はここに置かない。
+- **frontmatter `name:` はリポジトリ内で一意**とする。同一 `name` を 2 か所以上の
+  canonical に置く場合は D-2 の precedence rule に従う。
+- Skill 本文 (binding workflow) は必ず canonical に書き、adapter 側には書き写さない
+  (canonical 編集時に adapter 追従漏れが発生するのを防ぐ)。
 
-### D-2. 同名 Skill が複数 canonical に存在する場合の precedence rule (仕様)
+### D-2. `.claude/skills/` は thin adapter のみ
 
-`.agents/skills/<name>/SKILL.md` が複数箇所 (workspace root + 1 個以上の child
-repository) に存在する場合、以下の順で precedence を決定する。本 rule は仕様であり、
-実装は D-3 の節で個別 scope ごとに明示する。
+- Claude Code は `.claude/skills/<name>/SKILL.md` を `.agents/skills/<name>/SKILL.md`
+  より優先して読む。`.claude/skills/` 配下には **必ず thin adapter** を置く。
+- thin adapter の必須要件:
+  1. canonical への pointer を本文に明示する (`canonical source: .agents/skills/<name>/SKILL.md` 等)。
+  2. canonical の本文 (workflow / 判定基準 / コマンド) を **複製しない**。
+  3. Claude Code 固有の framing (description メタデータ、起動 routing、cwd-based
+     precedence 注記など) が必要なら、adapter 側に **明示的に区切ったセクション**
+     で追加する。`## precedence` / `## web-specific additions` 等の見出しで
+     canonical 内容と視覚的に分離する。
+- canonical と `.claude/skills/` adapter が乖離した場合、adapter を canonical 側へ
+ 寄せて修復する (canonical が正本)。
 
-1. **child repository 配下の発火** (cwd が `tastile-{core,web,android,desktop,brands}/`
-   配下、または `git rev-parse --show-toplevel` が child repo を指す場合):
-   `<child>/.agents/skills/<name>/SKILL.md` を primary canonical、
-   workspace root `.agents/skills/<name>/SKILL.md` を補助参照 (read-only) とする。
-2. **workspace root からの発火** (cwd が root 配下、または `git rev-parse --show-toplevel`
-   が root を指す場合):
-   root canonical を primary、child canonical は補助参照としない (scope 外のため)。
-3. **sibling child repository への cross-repo 編集** (例: root から `tastile-android`
-   を編集する subagent を spawn する場合):
-   spawn 時に cwd を child repo に切り替えてから Skill を発火する。primary canonical は
-   child 側となる。
+### D-3. 同一 `name` Skill が複数 canonical に存在する場合の precedence
 
-### D-3. `tastile-precommit-review` への適用 (実装状態 2026-09-12)
+- 同一 `name` の Skill が `.agents/skills/` 配下の **異なる child repository** に
+  存在しうる (例: `tastile-precommit-review` は workspace 側
+  `../.agents/skills/tastile-precommit-review/SKILL.md` と web 側
+  `tastile-web/.agents/skills/tastile-precommit-review/SKILL.md` の両方に存在)。
+- precedence rule:
+  1. 起動 agent の **cwd** が `tastile-web/` 配下にあるとき、web 側 canonical
+     (`tastile-web/.agents/skills/<name>/SKILL.md`) を binding とする。
+  2. cwd が root workspace または `tastile-core/` / `tastile-desktop/` /
+     `tastile-android/` / `tastile-brands/` 配下のときは、workspace 側 canonical
+     (`../.agents/skills/<name>/SKILL.md`) を binding とする。
+  3. orchestration layer (`.agents/skills/subagent-coordination/SKILL.md`) が同名を
+     発見した場合、cwd-based rule を優先ルートとし、他方を補助参照として扱う。
+- 同一 `name` が **同一 child repository 内** で重複して存在してはならない
+  (`.agents/skills/<name>/SKILL.md` と `.claude/skills/<name>/SKILL.md` のペアは
+  D-2 の adapter / canonical 関係のみ許可)。
 
-precedence rule をこの Skill に適用した結果と、各 scope の現状:
+### D-4. Skill 配置と precedence の repair pattern
 
-| scope | primary canonical | 補助参照 | 実装状態 |
-| --- | --- | --- | --- |
-| `tastile-web` 配下から発火 | `tastile-web/.agents/skills/tastile-precommit-review/SKILL.md` (web-specific overlay: Cognito / cookies / server-only secrets / Stripe / proxy / env) | workspace root canonical (read-only) | **pre-commit dispatcher で実装済み**: `.agent-loop/Invoke-PreCommitReview.ps1` が system `git rev-parse --show-toplevel` と `.agent-loop/repositories.json` で `web` を解決し、catalog の `skill` から web canonical を読む。web thin-adapter は scope と canonical path を記述する static adapter で、git 解決自体は行わない |
-| workspace root / sibling child から発火 | `.agents/skills/tastile-precommit-review/SKILL.md` (generic: gate-root.ps1 + sibling layout) | 補助参照なし (scope 外) | **pre-commit dispatcher で実装済み**: root commit は同 dispatcher が `root` catalog entry を解決し root canonical を読む。root thin-adapter (`.claude/skills/tastile-precommit-review/SKILL.md`) は static pointer |
-| sibling child へ cross-repo 編集時 | child canonical | workspace canonical は補助参照 | **commit 経路は実装済み / orchestration は運用契約**: commit 対象が child repo なら dispatcher は child canonical を選択する。subagent spawn 時に対象 repo/cwd を正しく設定する責務は orchestration layer に残り、pre-commit 外の汎用 Skill discovery resolver は提供しない |
-
-**現状の制約**: `tastile-web` 以外 (`tastile-core`, `tastile-android`, `tastile-desktop`,
-`tastile-brands`) には web 相当の同名 Skill 衝突が存在しない。当該 4 child に将来同
-precedence rule を要する同名 Skill が追加された場合は、D-3 の web 行と同型の thin-adapter
-追加が要求される。
-
-### D-4. future 同名 Skill 追加時の制約
-
-- 同名 Skill を 2 個以上の canonical に置く場合、本 ADR の precedence rule (D-2) に従う。
-- child 専用 canonical には frontmatter description に
-  `Use only when scope is <child-repo>.` を必ず含める。orchestration layer が
-  scope 外発火を検出した場合は警告して親へ escalate する。
-- workspace 共通 canonical は child 横断の contract (cross-repo, multi-repo) を扱う
-  用途に限定する。child 固有の business / security boundary は必ず child 側 canonical
-  に置く (D-3 の `tastile-precommit-review` と同型)。
+- 既存 Skill のうち、`.claude/skills/<name>/SKILL.md` が canonical と乖離している
+  場合は次の順で修復する:
+  1. canonical 側 (`./agents/skills/<name>/SKILL.md`) を正本として確定する。
+  2. adapter 側を thin pointer 形に置換する。web 固有追加は `## web-specific
+     additions` 等の限定セクションに移す。
+  3. 検証として `diff <canonical> <adapter>` が non-empty (delegate のみ) になる
+     ことを確認する。
+- 同一 `name` の canonical が複数 child に跨る場合、各 adapter / dispatch doc に
+  precedence rule (D-3) を **必ず** 明示する。description メタデータで precedence
+  を暗示しない (機械可読性が低下する)。
 
 ## 選定評価
 
 | 候補 | 判断 | 理由 |
 | --- | --- | --- |
-| cwd-based precedence (本 ADR) | 採用 | AI agent の起動位置は executor の責務分離 (root vs child) と 1:1 対応。rule が単純で監査可能性が高い |
-| priority field in frontmatter | 不採用 | 同一 file 内に scope と priority を併記すると dual-canonical 状態が残る。precedence を 1 箇所 (本 ADR / 将来の resolver 実装) に集約する方が事故が減る |
-| workspace canonical に統合 | 不採用 | web の Cognito / Stripe / proxy boundary は root の generic 範囲外。統合すると root canonical が巨大化し、child 固有 contract の update が root 編集を要求する |
-| web canonical に統合 | 不採用 | workspace root + 4 つの他 child の contract 検証 (gate-root.ps1 + sibling layout) は web 責務外。逆向きに統合不可 |
-| workspace-wide 名前空間 (例: `tastile-web/precommit-review`) | 保留 | Skill 名衝突を構造で解決する案だが、現状 1 件の同名 Skill のみ。rule を導入する複雑さに対して便益が小さい |
+| D-1 + D-2 + D-3 を本 ADR で一括 pin | 採用 | gap 1〜3 を単一の決定で閉じ、broken pointer も同時解消。canonical 配置・adapter 形状・precedence の 3 観点を 1 ADR に閉じると freshness 検証と reviewer 負荷が小さい |
+| `.claude/skills/` を廃止し canonical のみ参照 | 不採用 | Codex / Claude Code / Cursor 等の harness ごとに Skill 探索 path が異なるため、Claude Code 専用 adapter は引き続き必要。ADR-0005 §「Skills と MCP 拡張」の境界も維持される |
+| Skill 探索に動的 resolver を入れる | 不採用 | host / harness ごとに探索 path が固定されており、外部 resolver を入れると harness 更新追従コストが増える。cwd-based precedence (D-3) で十分 |
+| `.codex/skills/` を canonical として許可 | 不採用 | Codex 側 skill は role 設定 (`.codex/agents/*.toml`) と一体化しており、独立 canonical は役割重複。Codex 拡張が必要なら ADR-0005 §「Codex role」経路で別途扱う |
+| Skill を完全廃止して docs/ 配下の prose に置換 | 不採用 | Skill メタデータ (`description`, `metadata`) による trigger 制御と lazy load が失われる。fresh agent の trigger 精度も低下 |
 
 ## Security、license、再現性
 
-- production の precedence 解決は対象 cwd / repository hint と system `git rev-parse --show-toplevel`
-  を `.agent-loop/repositories.json` と照合して行い、外部 API に依存しない。明示的な
-  `-TestMode` ではテスト用に `AGENT_LOOP_GIT_COMMAND` で `git` を差し替えられるが、
-  production (`-TestMode` なし) では同環境変数を拒否する。
-- thin-adapter (`.claude/skills/tastile-precommit-review/SKILL.md`,
-  `tastile-web/.claude/skills/tastile-precommit-review/SKILL.md`)
-  の本文は primary canonical の path を返すだけで、手順 / check list / 証跡を複製
-  しない (canonical 編集時に drift しない)。
-- pre-commit 経路で precedence rule を実行するのは `.agent-loop/Invoke-PreCommitReview.ps1`
-  の `git rev-parse --show-toplevel` 判定である。`.agent-loop/repositories.json` の catalog
-  と照合して repository を解決し、その entry の `skill` を読む。web / root の
-  thin-adapter は canonical path と scope を記述する static adapter であり、adapter
-  自身が git resolution を実行するわけではない (D-3 参照)。
-- `.agent-loop/Invoke-PreCommitReview.ps1` の child repo 起動時に root canonical が
-  誤適用されないことは、`repositories.json` catalog match + `--show-toplevel` 解
-  決によって構造的に保証される。
+- thin adapter には secret、machine-specific path、private reasoning を含めない
+  (ADR-0008 D-2 checkpoint と同じ secret / path 排除規則を適用する)。
+- adapter の frontmatter は YAML 1.2 互換 (multi-line description は折り畳み可)。
+  Harness による YAML 差 parse を避けるため、複雑な構造体は本文側に置く。
+- Skill 自体の配置規則は repository 配下の file 配置のみに依存し、network /
+  binary / container 等の外部依存を要求しない。fresh clone + Bun + ripgrep で
+  検証可能。
 
 ## Consequences and re-evaluation
 
 ### 直接的な影響
 
-- Codex / Claude Code / Cursor いずれの harness でも、`tastile-precommit-review`
-  Skill が発火した時点でどの canonical が適用されるべきかを本 ADR (D-3 表) で照合できる。
-  agent-initiated commit の binding 経路では `.agent-loop/Invoke-PreCommitReview.ps1` が
-  repository を解決し primary canonical を選択する。thin-adapter はその scope / path
-  を記述するだけで resolver を複製しない。
-- `tastile-web` の Cognito / Stripe 周辺の security boundary review が web canonical
-  に局所化され、root canonical の編集責任が軽くなる。
-- workspace root 側で web-specific check (Cognito, Stripe) を要求する場面は無くなる。
-  必要なら root → web へ escalation する。
+- `tastile-web/AGENTS.md:18` の「11 件」記述が本 ADR 採択で実態と一致する。
+- `tastile-web/AGENTS.md:34` と `tastile-web/CLAUDE.md:21, 25, 32, 96` の
+  `[ADR-0011]` pointer が有効になる (CLAUDE.md の path 表現
+  `../adr/0011-…` は別途 `../docs/adr/0011-…` へ repair する)。
+- `.claude/skills/<name>/SKILL.md` のうち canonical と重複している adapter
+  (2026-09 時点で `react-doctor`) は thin pointer 形に置換される。canonical 側を
+  編集したときに追従漏れが起きなくなる。
+- 同一 `name` Skill の precedence が cwd-based rule で pin され、orchestration
+  layer (`.agents/skills/subagent-coordination/SKILL.md`) と reviewer はこの rule
+  だけを信頼すればよくなる。
 
 ### トレードオフ
 
-- agent-initiated commit では `.agent-loop/Invoke-PreCommitReview.ps1` が cwd / repository hint
-  と `git rev-parse --show-toplevel` を検査するため、executor 側で同じ resolver を
-  二重実装する必要はない。一方、pre-commit dispatcher を通らない直接の Skill 発火では
-  generic resolver を提供していないため、orchestration layer が対象 repository/cwd を
-  正しく設定する責務を持つ。
-- 今後 child repo が増えるたびに同名 Skill の canonical 配置判断が必要になる。
-  判断コストは D-4 の制約 (frontmatter description に child scope を明記する) で抑えている。
-- root thin-adapter が static pointer のままだと、workspace root で同 Skill が発火し
-  た場合に暗黙的に root canonical に落ちる。これは仕様 (D-3 表の root 行) と一致
-  しているので問題は無いが、誤って web で発火した場合は web canonical が読まれない。
-  これは web 側で `cwd` を強制する運用で担保する。
+- canonical 編集時に `.claude/skills/<name>/SKILL.md` の **構造** (frontmatter) を
+  いじると D-2 に抵触するため、adapter 形状の変更は別 commit / 別 ticket に分離
+  する運用が前提となる。contributor の commit 粒度が細かくなる。
+- cwd-based precedence (D-3) は host の `cwd` を信頼するため、agent が別 cwd で
+  起動された場合に precedence が反転する。orchestration layer が cwd を明示するか、
+  harness 設定で cwd を固定する運用が必要 (ADR-0008 D-5 recovery algorithm step 1
+  と組み合わせる)。
+- `.claude/skills/` が canonical と乖離していないかを定期検証する仕組みがない
+  (現状は contributor の code review 依存)。weekly cron
+  (`.github/workflows/recovery-drill.yml`) に `diff` 検証 step を追加するかは
+  別 ADR で判断する。
 
 ### 再評価 trigger
 
-- 1 sprint 完了後に thin-adapter が返す primary canonical path と、実際に review で
-  走った check list が一致しているか spot check する (5 commit / 1 sprint 単位)。
-- 別の同名 Skill で precedence rule が破綻した場合 (例: `cross-repo-contract-check`
-  を child 側に置きたいという要求が出た場合) は本 ADR を revise する。
-- root thin-adapter の static-ness が誤適用を生む事案が記録された場合、root 側に
-  web と同型の resolver encode を入れるか、`Invoke-PreCommitReview.ps1` 経由で強制
-  dispatch するかを別 ADR で決定する。
-- Codex harness が `.claude/skills/` を 1 度も読まないことが確認できた場合、
-  thin-adapter を `.agents/skills/` 内の routing メタデータに統合する可能性を検討
-  する (canonical 数 = 11 → 11 維持)。
+- Claude Code / Cursor / Codex の Skill 探索 path 仕様が変更され、本 ADR の
+  `.claude/skills/` 優先 rule が obsolete になったとき。
+- `.codex/skills/` を独立 canonical として許可する要件が Codex 拡張で顕在化した
+  とき (D-3 の scope を拡張する形で supersede)。
+- 同一 child repository 内で同名 Skill が 3 つ以上出現する要件が生じたとき
+  (canonical 配置の再設計が必要な兆候)。
 
 ### 関連 ADR / 関連 Skill
 
-- [ADR-0005](./0005-skills-and-mcp-extensions.md): Skills と Codex role canonical
-  reference。本 ADR は同名 Skill 衝突時の precedence を導入する。
-- [ADR-0007](./0007-ticket-driven-isolated-agent-delivery.md): pre-commit reviewer の
-  発火位置と branch pattern check。本 ADR はその reviewer の中身 (canonical 本文)
-  の precedence を扱う。
-- `tastile-web/.agents/skills/tastile-precommit-review/SKILL.md`:
-  web-specific overlay (Cognito, cookies, server-only secrets, Stripe, proxy, env)。
-- `.agents/skills/tastile-precommit-review/SKILL.md`:
-  workspace root 共通 (gate-root.ps1 + sibling layout)。
-- `.agent-loop/Invoke-PreCommitReview.ps1`: 既存実装で
-  precedence rule を実行する唯一の dispatcher。`git rev-parse --show-toplevel`
-  + `repositories.json` catalog match で child repo を解決する。
-- `.agents/skills/cross-repo-contract-check/SKILL.md`:
-  workspace 共通 canonical。本 ADR 採択により、薄い thin-adapter
-  (`.claude/skills/cross-repo-contract-check/SKILL.md`)
-  が安定する。
+- [ADR-0001](./0001-agent-toolchain.md): root agent 構成 (Bun / ripgrep /
+  Biome / Knip / Vitest 等)。本 ADR の canonical location (`.agents/skills/`) は
+  ADR-0001 と整合する。
+- [ADR-0005](./0005-skills-and-mcp-extensions.md): Skills catalog 境界。本 ADR は
+  ADR-0005 が不問だった `.claude/skills/` 形状を補完する。
+- [ADR-0008](./0008-structured-recovery-checkpoint.md): recovery 時に cwd-based
+  precedence (D-3) を判断材料に含める。`active_children` の role 解決にも適用。
+- `.agents/skills/subagent-coordination/SKILL.md`: orchestration layer として
+  D-3 を発火条件付きで参照する first-party Skill。
+- `.agents/skills/tastile-precommit-review/SKILL.md` (workspace 側) /
+  `tastile-web/.agents/skills/tastile-precommit-review/SKILL.md` (web 側):
+  D-3 の precedence rule 適用対象ペア。両 adapter (`.claude/skills/...`) は
+  D-3 を必須記載する。
+- `.agents/skills/plugin-version-audit/SKILL.md`: Skill 自体の pinned 依存
+  (MCP / Bun / Node 等) を監査する。本 ADR は配置規則のみを扱い、依存
+  freshness は plugin-version-audit の管轄。

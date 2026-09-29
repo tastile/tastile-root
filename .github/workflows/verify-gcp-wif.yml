@@ -1,0 +1,68 @@
+name: Verify GCP WIF isolation
+
+on:
+  workflow_dispatch:
+    inputs:
+      workload_identity_provider:
+        description: Full GCP WIF provider resource name from tofu output github_wif.dev-root-poc
+        required: true
+        type: string
+      service_account:
+        description: gha-root-poc service-account email from tofu output
+        required: true
+        type: string
+      project_id:
+        description: GCP dev project id
+        required: true
+        default: tastile-dev
+        type: string
+      secret_name:
+        description: Android-only probe secret
+        required: true
+        default: poc-wif-probe
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  cross-repo-secret-deny:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Authenticate through root-scoped WIF
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          project_id: ${{ inputs.project_id }}
+          workload_identity_provider: ${{ inputs.workload_identity_provider }}
+          service_account: ${{ inputs.service_account }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+
+      - name: Probe Android-only secret (must be denied)
+        id: secret_probe
+        continue-on-error: true
+        env:
+          PROJECT_ID: ${{ inputs.project_id }}
+          SECRET_NAME: ${{ inputs.secret_name }}
+        run: |
+          set -euo pipefail
+          gcloud secrets versions access latest \
+            --project="$PROJECT_ID" \
+            --secret="$SECRET_NAME" \
+            >/dev/null 2>&1
+
+      - name: Assert cross-repository denial
+        if: steps.secret_probe.outcome != 'failure'
+        run: |
+          echo "::error::root PoC identity unexpectedly read the Android-only probe secret"
+          exit 1
+
+      - name: Record successful isolation proof
+        if: steps.secret_probe.outcome == 'failure'
+        run: |
+          echo "PASS: WIF authentication succeeded and cross-repository Secret Manager read was denied."

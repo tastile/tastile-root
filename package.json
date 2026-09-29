@@ -1,1 +1,15 @@
-{"dependencies": {}}
+{
+  "name": "tastile-root",
+  "private": true,
+  "scripts": {
+    "architecture:validate": "bun scripts/architecture/validate.ts",
+    "architecture:generate": "bun scripts/architecture/generate.ts",
+    "architecture:render": "bun scripts/architecture/render.ts",
+    "architecture:audit": "bun scripts/architecture/validate.ts --cross-repo"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "ajv": "8.20.0",
+    "yaml": "^2.9.1"
+  }
+}
