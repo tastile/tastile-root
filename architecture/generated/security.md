@@ -27,6 +27,7 @@
 | `cred.github-oidc-wif` | GitHub OIDC → GCP Workload Identity Federation | GitHub Actions deploy / publish jobs | Google IAM (attribute condition = repository + ref + workflow) | GCP control plane 用の短命 workload identity。secret delivery には使わず、long-lived GCP key を作らない。 | planned |
 | `cred.github-infisical-oidc` | GitHub OIDC → Infisical machine identity | GitHub Actions jobs that require Tastile-managed secrets | Infisical OIDC auth (repository / environment / workflow claims) | static Infisical token / GitHub Secret なし。Infisical identity ID / project ID は non-secret pointer。 | retained |
 | `cred.gcp-infisical-auth` | GCP workload → Infisical machine identity | Cloud Run services / jobs | Infisical GCP-native auth | GCP service account の短命 identity token を使う。INFISICAL_TOKEN / service-account JSON key を持たない。 | planned |
+| `cred.github-ci-app` | Tastile private-CI GitHub App | sa-ci-dispatcher (private key is fetched from Infisical at runtime) | GitHub App authentication | private key の canonical value は Infisical のみ。App ID / installation ID は non-secret。installation token は短命で永続化しない。 | planned |
 | `cred.db-core-runtime` | DB role tastile_app | sa-core-api, sa-core-worker | PostgreSQL | domain-db の DML のみ。DDL / role 作成権限なし。credential value は Infisical。 | planned |
 | `cred.db-core-migrate` | DB role tastile_migrator | sa-core-migrate | PostgreSQL | domain-db schema owner。migrate job だけが使う。credential value は Infisical。 | planned |
 | `cred.db-auth-runtime` | DB role tastile_auth | sa-web | PostgreSQL | tastile_auth database のみ。domain-db への CONNECT 権限なし。credential value は Infisical。 | retained |
@@ -57,7 +58,7 @@
 | --- | --- |
 | `sec.single-editable-store` | Tastile-managed secret / long-lived authentication material の編集可能な store は Infisical だけ。platform binding は deploy 時の一方向 replica。 |
 | `sec.workload-auth` | GitHub は OIDC、GCP runtime は GCP-native workload identity で Infisical machine identityへ入る。INFISICAL_TOKEN / service token / GCP SA key を置かない。 |
-| `sec.provider-managed-exception` | Cloud Build GitHub connection 等 provider が内部生成・所有する credential は provider store に存在してよいが、Tastile はその値を編集・複製せず application secret として扱わない。 |
+| `sec.auth-material-closure` | development / build / CI / deploy / runtime の長期認証 material は Infisical 以外へ置かない。provider-managed static credential を要求する integration は採用せず、workload identity + Infisical-backed credentialへ置換する。 |
 | `sec.no-long-lived-provider-keys` | GCP service-account key、AWS access key、GitHub保存の deploy token を作らない。外部 SaaS が API key しか持たない場合、その値は Infisical に置く。 |
 | `sec.fail-closed` | 必須 secret / config が取得できない場合は起動・build・deploy を失敗させる。dotenv や既定値へ fallback しない。 |
 | `sec.no-secret-in-repo` | secret 実値・ciphertext・dotenv を repository / GitHub Secrets / GCP Secret Manager の Tastile-managed entry に置かない。non-secret identity/project pointerだけrepositoryからdiscoverableにする。 |
@@ -74,5 +75,5 @@
 | `ctl.no-client-db` | client (browser / native / CLI) は DB に接続しない。Web server の DB 接続は auth-db に限る。 |
 | `ctl.webhook-signature` | 外部 webhook は署名検証なしに処理しない。 |
 | `ctl.rate-limit` | auth と write endpoint は edge (WAF rate limit) と app (Core rate limit) の二段で制限する。 |
-| `ctl.pr-ci-least-privilege` | PR-triggered Cloud Build は sa-cloud-build-ci を使い、cloudbuild.builds.create + Logging Writer のみ。Artifact Registry write、Secret Manager、deploy 権限を持たない。 |
+| `ctl.pr-ci-least-privilege` | private PR CIのGitHub credentialはtrusted sa-ci-dispatcherだけがInfisicalから取得し、PR buildには渡さない。sa-cloud-build-ciはLogging Writer + source readのみでArtifact Registry / Infisical / deploy権限を持たない。 |
 | `ctl.prod-mutation-authority` | production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。 |
