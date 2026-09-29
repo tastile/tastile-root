@@ -42,13 +42,13 @@ lifecycle・environment・deployment・SLO / KPI / cost・PoC・risk・roadmap) 
   作らない。検索は `rg` / `rg --files` を優先する。
 - business logic は `tastile-core` が所有し、client は thin client とする。v1 の語彙と
   schema を正本とし、互換 shim を独断で追加しない。
-- secret 実値の編集可能な store は environment ごとに 1 つだけ。target は GCP Secret Manager
-  (ADR-0015)、AWS 上の current runtime は cutover (`ms.m8-decommission`) まで Infisical (ADR-0012)。
+- secret 実値の編集可能な store は environment ごとに 1 つだけ。current / target とも Infisical
+  (ADR-0012、ADR-0015)。GCP runtime は workload identity で Infisical から取得する。
   `.env*`、`local.properties`、GitHub Secrets、AWS Parameter Store / Secrets Manager に独立 copy や
   fallback を作らず、必須値が無ければ fail closed。dotenv file が必要なツールに限り、認証後に一時生成し
   Git ignore・ユーザー限定権限にした上で利用後に削除する。子 repository の `.env.example` は key name だけを
-  空値で記載する schema-only file に限り許可し、runtime や fallback では使わない。Infisical への新規統合作業は
-  行わない。一時物は root の `.tmp/`、外部参照 clone は `.reference/` に置き、どちらも dependency にしない。
+  空値で記載する schema-only file に限り許可し、runtime や fallback では使わない。一時物は root の
+  `.tmp/`、外部参照 clone は `.reference/` に置き、どちらも dependency にしない。
 - infra・environment・credential の変更は `architecture/model/` を先に変更し、`bun run architecture:validate`
   を通す。production mutation・課金・公開判断は operator の authority (security.yaml `ctl.prod-mutation-authority`)。
 - 権限と利用可能な機能が許す場合、独立した作業だけを明示的な file ownership で
@@ -80,7 +80,6 @@ init / orchestration 再構成時に全文を読む**。
 - `cross-repo-contract-check`: 複数 child、API / schema / auth / 共有 UI contract の変更。
 - `architecture-sot`: `architecture/model/*.yaml`、SoT registry、生成 view、ADR 0013-0020 の変更・検証・review。
 - `verify-tastile-change`: PASS、DONE、GREEN、commit / merge / ship 可能と述べる直前。
-- `tastile-precommit-review`: root 変更を agent が commit する直前の独立 review。
 - `plugin-version-audit`: pinned 依存（MCP / Bun / Node / Biome / Knip / Vitest / Playwright / Next /
   openapi-typescript）の drift と advisory を release 前、または bump 直前に read-only で確認する。
 - `parallel-orchestration`: worker への実装委譲、並列化、再割当、停止、成果物統合。
@@ -119,5 +118,5 @@ pwsh -NoProfile -File .\scripts\check-agent-environment.ps1
 終了コードは `0=PASS`、`1=code/test failure`、`2=external prerequisite により BLOCKED`。
 skip、broad ignore、warning suppression、古い出力で green を作らない。UI は実 browser、
 PostgreSQL は到達可能な実 DB、Android は対象 device、Rust は Linux (WSL / wslc / Linux host)
-で確認する。agent が commit する場合は `.agent-loop/README.md` の独立 review gate を通し、
-英語の `<type>: <concise title>` を使う。
+で確認する。agent が commit する場合は `verify-tastile-change` による binding verification を行い、
+英語の `<type>: <concise title>` を使う。旧 per-commit reviewer loop は廃止済み (ADR-0021)。

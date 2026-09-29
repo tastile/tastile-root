@@ -86,8 +86,8 @@ export function loadAdrs(): Adr[] {
   for (const name of readdirSync(dir).sort()) {
     const m = /^(\d{4})-.+\.md$/.exec(name);
     if (!m) continue;
-    const path = join("docs", "adr", name);
-    const text = readFileSync(join(ROOT, path), "utf8");
+    const path = join("docs", "adr", name).replaceAll("\\", "/");
+    const text = readFileSync(join(ROOT, path), "utf8").replace(/\r\n/g, "\n");
     let frontMatter: Doc | null = null;
     let body = text;
     const fm = /^---\n([\s\S]*?)\n---\n/.exec(text);

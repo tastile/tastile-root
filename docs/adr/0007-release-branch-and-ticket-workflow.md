@@ -59,9 +59,8 @@ work state の正本として導入する。
 - 「ticket の作業 branch 名は GitHub Issue 番号のみ (例: `123`)。1 Issue = 1 branch。
   worktree は使わない。」
 
-各 child の `tastile-precommit-review` Skill は release branch / Issue番号 branch
-であることを commit diff から確認する。`AGENTS.md` 不変条件に「branch 名が canonical
-pattern に従う」が加わる。
+branch 名の canonical pattern は `release-branch-workflow` Skill と PR marker で確認する。
+旧 per-commit reviewer の割当は ADR-0021 で廃止した。
 
 ### D-3. PR template の Project Fields 化
 
@@ -76,8 +75,7 @@ PR body に次の marker を必須化する (詳細は ADR-0009 で Projects 連
 
 既存 `release.yml` の tag → AAB / Play / GitHub Release 経路は不変。release PR
 merge 後にローカル tag `v<version>` を打ち、tag → release workflow を起動する。
-commit 命令と tag 命令を分離し、pre-commit reviewer (`Invoke-PreCommitReview.ps1`)
-が tag 操作をサポートしないことは現状維持。
+commit 命令と tag 命令を分離する。旧 per-commit reviewer は ADR-0021 で廃止した。
 
 ## 選定評価
 
@@ -91,9 +89,8 @@ commit 命令と tag 命令を分離し、pre-commit reviewer (`Invoke-PreCommit
 
 ## Security、license、再現性
 
-branch 命名規則は `.git/hooks` 不要 (Push 側で reject しない) で、
-`.agent-loop/Invoke-PreCommitReview.ps1` が local commit 時に reviewer snapshot の
-reproducibility を確保する。release PR → main merge 後の tag は contributor の
+branch 命名規則は `.git/hooks` 不要 (Push 側で reject しない)。
+変更の binding verification は `verify-tastile-change` に従う (ADR-0021)。release PR → main merge 後の tag は contributor の
 ローカル GPG / SSH 鍵で署名する。CI / tag 連携は既存 `release.yml` の `permissions`
 を流用する。
 
@@ -105,8 +102,7 @@ reproducibility を確保する。release PR → main merge 後の tag は contr
   gate を通過する。conflict は release PR 時点で 1 度検出される。
 - PR body に target release と Issue 番号が現れるため、release note 自動生成の
   input が canonical source of truth に揃う。
-- `tastile-precommit-review` Skill に "branch 名が canonical pattern に従うか" check
-  が加わり、self-approval の抑止が強化される。
+- `release-branch-workflow` Skill で canonical branch 名と PR marker を確認する。
 
 ### トレードオフ
 
@@ -139,7 +135,5 @@ reproducibility を確保する。release PR → main merge 後の tag は contr
   本 ADR の `Target Release` フィールドの正本を Project の `Target Version` に置く。
 - `.agents/skills/release-branch-workflow/SKILL.md`: 本 ADR の発火条件と手順を
   集約する first-party Skill。
-- `.agents/skills/tastile-precommit-review/SKILL.md`: commit 直前に canonical branch
-  pattern を再確認する。
-- `.agent-loop/Invoke-PreCommitReview.ps1`: snapshot isolation と reviewer 起動。
-  branch pattern check は本 ADR 採択後の minor enhancement として扱う。
+- `.agents/skills/verify-tastile-change/SKILL.md`: commit / PR 前の binding verification。
+- [ADR-0021](./0021-retire-per-commit-review.md): per-commit reviewer 廃止。

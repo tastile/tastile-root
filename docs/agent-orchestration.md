@@ -10,7 +10,7 @@
 > **依存正本**: `AGENTS.md`, `CODEX_ROLES.ja.md`, `docs/HARNESS.md`,
 > `docs/decisions.md`, `docs/adr/`, `.codex/agents/*.toml`,
 > `.claude/agents/*.md`, `.agents/skills/*/SKILL.md`,
-> `.agent-loop/Invoke-PreCommitReview.ps1`,
+> `.agent-loop/checkpoint.schema.json`, `.agent-loop/agent-result.schema.json`,
 > `scripts/orchestration/release-claim.ps1`, `scripts/orchestration/*`
 
 ## 目次
@@ -37,7 +37,7 @@
 | role unit の責務 / sandbox mode | `CODEX_ROLES.ja.md`, `.codex/agents/*.toml`, `.claude/agents/*.md` |
 | cross-repo contract | `.agents/skills/cross-repo-contract-check/SKILL.md` |
 | verification taxonomy / binding evidence | `.agents/skills/verify-tastile-change/SKILL.md` |
-| pre-commit review flow | `.agent-loop/Invoke-PreCommitReview.ps1`, `.agent-loop/README.md` |
+| commit / PR verification | `.agents/skills/verify-tastile-change/SKILL.md`, `scripts/check-workspace.ps1` |
 | release verification | `scripts/orchestration/verify-release.ps1` |
 | 既存 release-stack claim | `scripts/orchestration/release-claim.ps1` |
 
@@ -93,9 +93,7 @@ ticket branch に最初の meaningful commit が入ったら、target
 次の条件を全て満たすこと:
 
 - acceptance criteria が実装済み
-- `.agent-loop/Invoke-PreCommitReview.ps1` の structured verdict が
-  `approve` (independent reviewer + child fast gate 通過)。これは pre-commit review
-  verdict であり、checkpoint `status` や child result `verdict` とは別の分類である。
+- 変更対象の applicable gate と `verify-tastile-change` の binding evidence が揃っている。
 - blocking Issue が解消済み、または scope 外として明示済み
 - PR description が current state と一致
 - release branch との staleness / conflict が処理済み
@@ -485,8 +483,7 @@ DB credential 等) は書かない。
 - [ ] `docs/HARNESS.md` §10 (Source of Truth) と §1 の役割分担が一致
 - [ ] `CODEX_ROLES.ja.md` の role 一覧と §5 / §6 の sandbox mode が一致
 - [ ] `scripts/orchestration/release-claim.ps1` の live-stack lease と §6-1 が一致
-- [ ] `.agent-loop/Invoke-PreCommitReview.ps1` の snapshot pattern と
-      §7 の hard checkpoint が一致
+- [ ] `verify-tastile-change` の証跡と §7 の hard checkpoint が一致
 - [ ] `scripts/check-agent-environment.ps1` の required files に §6 /
       §7 / §8 の canonical path が含まれている
 

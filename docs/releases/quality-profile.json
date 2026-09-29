@@ -12,7 +12,7 @@
   ],
   "testTaxonomy": {"unit": "isolated domain / client logic", "integration": "real PostgreSQL / API / provider contract", "e2e": "real browser or installed signed device against deployed candidate"},
   "changeToGates": {
-    "root-docs-or-agent-policy": ["release-plan", "agent-environment", "root-fast-gate"],
+    "root-docs-or-agent-policy": ["release-plan", "agent-environment"],
     "core-domain-api-storage": ["core-fast", "core-full", "real-postgres", "cross-repo-contract"],
     "web-ui-auth": ["web-fast", "web-full", "real-browser"],
     "android": ["android-fast", "android-full", "signed-device"],
@@ -22,7 +22,6 @@
   "commands": {
     "release-plan": "bun scripts/check-release-plan.ts",
     "agent-environment": "pwsh -NoProfile -File scripts/check-agent-environment.ps1",
-    "root-fast-gate": "pwsh -NoProfile -File .agent-loop/gate-root.ps1",
     "core-fast": "cargo test --manifest-path crates-v1/Cargo.toml -p domain",
     "core-full": "bash .wslc/verify-up.sh && bash .wslc/verify-run.sh 'cargo test --manifest-path crates-v1/Cargo.toml --workspace --no-fail-fast'",
     "web-fast": "bun run check",

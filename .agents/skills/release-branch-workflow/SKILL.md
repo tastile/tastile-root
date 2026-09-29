@@ -39,17 +39,14 @@ field を同期する。
 - `Branch:` (`git rev-parse --abbrev-ref HEAD` 結果の verify 用)
 - `Execution Generation:` (default `1`; recovery 後に increment)
 
-## pre-commit reviewer との接続
+## commit / PR verification
 
-`.agent-loop/Invoke-PreCommitReview.ps1` は snapshot、fast gate、independent review を
-実行する。branch 名 canonical pattern と PR marker の確認は、この Skill を適用する
-worker / reviewer が commit・PR 作成前に手動で行う必須 check であり、現行 review script
-が自動で行うとはみなさない。hook 側への自動 check 追加は別 ownership の変更として扱う。
+branch 名 canonical pattern と PR marker は、commit・PR 作成前に確認する。
+変更の binding verification は `verify-tastile-change` を適用する (ADR-0021)。
 
 ## 関連 ADR / 関連 Skill
 
 - [ADR-0007](../../../docs/adr/0007-release-branch-and-ticket-workflow.md)
 - [ADR-0009](../../../docs/adr/0009-github-projects-work-state.md)
 - `.agents/skills/project-board/SKILL.md`
-- `.agents/skills/tastile-precommit-review/SKILL.md`
 - `.agents/skills/verify-tastile-change/SKILL.md`

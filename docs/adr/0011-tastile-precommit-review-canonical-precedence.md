@@ -1,5 +1,8 @@
 # ADR-0011: 同一名 Agent Skill の canonical precedence と `.claude/skills/` thin adapter rule
 
+> `tastile-precommit-review` の具体例と関連 Skill は ADR-0021 で廃止済み。
+> Skill 配置の precedence rule は継続する。
+
 - 日付: 2026-09-20
 - 状態: Accepted
 - 対象: Tastile root workspace および全 child repository の Agent Skill 配置 (`.agents/skills/`, `.claude/skills/`, `.codex/skills/`) と、同一 `name` を持つ Skill 間の precedence 解決
@@ -161,10 +164,7 @@
   precedence (D-3) を判断材料に含める。`active_children` の role 解決にも適用。
 - `.agents/skills/subagent-coordination/SKILL.md`: orchestration layer として
   D-3 を発火条件付きで参照する first-party Skill。
-- `.agents/skills/tastile-precommit-review/SKILL.md` (workspace 側) /
-  `tastile-web/.agents/skills/tastile-precommit-review/SKILL.md` (web 側):
-  D-3 の precedence rule 適用対象ペア。両 adapter (`.claude/skills/...`) は
-  D-3 を必須記載する。
+- [ADR-0021](./0021-retire-per-commit-review.md): 旧 Skill pair と adapter の廃止。
 - `.agents/skills/plugin-version-audit/SKILL.md`: Skill 自体の pinned 依存
   (MCP / Bun / Node 等) を監査する。本 ADR は配置規則のみを扱い、依存
   freshness は plugin-version-audit の管轄。

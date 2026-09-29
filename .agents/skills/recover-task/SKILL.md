@@ -45,7 +45,7 @@ consumer は field name と context を保持する。
    idempotency_key と `observed_state` が食い違うものは abort する。
 9. stale base / conflict を `git fetch origin <target_release>` の差分比較で確認する。
 10. remaining plan を `next_steps` から再構成する。
-11. safe な最小 verification (例: `pwsh -File .agent-loop/gate-root.ps1`) で
+11. safe な最小 verification (例: `pwsh -NoProfile -File scripts/check-agent-environment.ps1`) で
     reconstructed state を確認する。
 12. `execution_generation` を increment、`updated_at` を更新、checkpoint を durability
     (git push か checkpoint.json commit) する。

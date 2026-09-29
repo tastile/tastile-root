@@ -54,7 +54,7 @@ canonical source を fetch したうえ、以下の section を参照する。Ag
 | §23 | Worker / integration / release gate | ADR-0007 §2-4, ADR-0008, `scripts/orchestration/verify-release.ps1` |
 | §24 | GitHub Actions / CI | `.github/workflows/quality.yml`, GH required status check |
 | §25 | Security maintenance | ADR-0004, ADR-0012, secret-source / GHSA ingest |
-| §26 | Reviewer separation | `.agents/skills/tastile-precommit-review/SKILL.md`, `CODEX_ROLES.ja.md` |
+| §26 | Reviewer separation | `.agents/skills/verify-tastile-change/SKILL.md`, `CODEX_ROLES.ja.md` |
 | §27 | Onboarding / repository-controlled knowledge | `README.md`, `AGENTS.md`, `docs/HARNESS.md`, 本 Skill |
 | §28 | Source / documentation / GH language | `AGENTS.md` 「常時適用する不変条件」 |
 | §29 | Package / search / scripts / secret / temporary policy | `AGENTS.md`, `.gitignore`, `scripts/restore-infisical-env.ps1` |
@@ -75,8 +75,7 @@ reconcile 実施時に次の状態を baseline とする。
   で 5 role 定義、sandbox_mode 明示
 - ✅ `.agents/skills/` に 11 Skills (本 Skill 追加で 11)、`.claude/skills/`
   に 7 mirror Skills
-- ✅ `.agent-loop/checkpoint.schema.json` + `agent-result.schema.json` +
-  `review-result.schema.json` + `Invoke-PreCommitReview.ps1`
+- ✅ `.agent-loop/checkpoint.schema.json` + `agent-result.schema.json`
 - ✅ `scripts/check-workspace.ps1`, `check-agent-environment.ps1`,
   `orchestration/{claim,release-claim,verify-release,invoke-*}.ps1`
 - ✅ `.github/workflows/quality.yml` (agent-environment gate on PR + main)
@@ -148,4 +147,3 @@ canonical §2 に従い、次の順で reconcile する。
 - `.agents/skills/release-branch-workflow/SKILL.md`
 - `.agents/skills/recover-task/SKILL.md`
 - `.agents/skills/verify-tastile-change/SKILL.md`
-- `.agents/skills/tastile-precommit-review/SKILL.md`

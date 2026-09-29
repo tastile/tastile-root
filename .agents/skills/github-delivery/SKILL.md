@@ -20,7 +20,7 @@ description: Tastile の Issue 着手、Draft PR、release branch、検証証跡
    全 applicable gate を実行し、Terra の独立 review と clean candidate の証跡を PR に添える。
    fast gate は full gate の代わりにならない。release には実 browser / DB / device が必要。
 5. merge 前に source / target SHA、generation、CI、AC、review を再確認する。
-   staleness は新 generation で解消する。agent commit は既存 precommit review gate も通す。
+   staleness は新 generation で解消する。agent commit 前は `verify-tastile-change` を適用する (ADR-0021)。
 6. release branch に merge 後、merge SHA を記録して Issue を明示的に close、状態を Done にする。
    Projects を利用できる場合は Project Done も確認する。利用不可なら root#2 と status label を
    同期し、その制約を残す。非 default branch の `Closes` だけで完了にしない。

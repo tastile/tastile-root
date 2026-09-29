@@ -10,9 +10,8 @@
 ## Context
 
 Tastile root は複数の AI agent (Claude、Codex、OpenCode retire) が同一 workspace を
-書き換えうる。`.agent-loop/Invoke-PreCommitReview.ps1` は commit 直前に HEAD snapshot
-を tar で展開し patch を適用する isolated snapshot で reviewer を起動する。これは実質
-的な soft checkpoint だが、schema / contract / fence を持たない。
+書き換えうる。旧 per-commit reviewer の snapshot は ADR-0021 で廃止した。
+recovery は独立した checkpoint schema / contract / fence に従う。
 
 2026-08 以降の運用で以下の gap が顕在化した。
 
@@ -35,8 +34,7 @@ Tastile root は複数の AI agent (Claude、Codex、OpenCode retire) が同一 
 ### D-1. soft checkpoint と hard checkpoint の 2 段
 
 - **soft checkpoint**: 同一 host / sandbox 内で同一 agent が再開することを想定した
-  復旧手段。filesystem snapshot、`.agent-loop/Invoke-PreCommitReview.ps1` の
-  snapshot primitive、native session state などが該当。保存先は `.tmp/` 配下。
+  復旧手段。filesystem snapshot、native session state などが該当。保存先は `.tmp/` 配下。
   GitHub などの remote durable storage への到達不能時にも最低限の復元を目指す。
 - **hard checkpoint**: sandbox / provider 消失後にも durable remote infrastructure
   から到達できる復旧手段。GitHub Issue、target release branch、ticket branch、
@@ -96,8 +94,8 @@ machine-private path、secret、private reasoning は checkpoint に含めない
 base_snapshot, execution_generation, result_commit_or_ref, summary, verdict,
 validation_results, artifacts, known_issues, fencing_token`。`verdict` は child result
 専用の terminal classification (`pass | fail | blocked | abandoned`) であり、D-2 の
-checkpoint `status` と統合しない。`findings` 形式は既存
-`.agent-loop/review-result.schema.json` (severity / file / line / message) を流用する。
+checkpoint `status` と統合しない。`findings` 形式は
+`agent-result.schema.json` 内で定義する (severity / file / line / message)。
 
 ### D-5. recovery algorithm
 
@@ -137,9 +135,9 @@ checkpoint `status`、child result `verdict`、journal `result` のいずれと�
 
 `checkpoint.schema.json` / `agent-result.schema.json` は fresh clone + Bun + PowerShell
 で再現できる project-local artifact。fencing token は process memory / short-lived
-Sidecar に置き、repository には commit しない。secret が checkpoint に混入した場合の
-検知は `agent-result.schema.json` の `fencing_token` の entropy test と
-`.agent-loop/gate-root.ps1` の JSON parse / 構造 spot check で担保する。
+Sidecar に置き、repository には commit しない。JSON schema / parse は構造だけを検証し、
+secret 混入の検知は保証しない。checkpoint / result を durable remote に送る前に、
+実値を含まないことを確認する。
 
 ## Consequences and re-evaluation
 
@@ -148,8 +146,7 @@ Sidecar に置き、repository には commit しない。secret が checkpoint �
 - 親 agent 死亡後にも child を cancel せず、Supervisor / control plane が lifecycle
   を所有する運用が ADR に pin される。
 - fresh agent が conversation 履歴なしで再構成できる operation chain が明示される。
-- `.agent-loop/tests/` の Pester suite に checkpoint schema round-trip test を追加
-  することで、schema regression を weekly cron で検知できる。
+- checkpoint schema の JSON parse を agent environment gate で確認する。
 
 ### トレードオフ
 
@@ -167,8 +164,7 @@ Sidecar に置き、repository には commit しない。secret が checkpoint �
 
 ### 関連 ADR / 関連 Skill
 
-- [ADR-0001](./0001-agent-toolchain.md): root agent 構成。soft checkpoint 経路を
-  `.agent-loop/Invoke-PreCommitReview.ps1` に持たせる方針を inherit する。
+- [ADR-0001](./0001-agent-toolchain.md): root agent 構成。
 - [ADR-0005](./0005-skills-and-mcp-extensions.md): Codex role catalog を active_children
   の再発見に利用する。
 - [ADR-0007](./0007-release-branch-and-ticket-workflow.md): 本 ADR の
@@ -177,4 +173,5 @@ Sidecar に置き、repository には commit しない。secret が checkpoint �
 - `.agent-loop/checkpoint.schema.json` (新規): D-2 参照。
 - `.agent-loop/agent-result.schema.json` (新規): D-4 参照。
 - `.agents/skills/recover-task/SKILL.md` (新規): D-5 の canonical reference。
-- `.agent-loop/gate-root.ps1`: 拡張で schema parse を検証する。
+- `scripts/check-agent-environment.ps1`: checkpoint / result schema の JSON parse を検証する。
+- [ADR-0021](./0021-retire-per-commit-review.md): 旧 per-commit reviewer 廃止。
