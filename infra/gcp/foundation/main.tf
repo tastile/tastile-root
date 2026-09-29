@@ -142,18 +142,32 @@ resource "google_service_account" "runtime" {
   depends_on = [google_project_service.enabled]
 }
 
-resource "google_service_account" "cloud_build" {
+resource "google_service_account" "cloud_build_ci" {
   project      = var.projects.dev
-  account_id   = "sa-cloud-build"
-  display_name = "Tastile Cloud Build"
+  account_id   = "sa-cloud-build-ci"
+  display_name = "Tastile Cloud Build PR CI"
 
   depends_on = [google_project_service.enabled]
 }
 
-resource "google_project_iam_member" "cloud_build_log_writer" {
+resource "google_service_account" "cloud_build_publish" {
+  project      = var.projects.dev
+  account_id   = "sa-cloud-build-publish"
+  display_name = "Tastile Cloud Build publish"
+
+  depends_on = [google_project_service.enabled]
+}
+
+resource "google_project_iam_member" "cloud_build_ci_log_writer" {
   project = var.projects.dev
   role    = "roles/logging.logWriter"
-  member  = "serviceAccount:${google_service_account.cloud_build.email}"
+  member  = "serviceAccount:${google_service_account.cloud_build_ci.email}"
+}
+
+resource "google_project_iam_member" "cloud_build_publish_log_writer" {
+  project = var.projects.dev
+  role    = "roles/logging.logWriter"
+  member  = "serviceAccount:${google_service_account.cloud_build_publish.email}"
 }
 
 resource "google_artifact_registry_repository" "tastile" {
@@ -182,7 +196,7 @@ resource "google_artifact_registry_repository_iam_member" "cloud_build_writer" {
   location   = google_artifact_registry_repository.tastile.location
   repository = google_artifact_registry_repository.tastile.name
   role       = "roles/artifactregistry.writer"
-  member     = "serviceAccount:${google_service_account.cloud_build.email}"
+  member     = "serviceAccount:${google_service_account.cloud_build_publish.email}"
 }
 
 resource "google_service_account" "github" {
@@ -280,7 +294,7 @@ resource "google_cloudbuild_trigger" "core_pr_ci" {
   description = "Tastile Core real-PostgreSQL CI (ADR-0020)"
   filename    = "cloudbuild/ci.yaml"
 
-  service_account  = google_service_account.cloud_build.id
+  service_account  = google_service_account.cloud_build_ci.id
   include_build_logs = "INCLUDE_BUILD_LOGS_WITH_STATUS"
 
   repository_event_config {
@@ -294,6 +308,6 @@ resource "google_cloudbuild_trigger" "core_pr_ci" {
 
   depends_on = [
     google_project_service.enabled,
-    google_project_iam_member.cloud_build_log_writer,
+    google_project_iam_member.cloud_build_ci_log_writer,
   ]
 }
