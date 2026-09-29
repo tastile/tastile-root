@@ -85,32 +85,44 @@ credentials:
     properties: service ごとに分離 (sa-core-api, sa-core-worker, sa-core-migrate, sa-web, sa-scheduler)。key file を作らない。
     lifecycle: planned
   - id: cred.github-oidc-wif
-    name: GitHub OIDC → Workload Identity Federation
-    holder: GitHub Actions jobs
+    name: GitHub OIDC → GCP Workload Identity Federation
+    holder: GitHub Actions deploy / publish jobs
     verifier: Google IAM (attribute condition = repository + ref + workflow)
-    properties: 長期 key なし。publish / deploy job だけに付与し、PR job には付与しない。
+    properties: GCP control plane 用の短命 workload identity。secret delivery には使わず、long-lived GCP key を作らない。
+    lifecycle: planned
+  - id: cred.github-infisical-oidc
+    name: GitHub OIDC → Infisical machine identity
+    holder: GitHub Actions jobs that require Tastile-managed secrets
+    verifier: Infisical OIDC auth (repository / environment / workflow claims)
+    properties: static Infisical token / GitHub Secret なし。Infisical identity ID / project ID は non-secret pointer。
+    lifecycle: retained
+  - id: cred.gcp-infisical-auth
+    name: GCP workload → Infisical machine identity
+    holder: Cloud Run services / jobs
+    verifier: Infisical GCP-native auth
+    properties: GCP service account の短命 identity token を使う。INFISICAL_TOKEN / service-account JSON key を持たない。
     lifecycle: planned
   - id: cred.db-core-runtime
     name: DB role tastile_app
     holder: sa-core-api, sa-core-worker
     verifier: PostgreSQL
-    properties: domain-db の DML のみ。DDL / role 作成権限なし。値は Secret Manager。
+    properties: domain-db の DML のみ。DDL / role 作成権限なし。credential value は Infisical。
     lifecycle: planned
   - id: cred.db-core-migrate
     name: DB role tastile_migrator
     holder: sa-core-migrate
     verifier: PostgreSQL
-    properties: domain-db schema owner。migrate job だけが使う。
+    properties: domain-db schema owner。migrate job だけが使う。credential value は Infisical。
     lifecycle: planned
   - id: cred.db-auth-runtime
     name: DB role tastile_auth
     holder: sa-web
     verifier: PostgreSQL
-    properties: tastile_auth database のみ。domain-db への CONNECT 権限なし。
+    properties: tastile_auth database のみ。domain-db への CONNECT 権限なし。credential value は Infisical。
     lifecycle: retained
   - id: cred.r2-media
     name: R2 token (media bucket)
-    holder: sa-core-api (via Secret Manager)
+    holder: sa-core-api (Infisical-injected)
     verifier: Cloudflare R2
     properties: tastile-media-<env> bucket の object read/write のみ。
     lifecycle: planned
@@ -155,7 +167,7 @@ credentials:
     name: Android upload key
     holder: tastile-android release job
     verifier: Google Play (Play App Signing)
-    properties: Play App Signing を前提とし、repository / CI log に出さない。
+    properties: Play App Signing を前提とし、upload key / password の canonical value は Infisical。repository / CI log に出さない。
     lifecycle: retained
 
 data_classes:
@@ -181,23 +193,29 @@ data_classes:
     description: 公開してよい data (installer、manifest、JWKS、LP)。
 
 secret_handling:
-  store: GCP Secret Manager (one GCP project per environment — tastile-staging / tastile-prod / tastile-dev)
+  store: Self-hosted Infisical (single editable SoT; environment/project separated)
   decision: adr.root.0015
   rules:
     - id: sec.single-editable-store
-      rule: secret 実値の編集可能な store は environment ごとに Secret Manager だけ。platform binding (Worker secret、Play) は deploy 時の replica。
-    - id: sec.per-secret-iam
-      rule: accessor 権限は secret 単位で、その secret を使う service account / CI identity だけに付与する。
-    - id: sec.no-long-lived-keys
-      rule: GCP service account key、AWS access key、CI 保存の長期 token を作らない。外部 SaaS が API key しか持たない場合のみ Secret Manager に置く。
+      rule: Tastile-managed secret / long-lived authentication material の編集可能な store は Infisical だけ。platform binding は deploy 時の一方向 replica。
+    - id: sec.workload-auth
+      rule: GitHub は OIDC、GCP runtime は GCP-native workload identity で Infisical machine identityへ入る。INFISICAL_TOKEN / service token / GCP SA key を置かない。
+    - id: sec.provider-managed-exception
+      rule: Cloud Build GitHub connection 等 provider が内部生成・所有する credential は provider store に存在してよいが、Tastile はその値を編集・複製せず application secret として扱わない。
+    - id: sec.no-long-lived-provider-keys
+      rule: GCP service-account key、AWS access key、GitHub保存の deploy token を作らない。外部 SaaS が API key しか持たない場合、その値は Infisical に置く。
     - id: sec.fail-closed
-      rule: 必須 secret / config が無い場合は起動・build を失敗させる。dotenv や既定値へ fallback しない。
+      rule: 必須 secret / config が取得できない場合は起動・build・deploy を失敗させる。dotenv や既定値へ fallback しない。
     - id: sec.no-secret-in-repo
-      rule: secret 実値・ciphertext・dotenv を repository に置かない。key 名の一覧も各 service の config validation code だけに置く。
+      rule: secret 実値・ciphertext・dotenv を repository / GitHub Secrets / GCP Secret Manager の Tastile-managed entry に置かない。non-secret identity/project pointerだけrepositoryからdiscoverableにする。
     - id: sec.local-dev
-      rule: local 開発は production / staging secret を使わない。provider dev credential が必要な場合 gcloud 認証後に dev project から一時取得し、使用後に消す。
+      rule: local 開発は人間の Infisical loginからdev environmentだけを取得する。production / staging secretを恒久保存しない。必要な materialization はgitignored・permission-restricted・使用後削除。
+    - id: sec.replica-one-way
+      rule: Cloudflare / Google Play 等がsecret replicaを要求する場合、Infisical→platform の一方向同期だけを許可し、platform側編集を正本に戻さない。
 
 controls:
+  - id: ctl.secret-sot-infisical
+    rule: development / CI/CD / runtime の Tastile-managed secret value は Infisical だけを canonical とし、他 provider の editable secret store を増やさない。
   - id: ctl.owner-boundary
     rule: 他 owner の resource は存在しないものとして扱う (Core が強制; core v1/10-invariants.md §3)。
   - id: ctl.command-only-writes
