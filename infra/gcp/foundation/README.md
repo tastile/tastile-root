@@ -6,7 +6,7 @@ ms.m2-foundation の durable resources。3 environment project は operator boot
 
 - required Google APIs
 - runtime service-account identities (key files are never created)
-- dedicated Cloud Build service account
+- split Cloud Build identities: `sa-cloud-build-ci` (PR CI, logging only) and `sa-cloud-build-publish` (artifact publishing)
 - shared Artifact Registry in `tastile-dev`
 - GitHub Actions OIDC workload identity pools/providers with repository + ref + workflow restrictions
 - WIF PoC secret **metadata** only
@@ -59,4 +59,15 @@ export TF_VAR_core_repository_resource='projects/tastile-dev/locations/asia-nort
 
 If this variable is `null`, the foundation intentionally creates no Core trigger.
 When set, OpenTofu creates one pull-request trigger for target branches matching
-`^release-.*$`, using `cloudbuild/ci.yaml` and `sa-cloud-build`.
+`^release-.*$`, using `cloudbuild/ci.yaml` and the unprivileged `sa-cloud-build-ci`. The publish identity is not attached to pull-request triggers.
+
+
+## Cloud Build privilege split
+
+Pull-request source is untrusted build input even in a private repository. The PR
+trigger therefore runs as `sa-cloud-build-ci`, which receives only Cloud Logging
+write access from this stack. It cannot write Artifact Registry or read application
+secrets.
+
+`sa-cloud-build-publish` owns Artifact Registry writer access and is reserved for
+release/image-build triggers added after the build-once promotion flow is implemented.
