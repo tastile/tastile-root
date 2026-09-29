@@ -39,10 +39,10 @@ application secret の正本へ変更した。
    long-lived GCP service-account key は作らない。
 5. **platform binding が secret replica を要求する場合、Infisical から deploy 時に一方向同期する。**
    Cloudflare / Google Play / provider-specific binding は編集元にしない。値の変更は Infisical で行う。
-6. **GCP Secret Manager を Tastile-managed secret store として使わない。**
-   Cloud Build 2nd-gen GitHub connection 等、Google が provider 内部で生成・所有する credential が
-   GCP Secret Manager に存在することは許容するが、Tastile が編集する application / deploy secret は置かない。
-   provider-managed credential は `kpi.secret-stores` の「編集可能な secret SoT」には数えない。
+6. **開発・CI/CD・deploy の認証に provider-managed static credential を使わない。**
+   provider integration が GitHub App token / OAuth token 等を provider 自身の secret store へ保持する設計は採用しない。
+   private Core CI は GCP workload identity で動く Tastile-owned dispatcher が Infisical から GitHub App private key を取得し、
+   short-lived installation token を都度生成する。GCP Secret Manager は Tastile architecture の認証経路として使用しない。
 7. **local development も Infisical を使う。**
    developer は人間の Infisical login から dev environment を取得する。production / staging secret を local に恒久保存せず、
    `.env*` は必要時の一時 materialization に限り gitignored / permission-restricted / fail-closed とする。
@@ -50,12 +50,14 @@ application secret の正本へ変更した。
    Infisical を canonical とする。将来 Cloud SQL IAM database authentication 等で secret 自体を除去できる場合は、
    secretを別storeへ移すのではなく credentialを廃止する。
 
-## Provider-managed exception
+## Authentication-material closure
 
-Cloud Build の GitHub connection のように provider が内部 credential を生成し、自身の Secret Manager 等へ保持する場合、
-Tastile はその値を読み書き・複製しない。その credential の lifecycle は provider connection の lifecycle に従う。
+開発・build・CI・deploy・runtime のために Tastile が選択・管理する長期認証 material は Infisical の外へ置かない。
+provider が内部credentialを必要とする統合は、そのcredentialをTastileが管理できない場所に複製するのではなく、
+workload identity + Infisical-backed application credentialで置き換える。
 
-この例外は「開発 / deploy の認証情報を別の editable store に置く」ことを意味しない。
+non-secret identifier (GCP service account name、Infisical identity ID、GitHub App ID / installation ID、project ID) は
+repository / IaC に置いてよい。短命 OIDC / ID token / installation token は実行時だけ生成し、永続化しない。
 
 ## Consequences
 
@@ -64,7 +66,7 @@ Tastile はその値を読み書き・複製しない。その credential の li
 - GCP runtimeは Infisical availabilityへ依存するため、Cloud Run cold start / scale-outを含む
   `poc.infisical-workload-auth` で latency / failure behaviorを実測する。
 - self-hosted Infisical 自体の availability / backup / upgrade は継続運用対象になる。
-- GCP Secret Manager application-secret migration、per-secret IAM、secret replica migration は不要になる。
+- GCP Secret Manager application-secret migrationとCloud Build provider-managed GitHub credentialの両方が不要になる。
 - ms.m8-decommission では Infisical を削除しない。AWS-specific auth path / legacy replicasだけを削除する。
 
 ## Verification
