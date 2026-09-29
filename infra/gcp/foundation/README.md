@@ -50,10 +50,11 @@ Application secret names and values are **not** declared here. They are created 
 ## Core repository connection
 
 The GitHub App connection is the only operator-created external binding. After
-connecting `tastile/tastile-core` in Cloud Build 2nd gen, set:
+connecting `tastile/tastile-core` in Cloud Build 2nd gen, pass the non-secret
+resource name without editing a committed file:
 
-```hcl
-core_repository_resource = "projects/tastile-dev/locations/asia-northeast1/connections/<connection>/repositories/<repository>"
+```bash
+export TF_VAR_core_repository_resource='projects/tastile-dev/locations/asia-northeast1/connections/<connection>/repositories/<repository>'
 ```
 
 If this variable is `null`, the foundation intentionally creates no Core trigger.
