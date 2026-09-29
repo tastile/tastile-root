@@ -70,7 +70,7 @@ Findings:
 | c5 | cost_7day_extrapolated_usd_month | `<=` | 15 |  |  |  |
 | c6 | run_app_direct_request_rejected_without_edge_assertion | `==` | true |  |  |  |
 
-## poc.worker-drain — Stateless worker drain triggered by Cloud Scheduler / Cloud Tasks
+## poc.worker-drain — Stateless worker drain triggered by Cloud Scheduler sweep
 
 - status: **planned**
 - hypothesis: 常駐 process なしで Work Item lag SLO を満たし、多重起動しても二重処理しない。
