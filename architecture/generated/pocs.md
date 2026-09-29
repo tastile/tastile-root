@@ -6,7 +6,7 @@
 | `poc.local-runtime` | Core API / Worker on vanilla PostgreSQL 17 (provider-neutral runtime baseline) | passed | adr.root.0014 | 2026-09-29 | architecture/evidence/2026-09-29-local-runtime-poc.md |
 | `poc.core-suite-vanilla-pg` | Core full test suite against vanilla PostgreSQL 17 | partial | adr.root.0014, adr.root.0020 | 2026-09-29 | architecture/evidence/2026-09-29-local-runtime-poc.md |
 | `poc.cloud-run-core` | Core API on Cloud Run (asia-northeast1) with Cloud SQL connector, behind Cloudflare edge router | planned | adr.root.0014 |  |  |
-| `poc.worker-drain` | Stateless worker drain triggered by Cloud Scheduler / Cloud Tasks | planned | adr.root.0017 |  |  |
+| `poc.worker-drain` | Stateless worker drain triggered by Cloud Scheduler sweep | planned | adr.root.0017 |  |  |
 | `poc.web-cloud-run` | Next.js (standalone) + Better Auth on Cloud Run with Cloud SQL | planned | adr.root.0014 |  |  |
 | `poc.jwt-assertion` | Better Auth JWT (EdDSA, JWKS) replaces the web bridge secret | planned | adr.root.0016 |  |  |
 | `poc.secret-manager-wif` | Secret Manager + GitHub OIDC WIF as the only secret path | planned | adr.root.0015 |  |  |
@@ -74,7 +74,7 @@ Findings:
 
 - status: **planned**
 - hypothesis: 常駐 process なしで Work Item lag SLO を満たし、多重起動しても二重処理しない。
-- method: worker に `drain --until-empty --deadline 55s` entrypoint を追加し、Cloud Scheduler 1 分 sweep と Cloud Tasks wake で起動。2 並行 drain・instance kill・wake 欠落を注入する。
+- method: worker に `drain --until-empty --deadline 55s` entrypoint を追加し、まず Cloud Scheduler 1 分 sweep のみで起動。 2 並行 drain・instance kill・sweep 1 回欠落を注入する。60 秒 SLO を満たせない場合だけ provider-neutral wake port の PoC を追加する。
 
 | criterion | metric | op | threshold | observed | result | note |
 | --- | --- | --- | --- | --- | --- | --- |
