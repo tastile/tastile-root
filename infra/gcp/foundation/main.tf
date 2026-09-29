@@ -47,39 +47,39 @@ locals {
   # PR refs are rejected by every provider condition.
   github_identities = {
     "staging-core" = {
-      environment = "staging"
-      account_id  = "gha-core-deploy"
-      repository   = "tastile/tastile-core"
+      environment   = "staging"
+      account_id    = "gha-core-deploy"
+      repository    = "tastile/tastile-core"
       repository_id = "1180525566"
-      workflow     = "deploy-staging.yml"
+      workflow      = "deploy-staging.yml"
     }
     "production-core" = {
-      environment = "production"
-      account_id  = "gha-core-deploy"
-      repository   = "tastile/tastile-core"
+      environment   = "production"
+      account_id    = "gha-core-deploy"
+      repository    = "tastile/tastile-core"
       repository_id = "1180525566"
-      workflow     = "deploy.yml"
+      workflow      = "deploy.yml"
     }
     "production-web" = {
-      environment = "production"
-      account_id  = "gha-web-deploy"
-      repository   = "tastile/tastile-web"
+      environment   = "production"
+      account_id    = "gha-web-deploy"
+      repository    = "tastile/tastile-web"
       repository_id = "1180525602"
-      workflow     = "deploy.yml"
+      workflow      = "deploy.yml"
     }
     "production-android" = {
-      environment = "production"
-      account_id  = "gha-android-release"
-      repository   = "tastile/tastile-android"
+      environment   = "production"
+      account_id    = "gha-android-release"
+      repository    = "tastile/tastile-android"
       repository_id = "1180525654"
-      workflow     = "release.yml"
+      workflow      = "release.yml"
     }
     "production-desktop" = {
-      environment = "production"
-      account_id  = "gha-desktop-release"
-      repository   = "tastile/tastile-desktop"
+      environment   = "production"
+      account_id    = "gha-desktop-release"
+      repository    = "tastile/tastile-desktop"
       repository_id = "1180525633"
-      workflow     = "release.yml"
+      workflow      = "release.yml"
     }
   }
 
@@ -281,13 +281,13 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   display_name                       = "GitHub Actions"
 
   attribute_mapping = {
-    "google.subject"           = "assertion.sub"
-    "attribute.repository"     = "assertion.repository"
+    "google.subject"                = "assertion.sub"
+    "attribute.repository"          = "assertion.repository"
     "attribute.repository_owner"    = "assertion.repository_owner"
     "attribute.repository_owner_id" = "assertion.repository_owner_id"
     "attribute.repository_id"       = "assertion.repository_id"
     "attribute.ref"                 = "assertion.ref"
-    "attribute.workflow_ref"   = "assertion.workflow_ref"
+    "attribute.workflow_ref"        = "assertion.workflow_ref"
   }
 
   # PR refs cannot authenticate. The exact workflow file is pinned as well as
