@@ -24,11 +24,13 @@
 | `cred.web-bridge-secret` | Web bridge shared secret (retiring) | ctr.web | cmp.core.auth | shared secret + user header。secret を持つ者は任意 user として振る舞える。blast radius が全 user に及ぶため ADR-0016 で廃止する。 | retiring → ms.m4-web-staging |
 | `cred.edge-assertion` | Edge assertion header | cmp.edge.router | ctr.web, ctr.core-api (production / staging middleware) | origin 直アクセス (run.app) を拒否するための低権限 shared secret。identity を表さない。四半期 rotate。 | planned |
 | `cred.gcp-service-identity` | GCP service account (workload identity) | each Cloud Run service / job, Cloud Scheduler | Google IAM | service ごとに分離 (sa-core-api, sa-core-worker, sa-core-migrate, sa-web, sa-scheduler)。key file を作らない。 | planned |
-| `cred.github-oidc-wif` | GitHub OIDC → Workload Identity Federation | GitHub Actions jobs | Google IAM (attribute condition = repository + ref + workflow) | 長期 key なし。publish / deploy job だけに付与し、PR job には付与しない。 | planned |
-| `cred.db-core-runtime` | DB role tastile_app | sa-core-api, sa-core-worker | PostgreSQL | domain-db の DML のみ。DDL / role 作成権限なし。値は Secret Manager。 | planned |
-| `cred.db-core-migrate` | DB role tastile_migrator | sa-core-migrate | PostgreSQL | domain-db schema owner。migrate job だけが使う。 | planned |
-| `cred.db-auth-runtime` | DB role tastile_auth | sa-web | PostgreSQL | tastile_auth database のみ。domain-db への CONNECT 権限なし。 | retained |
-| `cred.r2-media` | R2 token (media bucket) | sa-core-api (via Secret Manager) | Cloudflare R2 | tastile-media-<env> bucket の object read/write のみ。 | planned |
+| `cred.github-oidc-wif` | GitHub OIDC → GCP Workload Identity Federation | GitHub Actions deploy / publish jobs | Google IAM (attribute condition = repository + ref + workflow) | GCP control plane 用の短命 workload identity。secret delivery には使わず、long-lived GCP key を作らない。 | planned |
+| `cred.github-infisical-oidc` | GitHub OIDC → Infisical machine identity | GitHub Actions jobs that require Tastile-managed secrets | Infisical OIDC auth (repository / environment / workflow claims) | static Infisical token / GitHub Secret なし。Infisical identity ID / project ID は non-secret pointer。 | retained |
+| `cred.gcp-infisical-auth` | GCP workload → Infisical machine identity | Cloud Run services / jobs | Infisical GCP-native auth | GCP service account の短命 identity token を使う。INFISICAL_TOKEN / service-account JSON key を持たない。 | planned |
+| `cred.db-core-runtime` | DB role tastile_app | sa-core-api, sa-core-worker | PostgreSQL | domain-db の DML のみ。DDL / role 作成権限なし。credential value は Infisical。 | planned |
+| `cred.db-core-migrate` | DB role tastile_migrator | sa-core-migrate | PostgreSQL | domain-db schema owner。migrate job だけが使う。credential value は Infisical。 | planned |
+| `cred.db-auth-runtime` | DB role tastile_auth | sa-web | PostgreSQL | tastile_auth database のみ。domain-db への CONNECT 権限なし。credential value は Infisical。 | retained |
+| `cred.r2-media` | R2 token (media bucket) | sa-core-api (Infisical-injected) | Cloudflare R2 | tastile-media-<env> bucket の object read/write のみ。 | planned |
 | `cred.r2-downloads-publish` | R2 token (downloads publish) | tastile-desktop release job | Cloudflare R2 | tastile-downloads bucket の write のみ。release environment の approval 後にだけ取得。 | retained |
 | `cred.oauth-client` | OAuth client secrets (Google / Apple) | sa-web | identity provider |  | retained |
 | `cred.stripe-api` | Stripe secret key | sa-web | Stripe |  | retained |
@@ -36,7 +38,7 @@
 | `cred.email-api` | Email provider API key | sa-web, sa-core-worker | ext.email |  | planned |
 | `cred.vapid` | Web Push VAPID key pair | sa-core-worker | push service |  | planned |
 | `cred.delivery-key` | Delivery endpoint encryption key | sa-core-api, sa-core-worker | Core (AEAD) | Delivery endpoint token の保存時暗号化 key (TASTILE_DELIVERY_KEY)。 | retained |
-| `cred.android-upload-key` | Android upload key | tastile-android release job | Google Play (Play App Signing) | Play App Signing を前提とし、repository / CI log に出さない。 | retained |
+| `cred.android-upload-key` | Android upload key | tastile-android release job | Google Play (Play App Signing) | Play App Signing を前提とし、upload key / password の canonical value は Infisical。repository / CI log に出さない。 | retained |
 
 ## Data classes
 
@@ -49,21 +51,24 @@
 | `dc.telemetry` | Operational telemetry | request log、metric、trace、push hint。user-content と credential を含めない。 |
 | `dc.public` | Public | 公開してよい data (installer、manifest、JWKS、LP)。 |
 
-## Secret handling (GCP Secret Manager (one GCP project per environment — tastile-staging / tastile-prod / tastile-dev); adr.root.0015)
+## Secret handling (Self-hosted Infisical (single editable SoT; environment/project separated); adr.root.0015)
 
 | id | rule |
 | --- | --- |
-| `sec.single-editable-store` | secret 実値の編集可能な store は environment ごとに Secret Manager だけ。platform binding (Worker secret、Play) は deploy 時の replica。 |
-| `sec.per-secret-iam` | accessor 権限は secret 単位で、その secret を使う service account / CI identity だけに付与する。 |
-| `sec.no-long-lived-keys` | GCP service account key、AWS access key、CI 保存の長期 token を作らない。外部 SaaS が API key しか持たない場合のみ Secret Manager に置く。 |
-| `sec.fail-closed` | 必須 secret / config が無い場合は起動・build を失敗させる。dotenv や既定値へ fallback しない。 |
-| `sec.no-secret-in-repo` | secret 実値・ciphertext・dotenv を repository に置かない。key 名の一覧も各 service の config validation code だけに置く。 |
-| `sec.local-dev` | local 開発は production / staging secret を使わない。provider dev credential が必要な場合 gcloud 認証後に dev project から一時取得し、使用後に消す。 |
+| `sec.single-editable-store` | Tastile-managed secret / long-lived authentication material の編集可能な store は Infisical だけ。platform binding は deploy 時の一方向 replica。 |
+| `sec.workload-auth` | GitHub は OIDC、GCP runtime は GCP-native workload identity で Infisical machine identityへ入る。INFISICAL_TOKEN / service token / GCP SA key を置かない。 |
+| `sec.provider-managed-exception` | Cloud Build GitHub connection 等 provider が内部生成・所有する credential は provider store に存在してよいが、Tastile はその値を編集・複製せず application secret として扱わない。 |
+| `sec.no-long-lived-provider-keys` | GCP service-account key、AWS access key、GitHub保存の deploy token を作らない。外部 SaaS が API key しか持たない場合、その値は Infisical に置く。 |
+| `sec.fail-closed` | 必須 secret / config が取得できない場合は起動・build・deploy を失敗させる。dotenv や既定値へ fallback しない。 |
+| `sec.no-secret-in-repo` | secret 実値・ciphertext・dotenv を repository / GitHub Secrets / GCP Secret Manager の Tastile-managed entry に置かない。non-secret identity/project pointerだけrepositoryからdiscoverableにする。 |
+| `sec.local-dev` | local 開発は人間の Infisical loginからdev environmentだけを取得する。production / staging secretを恒久保存しない。必要な materialization はgitignored・permission-restricted・使用後削除。 |
+| `sec.replica-one-way` | Cloudflare / Google Play 等がsecret replicaを要求する場合、Infisical→platform の一方向同期だけを許可し、platform側編集を正本に戻さない。 |
 
 ## Controls
 
 | id | rule |
 | --- | --- |
+| `ctl.secret-sot-infisical` | development / CI/CD / runtime の Tastile-managed secret value は Infisical だけを canonical とし、他 provider の editable secret store を増やさない。 |
 | `ctl.owner-boundary` | 他 owner の resource は存在しないものとして扱う (Core が強制; core v1/10-invariants.md §3)。 |
 | `ctl.command-only-writes` | domain 書き込みは Core Command API だけ。actor と occurredAt は server 側で確定する。 |
 | `ctl.no-client-db` | client (browser / native / CLI) は DB に接続しない。Web server の DB 接続は auth-db に限る。 |
