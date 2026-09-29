@@ -114,8 +114,6 @@ Findings:
 - hypothesis: development / CI/CD / GCP runtime は long-lived Infisical credential や provider key を保存せず、 workload identity だけで必要な secret を Infisical から取得でき、repository / service / environment 境界を越えた read を拒否できる。
 - method: (1) GitHub Actions release workflow が GitHub OIDC → Infisical machine identity で scoped secret を取得する。 pull_request / 許可されていない workflow では同 identity auth を拒否する。 (2) staging Cloud Run service account が GCP-native identity token → Infisical machine identity で runtime secret を取得し、 別 service / production project の secret read を拒否する。 (3) secret を欠落させた canary revision は ready にならず fail-closed する。 secret value / token は evidence log に出さない。
 
-Prerequisites: self-hosted Infisical reachable, GCP staging project + service accounts
-
 | criterion | metric | op | threshold | observed | result | note |
 | --- | --- | --- | --- | --- | --- | --- |
 | c1 | static_infisical_credentials_in_github_or_gcp | `==` | 0 |  |  |  |
