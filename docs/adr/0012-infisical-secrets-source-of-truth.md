@@ -1,6 +1,6 @@
 # ADR-0012: Infisical is the workspace secrets source of truth
 
-- Status: Accepted
+- Status: Superseded by [ADR-0015](./0015-secret-store-and-workload-identity.md) for the target runtime (2026-09-29). Remains the operating procedure for the current AWS runtime until `ms.m8-decommission`; no new Infisical integration work.
 - Date: 2026-09-23
 - Scope: tastile-root, tastile-core, tastile-web, tastile-android, tastile-desktop, tastile-brands
 

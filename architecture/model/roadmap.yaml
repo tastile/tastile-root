@@ -1,0 +1,117 @@
+# Migration roadmap from current (AWS/EC2 + Infisical) to target (GCP Cloud Run + Cloud SQL + Secret Manager
+# behind Cloudflare). Canonical for: fd.migration-roadmap.
+# Sequence follows the 2026-09-28 intent (raw corpus): freeze behaviour → migrate infra → finish secrets on the
+# target runtime → staging verification → production cutover → soak → public announcement.
+# `authority: operator` marks steps that need actor.operator (billing, production mutation, public release).
+schema: tastile.architecture/roadmap@1
+as_of: 2026-09-29
+
+milestones:
+  - id: ms.m0-sot
+    title: Architecture SoT established
+    repos: [repo.root, repo.core]
+    exit_criteria:
+      - bun run architecture:validate passes on root
+      - core docs/product and v1 pointers aligned (core#199)
+    tracking: [tastile/tastile-root#48, tastile/tastile-core#199]
+    status: in_progress
+  - id: ms.m1-freeze
+    title: Observable product behaviour freeze
+    depends_on: [ms.m0-sot]
+    exit_criteria:
+      - only bug fixes and platform-neutral refactors merge to release branches until ms.m6-cutover
+      - core full gate green on real PostgreSQL (fix 3 failing tests; kpi.ci-real-db)
+    status: planned
+  - id: ms.m2-foundation
+    title: Target platform foundation
+    depends_on: [ms.m0-sot]
+    authority: operator
+    work:
+      - GCP billing account, projects tastile-dev / tastile-staging / tastile-prod, budget alerts (cost_budget)
+      - Artifact Registry, Cloud Build GitHub connection, WIF pools per repository
+      - Secret Manager per env; per-secret IAM
+      - IaC under root infra/ (OpenTofu or gcloud scripts; tool choice is part of ms.m2-foundation) — becomes canonical for real resources
+    exit_criteria:
+      - poc.secret-manager-wif passed
+      - poc.cloud-build-ci passed
+    status: planned
+  - id: ms.m3-core-staging
+    title: Core on Cloud Run staging
+    depends_on: [ms.m2-foundation]
+    work:
+      - OCI image with api / worker / migrate entrypoints; stripped binary; no AWS SDK default-chain probing (f.imds-startup)
+      - migration job + DML-only runtime role (f.migrations-at-startup)
+      - configurable pool sizes (f.pool-size)
+      - worker drain entrypoint + Cloud Scheduler 1 min sweep (ADR-0017); targeted wake は SLO 未達時だけ provider-neutral port 経由で追加; startup-recovery prompt derived from facts (f.startup-recovery-on-boot)
+      - object storage port → R2 media bucket
+      - FCM HTTP v1 direct delivery via service account (ADR-0018)
+    exit_criteria:
+      - poc.cloud-run-core passed
+      - poc.worker-drain passed
+      - poc.restore-drill passed (staging)
+    status: planned
+  - id: ms.m4-web-staging
+    title: Web on Cloud Run staging, JWT assertion, edge router
+    depends_on: [ms.m3-core-staging]
+    work:
+      - web image on Cloud Run (standalone); Better Auth on Cloud SQL auth DB
+      - Better Auth jwt plugin + Core JWKS verification; remove bridge secret (ADR-0016)
+      - edge router Worker with edge assertion
+      - email provider switch (ADR-0018)
+      - retire Cloudflare Worker preview / staging (env.preview)
+    exit_criteria:
+      - poc.web-cloud-run passed
+      - poc.jwt-assertion passed
+      - poc.email-provider passed
+    status: planned
+  - id: ms.m5-clients
+    title: Client alignment
+    depends_on: [ms.m4-web-staging]
+    work:
+      - connect flow (Authorization Code + PKCE) for Android and Desktop; retire /api/mobile/api-token
+      - Desktop uses Core API token as v1 Bearer (oq.desktop-bearer); Desktop contract drift check
+      - alert schedule read model consumption (oq.alert-schedule); remove Android dead JNI path
+      - all consumers pin the same tastile-openapi tag (ADR-0019); remove root openapi submodule
+    exit_criteria:
+      - real-device Android and real Windows smoke against staging with the same test identity
+    status: planned
+  - id: ms.m6-cutover
+    title: Production cutover AWS → GCP
+    depends_on: [ms.m5-clients, ms.m1-freeze]
+    authority: operator
+    work:
+      - rehearsal ×2 on staging (pg_dump / restore from an RDS snapshot copy with synthetic data)
+      - announced maintenance window ≤ 30 min; RDS → Cloud SQL logical dump / restore; DNS / edge switch
+      - AWS services stopped (not deleted) for 7 days as rollback path
+    exit_criteria:
+      - production /v1/ready, auth e2e and client smoke pass on GCP
+      - journal entries in docs/journal/production for every external mutation
+    status: planned
+  - id: ms.m7-soak
+    title: Soak with SLO evidence
+    depends_on: [ms.m6-cutover]
+    exit_criteria:
+      - 14 consecutive days meeting slo.api-availability / slo.web-availability / slo.work-lag pre-launch targets
+      - first 14 days actual spend extrapolates to cost_budget.pre_launch 以下 (or operator-recorded budget exception); poc.cost-30d continues after launch
+      - production restore drill passed
+    status: planned
+  - id: ms.m8-decommission
+    title: Decommission AWS and Infisical
+    depends_on: [ms.m7-soak]
+    authority: operator
+    work:
+      - delete AWS stacks (foundation, staging-foundation), SES identities, S3 / CloudFront, IAM roles, SSM parameters
+      - final encrypted snapshot export of RDS to GCS, then delete RDS
+      - remove Infisical projects / identities / .infisical.json / infisical scripts from every repository
+      - remove core deploy/aws, deploy/systemd, docs/production AWS runbooks (history stays in git)
+    exit_criteria:
+      - kpi.secret-stores == 1 per environment
+      - no repository references AWS runtime or Infisical except history
+    status: planned
+  - id: ms.m9-public-announcement
+    title: Broad public announcement
+    depends_on: [ms.m7-soak, ms.m8-decommission]
+    authority: operator
+    exit_criteria:
+      - operator decision recorded as a root ADR or release PR with SLO / PoC evidence links
+    status: planned

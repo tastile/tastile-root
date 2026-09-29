@@ -1,0 +1,140 @@
+# Risks, unverified assumptions and open questions (system level). Canonical for: fd.system-risks.
+# Domain-level open questions are owned by tastile-core; they are listed here only as pointers (owner: repo.core).
+schema: tastile.architecture/risks@1
+as_of: 2026-09-29
+
+risks:
+  - id: risk.ci-budget
+    title: Private CI minutes stop Core delivery
+    likelihood: high
+    impact: high
+    evidence: "tastile-core: every run since 2026-09-26 17:06 UTC failed with 0 steps (Actions budget $2 cap)"
+    mitigation: Core heavy CI → Cloud Build (ADR-0020, poc.cloud-build-ci); private blogs repo の失敗 workflow を停止。
+    status: open
+  - id: risk.undetected-regression
+    title: Regressions merge while CI cannot run
+    likelihood: high
+    impact: high
+    evidence: "3 failing Core tests on the release line found only by local run (poc.core-suite-vanilla-pg)"
+    mitigation: merge 前 gate を CI 可用性に依存させない (local full gate evidence を PR に添付、ADR-0020)。
+    status: open
+  - id: risk.db-tier
+    title: db-f1-micro has no SLA and 25 connections
+    likelihood: medium
+    impact: medium
+    evidence: Cloud SQL pricing page (shared-core not covered by SLA)
+    mitigation: >-
+      pre-launch SLO を 99.5% に置く。CPU > 60% (1h)・connection > 80%・post-launch のいずれかで db-g1-small または
+      dedicated 1 vCPU へ上げる。
+    status: accepted
+  - id: risk.gcp-lock-in
+    title: Platform lock-in to GCP
+    likelihood: medium
+    impact: medium
+    mitigation: OCI image、vanilla PostgreSQL、HTTP 起動 worker、標準 JWT / OAuth のみを contract にする。Cloud Run 固有 API を core code に入れない。
+    status: accepted
+  - id: risk.cutover-data
+    title: Data loss or long downtime during AWS → GCP cutover
+    likelihood: medium
+    impact: high
+    mitigation: product freeze 中に pg_dump / restore rehearsal を staging で 2 回、production は告知付き maintenance window (≤ 30 分) で実施。rollback は DNS を AWS に戻す (cutover 後 7 日間 AWS を停止のみで保持)。
+    status: open
+  - id: risk.solo-operator
+    title: Single operator (bus factor 1)
+    likelihood: high
+    impact: high
+    mitigation: 全手順を repository の runbook と IaC にし、会話履歴に依存しない (本 SoT)。agent は staging までの authority。
+    status: accepted
+  - id: risk.email-deliverability
+    title: Auth email cannot reach users
+    likelihood: medium
+    impact: high
+    evidence: AWS SES production access was denied; SES sandbox only delivers to verified addresses
+    mitigation: poc.email-provider を公開前 gate にする。
+    status: open
+  - id: risk.cloudflare-limits
+    title: Cloudflare Free / Workers Free limits
+    likelihood: medium
+    impact: low
+    mitigation: 100k requests/day 超過前に Workers Paid ($5)。nested hostname を使わない (environments.yaml)。
+    status: accepted
+  - id: risk.edge-bypass
+    title: Direct run.app access bypasses WAF
+    likelihood: medium
+    impact: medium
+    mitigation: cred.edge-assertion を production / staging middleware で必須化。app 側 auth / rate limit は常に有効。
+    status: open
+  - id: risk.bridge-secret
+    title: Web bridge secret grants all-user impersonation
+    likelihood: low
+    impact: critical
+    mitigation: ADR-0016 (JWT assertion) を cutover 前に完了。
+    status: open
+  - id: risk.cli-distribution
+    title: CLI has no binary distribution
+    likelihood: high
+    impact: low
+    mitigation: GitHub Release に cross-compiled binary + checksum を publish する release workflow を追加。
+    status: open
+
+open_questions:
+  - id: oq.owner-model
+    owner_repo: repo.core
+    question: v1 spec の polymorphic `v1_owner` と runtime 正本 `v1_subject` をどちらに統一するか。
+    reference: "core v1/15-owner-and-profile.md §1-1"
+  - id: oq.sharing-scope
+    owner_repo: repo.core
+    question: >-
+      v1/01-scope は「他ユーザーとの共有は対象外」だが、/v1/access/grants 等の共有 API が実装済み。team / 共有を
+      product scope に含めるか (旧 HARNESS はチーム管理を将来像としていた)。
+    reference: "core v1/01-scope.md 対象ユーザー; api handlers/access.rs"
+  - id: oq.product-analytics
+    owner_repo: repo.core
+    question: product KPI を第三者 tracker なしで domain fact (SQL) から算出する方式と、同意・匿名化の扱い。
+    reference: "core docs/product/product.yaml kpis"
+  - id: oq.billing-model
+    owner_repo: repo.core
+    question: 課金 plan と entitlement (quota) の意味を Core domain に持つか。Stripe は web 面のみで良いか。
+    reference: "web src/lib/billing/server.ts; core /v1/quota/tiles"
+  - id: oq.alert-schedule
+    owner_repo: repo.core
+    question: >-
+      client が OS alarm を張るための「通知予定 read model」(何を・いつ・どの強度で) の schema。
+      現在 Android は dead JNI snapshot、Desktop は local policy class で決めている。
+    reference: "ADR-0018"
+  - id: oq.desktop-bearer
+    owner_repo: repo.desktop
+    question: Desktop が minted API token ではなく account session token を v1 Bearer に送っている。connect flow 移行で解消する。
+    reference: "tastile-desktop Services/BetterAuthAuthService.cs"
+  - id: oq.web-domain-logic
+    owner_repo: repo.web
+    question: web に残る Command / Event / Reducer / validator (src/lib/domain, src/lib/core, src/tile/model/v1) の撤去範囲。
+    reference: "tastile-web AGENTS.md Implementation status"
+  - id: oq.android-local-logic
+    owner_repo: repo.android
+    question: dead JNI bridge、ExecutionAlarmPlanner、ConditionAstMirror、local command queue の撤去と、Room offline cache の位置付け。
+    reference: "tastile-android app/src/main/java/app/tastile/android/{core,notifications,data/api}"
+  - id: oq.web-config-module
+    owner_repo: repo.web
+    question: process.env 参照 (232 箇所) を src/shared/config に集約し fail-closed validation にする範囲。
+    reference: "tastile-web src/shared/config/runtime-env.ts"
+  - id: oq.cloudsql-iam-authn
+    owner_repo: repo.root
+    question: DB password の代わりに Cloud SQL IAM database authentication を使えるか (sqlx の token refresh / connector 対応)。
+    reference: "cred.db-core-runtime"
+  - id: oq.google-calendar
+    owner_repo: repo.core
+    question: 外部 calendar 連携 (import → round-trip → export) を v1 のどの phase で扱うか。
+    reference: "raw corpus 2026-04-13"
+  - id: oq.licensing
+    owner_repo: repo.root
+    question: public repositories の license と brand / trademark の分離 (web は LICENSE あり、他は未監査)。
+    reference: "raw corpus 2026-07-22"
+  - id: oq.core-legacy-migrations-dir
+    owner_repo: repo.core
+    question: repo 直下 migrations/v1/ (12 files) は crates-v1/storage/migrations/ と重複する旧配置か。削除可否。
+    reference: "tastile-core/migrations/v1"
+  - id: oq.ios-mac
+    owner_repo: repo.root
+    question: iOS / macOS client の着手時期。現状 placeholder repository のみ。
+    reference: "repositories.yaml repo.ios / repo.mac"
