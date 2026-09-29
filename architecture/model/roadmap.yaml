@@ -14,14 +14,15 @@ milestones:
       - bun run architecture:validate passes on root
       - core docs/product and v1 pointers aligned (core#199)
     tracking: [tastile/tastile-root#48, tastile/tastile-core#199]
-    status: in_progress
+    status: completed
   - id: ms.m1-freeze
     title: Observable product behaviour freeze
     depends_on: [ms.m0-sot]
     exit_criteria:
       - only bug fixes and platform-neutral refactors merge to release branches until ms.m6-cutover
       - core full gate green on real PostgreSQL (fix 3 failing tests; kpi.ci-real-db)
-    status: planned
+    tracking: [tastile/tastile-core#201, tastile/tastile-web#169]
+    status: in_progress
   - id: ms.m2-foundation
     title: Target platform foundation
     depends_on: [ms.m0-sot]
@@ -34,6 +35,7 @@ milestones:
     exit_criteria:
       - poc.secret-manager-wif passed
       - poc.cloud-build-ci passed
+    tracking: [tastile/tastile-root#50]
     status: planned
   - id: ms.m3-core-staging
     title: Core on Cloud Run staging
@@ -49,6 +51,7 @@ milestones:
       - poc.cloud-run-core passed
       - poc.worker-drain passed
       - poc.restore-drill passed (staging)
+    tracking: [tastile/tastile-core#202]
     status: planned
   - id: ms.m4-web-staging
     title: Web on Cloud Run staging, JWT assertion, edge router
@@ -63,6 +66,7 @@ milestones:
       - poc.web-cloud-run passed
       - poc.jwt-assertion passed
       - poc.email-provider passed
+    tracking: [tastile/tastile-web#171]
     status: planned
   - id: ms.m5-clients
     title: Client alignment
@@ -74,6 +78,7 @@ milestones:
       - all consumers pin the same tastile-openapi tag (ADR-0019); remove root openapi submodule
     exit_criteria:
       - real-device Android and real Windows smoke against staging with the same test identity
+    tracking: [tastile/tastile-android#65, tastile/tastile-desktop#44, tastile/tastile-cli#5]
     status: planned
   - id: ms.m6-cutover
     title: Production cutover AWS → GCP
