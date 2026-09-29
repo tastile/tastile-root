@@ -3,7 +3,7 @@
 
 ## ms.m0-sot — Architecture SoT established
 
-- status: **completed** · tracking: tastile/tastile-root#48, tastile/tastile-core#199
+- status: **done** · tracking: tastile/tastile-root#48, tastile/tastile-core#199
 - exit criteria:
   - bun run architecture:validate passes on root
   - core docs/product and v1 pointers aligned (core#199)
