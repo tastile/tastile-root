@@ -104,6 +104,7 @@ else
 fi
 
 budget_name="tastile-prelaunch"
+budget_amount="${TASTILE_GCP_BUDGET_AMOUNT:-7000JPY}"
 budget_resource="$(gcloud billing budgets list \
   --project "$dev_project" \
   --billing-account "$billing_account" \
@@ -117,14 +118,14 @@ elif [[ "$apply" == true ]]; then
     --project "$dev_project" \
     --billing-account "$billing_account" \
     --display-name "$budget_name" \
-    --budget-amount 45USD \
+    --budget-amount "$budget_amount" \
     --calendar-period month \
     --filter-projects "projects/$dev_project,projects/$staging_project,projects/$prod_project" \
     --threshold-rule percent=0.50 \
     --threshold-rule percent=0.90 \
     --threshold-rule percent=1.00
 else
-  echo "missing: budget $budget_name (45 USD, thresholds 50/90/100%)"
+  echo "missing: budget $budget_name ($budget_amount, thresholds 50/90/100%)"
 fi
 
 tfvars="$(cd "$(dirname "$0")" && pwd)/foundation/foundation.auto.tfvars.json"

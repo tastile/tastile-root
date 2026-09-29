@@ -154,10 +154,10 @@ fact_domains:
     notes: ADR-0007 / 0008 / 0009 が判断根拠。child repo の同番号 ADR copy は正本ではない (R4)。
   - id: fd.agent-tooling
     name: Agent tooling
-    description: skills、agent-loop、pre-commit review、MCP 構成。
+    description: skills、agent checkpoint schema、MCP 構成。
     kind: mechanism
     canonical: {repo: repo.root, path: .agents/skills/, format: SKILL.md}
-    structured: {repo: repo.root, path: .agent-loop/repositories.json, format: json}
+    structured: {repo: repo.root, path: .agent-loop/checkpoint.schema.json, format: json}
   - id: fd.history-corpus
     name: History corpus
     description: 前史から現在までの raw evidence。authority ではない (R3)。
@@ -241,7 +241,7 @@ fact_domains:
     name: Secret values
     kind: live
     description: secret の実値。repository・log・Issue・会話へ出さない。
-    canonical: {repo: external, path: "GCP Secret Manager (target, ADR-0015); self-hosted Infisical (current)", format: live}
+    canonical: {repo: external, path: "Self-hosted Infisical (current and target, ADR-0015)", format: live}
   - id: fd.billing-actuals
     name: Billing actuals
     kind: live

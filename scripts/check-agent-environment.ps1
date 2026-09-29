@@ -54,9 +54,10 @@ $requiredFiles = @(
     ".claude/skills/cross-repo-contract-check/SKILL.md",
     ".claude/skills/verify-tastile-change/SKILL.md",
     ".agents/skills/cross-repo-contract-check/SKILL.md",
-    ".agents/skills/tastile-precommit-review/SKILL.md",
     ".agents/skills/verify-tastile-change/SKILL.md",
     ".agents/skills/plugin-version-audit/SKILL.md",
+    ".agent-loop/checkpoint.schema.json",
+    ".agent-loop/agent-result.schema.json",
     "CODEX_ROLES.ja.md",
     "docs/adr/0001-agent-toolchain.md",
     "docs/adr/0004-context7-mcp.md",
@@ -77,7 +78,7 @@ if (Test-Path -LiteralPath $tastileWebRoot -PathType Container) {
     Write-Host "Skipping tastile-web agent checks: child repository is not present."
 }
 
-foreach ($file in @(".mcp.json", ".codex/hooks.json", ".claude/settings.json")) {
+foreach ($file in @(".mcp.json", ".codex/hooks.json", ".claude/settings.json", ".agent-loop/checkpoint.schema.json", ".agent-loop/agent-result.schema.json")) {
     if (Test-Path -LiteralPath (Join-Path $root $file)) { Test-JsonDocument $file }
 }
 

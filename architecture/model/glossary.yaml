@@ -97,7 +97,7 @@ terms:
     definition: native client が system browser で sign-in し Authorization Code + PKCE で Core API token を得る共通 flow。
   - id: term.secret-store
     term: Secret store
-    definition: secret 実値の唯一の編集可能 store (target は GCP Secret Manager)。
+    definition: secret 実値の唯一の編集可能 store (current / target とも self-hosted Infisical)。
   - id: term.workload-identity
     term: Workload identity
     definition: 長期 key を持たず、実行基盤 (Cloud Run service account、GitHub OIDC → WIF) の identity で認証すること。

@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://tastile.local/schemas/agent-result.schema.json",
   "title": "Tastile child agent immutable result",
-  "description": "Immutable result object returned by a child agent to its parent. See ADR-0008 §D-4. Re-uses the finding shape from review-result.schema.json for findings.",
+  "description": "Immutable result object returned by a child agent to its parent. See ADR-0008 §D-4.",
   "type": "object",
   "additionalProperties": false,
   "required": [

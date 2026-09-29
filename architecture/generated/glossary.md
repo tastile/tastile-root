@@ -26,7 +26,7 @@
 | **Account session** | Better Auth が管理する sign-in session (cookie / bearer)。Core の credential ではない。 | `term.account-session` |
 | **Web-to-Core assertion (JWT)** | Better Auth が署名する短命 (≤ 5 分) JWT。aud=tastile-core。BFF → Core の唯一の user 表明手段 (target)。 | `term.web-core-jwt` |
 | **Connect flow** | native client が system browser で sign-in し Authorization Code + PKCE で Core API token を得る共通 flow。 | `term.connect-flow` |
-| **Secret store** | secret 実値の唯一の編集可能 store (target は GCP Secret Manager)。 | `term.secret-store` |
+| **Secret store** | secret 実値の唯一の編集可能 store (current / target とも self-hosted Infisical)。 | `term.secret-store` |
 | **Workload identity** | 長期 key を持たず、実行基盤 (Cloud Run service account、GitHub OIDC → WIF) の identity で認証すること。 | `term.workload-identity` |
 | **Trust zone** | 同じ信頼前提を共有する実行場所の集合 (security.yaml)。zone をまたぐ関係は必ず認証される。 | `term.trust-zone` |
 | **Environment** | local / ci / staging / production のいずれか。environment 間で data・secret・identity・DB を共有しない。 | `term.environment` |

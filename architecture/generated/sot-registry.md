@@ -26,7 +26,7 @@
 | `fd.migration-roadmap` | mechanism | Migration roadmap | repo.root:architecture/model/roadmap.yaml |  |  |  |
 | `fd.system-adr` | mechanism | System-level decisions | repo.root:docs/adr/ |  |  | docs/decisions.md は 2026-09-29 で凍結した履歴 log。新しい判断は ADR として書く。 |
 | `fd.dev-workflow` | mechanism | Development workflow | repo.root:docs/agent-orchestration.md |  |  | ADR-0007 / 0008 / 0009 が判断根拠。child repo の同番号 ADR copy は正本ではない (R4)。 |
-| `fd.agent-tooling` | mechanism | Agent tooling | repo.root:.agents/skills/ | repo.root:.agent-loop/repositories.json |  |  |
+| `fd.agent-tooling` | mechanism | Agent tooling | repo.root:.agents/skills/ | repo.root:.agent-loop/checkpoint.schema.json |  |  |
 | `fd.history-corpus` | evidence | History corpus | *:docs/raw/ |  |  | root は product 全史、core は Core/domain/runtime 史を各 repo の docs/raw/ に持つ。docs/archive/ も同じく evidence。 |
 | `fd.core-runtime-config` | implementation | Core runtime configuration schema | repo.core:crates-v1/api/src/runtime_env.rs |  |  | 値は secret store / deploy 設定が live state。key 名を他 repo の文書に列挙しない。 |
 | `fd.web-implementation` | implementation | Web implementation facts | repo.web:AGENTS.md |  |  |  |
@@ -41,5 +41,5 @@
 | `fd.blog-content` | implementation | Blog content | repo.blogs:/ |  |  |  |
 | `fd.work-state` | live | Work state | external:GitHub Issues / Projects v2 (org tastile) |  |  | docs/releases/*.json 等は初期計画 snapshot (evidence)。 |
 | `fd.deployed-state` | live | Deployed state | external:Cloud Run revisions / Cloudflare / Google Play Console / R2 manifests |  |  | docs/journal/<env>/*.jsonl は deploy / 外部 write の監査 journal。 |
-| `fd.secret-values` | live | Secret values | external:GCP Secret Manager (target, ADR-0015); self-hosted Infisical (current) |  |  |  |
+| `fd.secret-values` | live | Secret values | external:Self-hosted Infisical (current and target, ADR-0015) |  |  |  |
 | `fd.billing-actuals` | live | Billing actuals | external:GCP Billing / Cloudflare / GitHub billing |  |  |  |

@@ -1,9 +1,7 @@
 #!/usr/bin/env bun
 // Tastile-specific PreToolUse policy for Bash commands.
 //
-// Keep this guard portable: it runs for routine commands on both WSL and
-// Windows, while the PowerShell-based pre-commit review is selected only for
-// commands that publish repository state.
+// Keep this guard portable: it runs for routine commands on both WSL and Windows.
 
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, statSync } from "node:fs";

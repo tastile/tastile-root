@@ -30,11 +30,10 @@ pwsh -NoProfile -File .\scripts\check-agent-environment.ps1
 
 終了コードは `0=全通過`、`1=コード/テスト失敗`、`2=外部環境不足による BLOCKED`。
 
-## Agent pre-commit review
+## Agent commit verification
 
-Claude Code、Codex、OpenCode をこのディレクトリから起動すると、agent が実行する `git commit` は、対象リポジトリの
-fast gate と別 CLI エージェントの承認が揃うまで拒否される。Git hook ではないため、人間が通常のターミナルから行う
-commit には影響しない。詳細は [agent loop](./.agent-loop/README.md)。
+agent が commit する前に変更対象の検証と `verify-tastile-change` Skill による証跡確認を行う。
+旧 per-commit reviewer loop は廃止済み (ADR-0021)。
 
 ## Child repositories
 
