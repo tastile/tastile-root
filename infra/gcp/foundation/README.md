@@ -9,7 +9,6 @@ ms.m2-foundation の durable resources。3 environment project は operator boot
 - dedicated Cloud Build service accounts: `sa-cloud-build-ci` for PR CI and `sa-cloud-build-publish` for artifact publication
 - shared Artifact Registry in `tastile-dev`
 - GitHub Actions OIDC workload identity pools/providers with repository + ref + workflow restrictions
-- WIF PoC secret **metadata** only
 - Core PR Cloud Build trigger when a 2nd-gen repository resource is supplied
 
 The Artifact Registry / Cloud Build control plane intentionally lives in the dev project. Production/staging runtime identities receive only the
@@ -32,19 +31,25 @@ tofu plan
 
 `operator-bootstrap.sh --apply` creates the local, gitignored `foundation.auto.tfvars.json`.
 
-## WIF policy
+## Workload identity policy
 
-Every provider rejects pull-request refs and pins:
+GCP WIF in this foundation is for **GCP control-plane access only** (deploy / publish).
+It is not the application-secret delivery path.
+
+Every provider pins:
 
 - organization = `tastile`
-- exact repository
+- exact repository + numeric repository ID
 - release branch or `v*` tag
 - exact workflow file
 
-The dev-only `dev-android-poc` identity is reserved for `poc.secret-manager-wif`; it may read only the `poc-wif-probe` secret.
-Other repository identities must fail that read.
+Tastile-managed secret values remain canonical in Infisical (ADR-0015).
+GitHub Actions that need those values authenticate directly to Infisical with OIDC.
+Cloud Run services/jobs authenticate to Infisical with GCP-native workload identity.
 
-Application secret names and values are **not** declared here. They are created from the owning service's runtime-config contract in ms.m3/m4.
+`secretmanager.googleapis.com` is enabled only in the dev control-plane project because
+Cloud Build 2nd-gen GitHub connections may use provider-managed credentials internally.
+Do not create Tastile-managed application/deploy secrets in GCP Secret Manager.
 
 
 ## Core repository connection
