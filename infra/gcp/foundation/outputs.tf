@@ -29,3 +29,10 @@ output "github_wif" {
 output "wif_probe_secret" {
   value = google_secret_manager_secret.wif_probe.id
 }
+
+output "ci_dispatcher" {
+  value = {
+    service_account = google_service_account.ci_dispatcher.email
+    source_bucket   = google_storage_bucket.ci_source.name
+  }
+}
