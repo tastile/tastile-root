@@ -25,9 +25,9 @@ fact_domains:
     name: Product definition
     description: Tastile の目的、対象 user、product principle、「生活のフレームワーク」の意味、non-goal、Tastile が所有しない範囲。
     kind: meaning
-    canonical: {repo: repo.core, path: docs/product/README.md, format: markdown}
-    structured: {repo: repo.core, path: docs/product/product.yaml, format: yaml}
-    pointers: [architecture/docs/01-context-and-goals.md]
+    canonical: {repo: repo.core, path: docs/product/product.yaml, format: yaml}
+    pointers: [docs/product/README.md, architecture/docs/01-context-and-goals.md]
+    notes: README は人間向け narrative / pointer。product fact を独立に再定義しない。
   - id: fd.product-kpi
     name: Product outcome KPIs
     description: activation、plan adherence、recovery 等の product 成果指標の定義。
