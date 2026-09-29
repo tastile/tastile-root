@@ -112,19 +112,28 @@ pocs:
       - {id: c2, metric: "added_latency_p95_ms (cached JWKS)", op: "<", threshold: 2}
       - {id: c3, metric: bridge_secret_references_remaining, op: "==", threshold: 0}
 
-  - id: poc.secret-manager-wif
-    title: Secret Manager + GitHub OIDC WIF as the only secret path
-    hypothesis: runtime / CI / local の secret 取得を long-lived key なしで行え、secret 単位 IAM で repo 間 read を防げる。
+  - id: poc.infisical-workload-auth
+    title: Infisical as the only Tastile-managed secret path
+    hypothesis: >-
+      development / CI/CD / GCP runtime は long-lived Infisical credential や provider key を保存せず、
+      workload identity だけで必要な secret を Infisical から取得でき、repository / service / environment 境界を越えた read を拒否できる。
     method: >-
-      public repo (tastile-android) の release job から WIF で Play 用 SA を impersonate、desktop job から R2 token を read、
-      PR job からの read が拒否されることを確認。local は gcloud ADC で dev project から取得。
+      (1) GitHub Actions release workflow が GitHub OIDC → Infisical machine identity で scoped secret を取得する。
+      pull_request / 許可されていない workflow では同 identity auth を拒否する。
+      (2) staging Cloud Run service account が GCP-native identity token → Infisical machine identity で runtime secret を取得し、
+      別 service / production project の secret read を拒否する。
+      (3) secret を欠落させた canary revision は ready にならず fail-closed する。
+      secret value / token は evidence log に出さない。
     decides: [adr.root.0015]
     status: planned
+    prerequisites: [self-hosted Infisical reachable, GCP staging project + service accounts]
     criteria:
-      - {id: c1, metric: long_lived_keys_created, op: "==", threshold: 0}
-      - {id: c2, metric: pr_job_secret_read_denied, op: "==", threshold: true}
-      - {id: c3, metric: cross_repo_secret_read_denied, op: "==", threshold: true}
-      - {id: c4, metric: cloud_run_start_with_missing_secret_fails, op: "==", threshold: true}
+      - {id: c1, metric: static_infisical_credentials_in_github_or_gcp, op: "==", threshold: 0}
+      - {id: c2, metric: github_oidc_infisical_read_succeeds, op: "==", threshold: true}
+      - {id: c3, metric: pull_request_or_untrusted_workflow_infisical_auth_denied, op: "==", threshold: true}
+      - {id: c4, metric: gcp_workload_infisical_read_succeeds, op: "==", threshold: true}
+      - {id: c5, metric: cross_service_or_environment_secret_read_denied, op: "==", threshold: true}
+      - {id: c6, metric: runtime_missing_secret_fails_closed, op: "==", threshold: true}
 
   - id: poc.email-provider
     title: Transactional email deliverability (Resend)
@@ -140,13 +149,18 @@ pocs:
   - id: poc.cloud-build-ci
     title: Core CI on Cloud Build instead of private GitHub Actions minutes
     hypothesis: Core の fmt / clippy / test (実 PG) を Cloud Build free tier 内で回せる。
-    method: Cloud Build trigger (GitHub App) で e2-standard-2 + PostgreSQL sidecar を使い CI を 10 回実行。
+    method: >-
+      Cloud Scheduler → sa-ci-dispatcher を起動。dispatcher は GCP-native auth で Infisical から Tastile CI GitHub App private key を取得し、
+      short-lived installation token で対象 Core PR head をdownload、private GCS source bucketへuploadして Cloud Build APIを呼ぶ。
+      PR buildは sa-cloud-build-ci で e2-standard-2 + PostgreSQL sidecarを使う。dispatcherが最終commit statusをGitHubへ返し、10回実行する。
     decides: [adr.root.0020]
     status: planned
     criteria:
       - {id: c1, metric: median_duration_min, op: "<=", threshold: 25}
       - {id: c2, metric: monthly_minutes_at_40_runs, op: "<=", threshold: 1000}
       - {id: c3, metric: status_reported_to_github_check, op: "==", threshold: true}
+      - {id: c4, metric: provider_managed_github_credentials_outside_infisical, op: "==", threshold: 0}
+      - {id: c5, metric: github_private_key_visible_to_pr_build, op: "==", threshold: false}
 
   - id: poc.restore-drill
     title: PITR restore drill

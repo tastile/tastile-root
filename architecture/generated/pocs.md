@@ -9,7 +9,7 @@
 | `poc.worker-drain` | Stateless worker drain triggered by Cloud Scheduler sweep | planned | adr.root.0017 |  |  |
 | `poc.web-cloud-run` | Next.js (standalone) + Better Auth on Cloud Run with Cloud SQL | planned | adr.root.0014 |  |  |
 | `poc.jwt-assertion` | Better Auth JWT (EdDSA, JWKS) replaces the web bridge secret | planned | adr.root.0016 |  |  |
-| `poc.secret-manager-wif` | Secret Manager + GitHub OIDC WIF as the only secret path | planned | adr.root.0015 |  |  |
+| `poc.infisical-workload-auth` | Infisical as the only Tastile-managed secret path | planned | adr.root.0015 |  |  |
 | `poc.email-provider` | Transactional email deliverability (Resend) | planned | adr.root.0018 |  |  |
 | `poc.cloud-build-ci` | Core CI on Cloud Build instead of private GitHub Actions minutes | planned | adr.root.0020 |  |  |
 | `poc.restore-drill` | PITR restore drill | planned | adr.root.0014 |  |  |
@@ -108,18 +108,20 @@ Findings:
 | c2 | added_latency_p95_ms (cached JWKS) | `<` | 2 |  |  |  |
 | c3 | bridge_secret_references_remaining | `==` | 0 |  |  |  |
 
-## poc.secret-manager-wif — Secret Manager + GitHub OIDC WIF as the only secret path
+## poc.infisical-workload-auth — Infisical as the only Tastile-managed secret path
 
 - status: **planned**
-- hypothesis: runtime / CI / local の secret 取得を long-lived key なしで行え、secret 単位 IAM で repo 間 read を防げる。
-- method: public repo (tastile-android) の release job から WIF で Play 用 SA を impersonate、desktop job から R2 token を read、 PR job からの read が拒否されることを確認。local は gcloud ADC で dev project から取得。
+- hypothesis: development / CI/CD / GCP runtime は long-lived Infisical credential や provider key を保存せず、 workload identity だけで必要な secret を Infisical から取得でき、repository / service / environment 境界を越えた read を拒否できる。
+- method: (1) GitHub Actions release workflow が GitHub OIDC → Infisical machine identity で scoped secret を取得する。 pull_request / 許可されていない workflow では同 identity auth を拒否する。 (2) staging Cloud Run service account が GCP-native identity token → Infisical machine identity で runtime secret を取得し、 別 service / production project の secret read を拒否する。 (3) secret を欠落させた canary revision は ready にならず fail-closed する。 secret value / token は evidence log に出さない。
 
 | criterion | metric | op | threshold | observed | result | note |
 | --- | --- | --- | --- | --- | --- | --- |
-| c1 | long_lived_keys_created | `==` | 0 |  |  |  |
-| c2 | pr_job_secret_read_denied | `==` | true |  |  |  |
-| c3 | cross_repo_secret_read_denied | `==` | true |  |  |  |
-| c4 | cloud_run_start_with_missing_secret_fails | `==` | true |  |  |  |
+| c1 | static_infisical_credentials_in_github_or_gcp | `==` | 0 |  |  |  |
+| c2 | github_oidc_infisical_read_succeeds | `==` | true |  |  |  |
+| c3 | pull_request_or_untrusted_workflow_infisical_auth_denied | `==` | true |  |  |  |
+| c4 | gcp_workload_infisical_read_succeeds | `==` | true |  |  |  |
+| c5 | cross_service_or_environment_secret_read_denied | `==` | true |  |  |  |
+| c6 | runtime_missing_secret_fails_closed | `==` | true |  |  |  |
 
 ## poc.email-provider — Transactional email deliverability (Resend)
 
@@ -137,13 +139,15 @@ Findings:
 
 - status: **planned**
 - hypothesis: Core の fmt / clippy / test (実 PG) を Cloud Build free tier 内で回せる。
-- method: Cloud Build trigger (GitHub App) で e2-standard-2 + PostgreSQL sidecar を使い CI を 10 回実行。
+- method: Cloud Scheduler → sa-ci-dispatcher を起動。dispatcher は GCP-native auth で Infisical から Tastile CI GitHub App private key を取得し、 short-lived installation token で対象 Core PR head をdownload、private GCS source bucketへuploadして Cloud Build APIを呼ぶ。 PR buildは sa-cloud-build-ci で e2-standard-2 + PostgreSQL sidecarを使う。dispatcherが最終commit statusをGitHubへ返し、10回実行する。
 
 | criterion | metric | op | threshold | observed | result | note |
 | --- | --- | --- | --- | --- | --- | --- |
 | c1 | median_duration_min | `<=` | 25 |  |  |  |
 | c2 | monthly_minutes_at_40_runs | `<=` | 1000 |  |  |  |
 | c3 | status_reported_to_github_check | `==` | true |  |  |  |
+| c4 | provider_managed_github_credentials_outside_infisical | `==` | 0 |  |  |  |
+| c5 | github_private_key_visible_to_pr_build | `==` | false |  |  |  |
 
 ## poc.restore-drill — PITR restore drill
 

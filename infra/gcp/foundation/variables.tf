@@ -20,18 +20,3 @@ variable "region" {
   type        = string
   default     = "asia-northeast1"
 }
-
-variable "core_repository_resource" {
-  description = "Optional Cloud Build 2nd-gen repository resource for tastile/tastile-core. Operator creates the GitHub App connection; OpenTofu manages the trigger."
-  type        = string
-  default     = null
-  nullable    = true
-
-  validation {
-    condition = var.core_repository_resource == null || can(regex(
-      "^projects/[^/]+/locations/[^/]+/connections/[^/]+/repositories/[^/]+$",
-      var.core_repository_resource
-    ))
-    error_message = "core_repository_resource must be a fully-qualified Cloud Build v2 repository resource name."
-  }
-}

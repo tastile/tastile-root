@@ -1,6 +1,6 @@
 # ADR-0012: Infisical is the workspace secrets source of truth
 
-- Status: Superseded by [ADR-0015](./0015-secret-store-and-workload-identity.md) for the target runtime (2026-09-29). Remains the operating procedure for the current AWS runtime until `ms.m8-decommission`; no new Infisical integration work.
+- Status: Accepted. Reaffirmed and extended for the GCP target runtime by [ADR-0015](./0015-secret-store-and-workload-identity.md) (2026-09-29).
 - Date: 2026-09-23
 - Scope: tastile-root, tastile-core, tastile-web, tastile-android, tastile-desktop, tastile-brands
 
@@ -60,3 +60,16 @@ This amendment supersedes Decision 1 only where it previously implied that every
 ## Decision amendment (2026-09-24)
 
 The original single-project layout depended on folder-level ACLs for environment separation. The self-hosted server is on the Free plan and does not expose those ACLs. The selected replacement is three environment-specific projects, with one read-only GitHub OIDC identity per environment. Each identity is assigned only to its matching project. All four repositories share the identity within an environment, so they can read one another's paths in that environment; cross-environment reads remain isolated. Do not grant project write access to CI identities.
+
+
+## Decision amendment (2026-09-29, GCP target runtime)
+
+ADR-0015 reaffirms this ADR instead of replacing it.
+
+For the GCP target runtime:
+
+- Cloud Run / Cloud Run Job workloads authenticate to Infisical with GCP-native workload identity; static `INFISICAL_TOKEN` is prohibited.
+- GitHub Actions continue to authenticate to Infisical through GitHub OIDC machine identities.
+- GitHub OIDC → GCP Workload Identity Federation is used only for GCP control-plane operations (deploy/publish), not as the secret store.
+- GCP Secret Manager is not a Tastile-managed application secret store. Provider-managed credentials created and owned internally by Google services are an allowed implementation detail.
+- AWS-specific Infisical auth bindings are retired during AWS decommission; Infisical itself remains the canonical secret control plane.

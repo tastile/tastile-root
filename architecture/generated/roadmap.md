@@ -20,11 +20,12 @@
 - status: **in_progress** · authority: **operator** · depends on: ms.m0-sot · tracking: tastile/tastile-root#50
 - work:
   - GCP billing account, projects tastile-dev / tastile-staging / tastile-prod, budget alerts (cost_budget)
-  - Artifact Registry, Cloud Build GitHub connection, WIF pools per repository
-  - Secret Manager per env; per-secret IAM
+  - Artifact Registry, Cloud Build execution identities, private CI source bucket, GCP WIF pools per deploy repository
+  - Tastile CI GitHub App + Infisical-only private key + trusted ci-dispatcher
+  - Infisical machine identities for GitHub OIDC and GCP-native workload auth; environment/service access boundaries
   - IaC under root infra/ (OpenTofu or gcloud scripts; tool choice is part of ms.m2-foundation) — becomes canonical for real resources
 - exit criteria:
-  - poc.secret-manager-wif passed
+  - poc.infisical-workload-auth passed for GitHub OIDC path; GCP workload path may complete in ms.m3-core-staging before production cutover
   - poc.cloud-build-ci passed
 
 ## ms.m3-core-staging — Core on Cloud Run staging
@@ -86,17 +87,17 @@
   - first 14 days actual spend extrapolates to cost_budget.pre_launch 以下 (or operator-recorded budget exception); poc.cost-30d continues after launch
   - production restore drill passed
 
-## ms.m8-decommission — Decommission AWS and Infisical
+## ms.m8-decommission — Decommission AWS and legacy secret paths
 
 - status: **planned** · authority: **operator** · depends on: ms.m7-soak
 - work:
   - delete AWS stacks (foundation, staging-foundation), SES identities, S3 / CloudFront, IAM roles, SSM parameters
   - final encrypted snapshot export of RDS to GCS, then delete RDS
-  - remove Infisical projects / identities / .infisical.json / infisical scripts from every repository
+  - retire AWS-specific Infisical auth bindings / obsolete secret replicas while retaining Infisical as the canonical secret control plane
   - remove core deploy/aws, deploy/systemd, docs/production AWS runbooks (history stays in git)
 - exit criteria:
   - kpi.secret-stores == 1 per environment
-  - no repository references AWS runtime or Infisical except history
+  - no repository references AWS runtime or a second editable application-secret store; Infisical remains canonical
 
 ## ms.m9-public-announcement — Broad public announcement
 

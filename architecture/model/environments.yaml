@@ -25,7 +25,7 @@ environments:
     database: >-
       host 上の PostgreSQL 17 (portable binary / OS package / container のいずれでもよい)。provider 依存の機能を使わない。
     secrets: >-
-      production / staging の secret は使わない。外部 provider の dev credential が必要な場合のみ secret store の
+      production / staging の secret は使わない。外部 provider の dev credential が必要な場合のみ Infisical dev environment の
       dev project から一時取得する。dotenv fallback は作らない。
     hostnames: {web: "http://localhost:3000", api: "http://127.0.0.1:31400"}
     lifecycle: retained
@@ -42,7 +42,7 @@ environments:
     purpose: release candidate の実 browser / 実 device / 実 DB 検証、migration と restore の演習。
     data: 合成 data と test account のみ。reset 可能。
     database: Cloud SQL instance `tastile-staging-pg` (idle 時は停止可)。
-    secrets: GCP project `tastile-staging` の Secret Manager。
+    secrets: Infisical staging project/environment。Cloud Run service account → Infisical GCP-native authで取得し、static tokenを置かない。
     hostnames:
       site: https://staging.tastile.app
       web: https://staging-app.tastile.app
@@ -58,7 +58,7 @@ environments:
     purpose: 実 user への提供。
     data: 永続。backup / PITR 対象。
     database: Cloud SQL instance `tastile-prod-pg`。
-    secrets: GCP project `tastile-prod` の Secret Manager。
+    secrets: Infisical production project/environment。Cloud Run service account → Infisical GCP-native authで取得し、static tokenを置かない。
     hostnames:
       site: https://tastile.app
       web: https://app.tastile.app

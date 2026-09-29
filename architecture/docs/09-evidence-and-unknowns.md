@@ -13,7 +13,7 @@
 | sweep 起動 worker で work lag p95 60 秒 | 未検証 | poc.worker-drain |
 | Web + Better Auth が Cloud Run で動く | 未検証 | poc.web-cloud-run |
 | JWT assertion で bridge secret を置換できる | 未検証 | poc.jwt-assertion |
-| Secret Manager + WIF だけで CI / runtime / local が回る | 未検証 | poc.secret-manager-wif |
+| Infisical + workload identityだけで development / CI / GCP runtime がstatic credential無しに回る | 未検証 | poc.infisical-workload-auth |
 | Resend で日本の mailbox に届く | 未検証 | poc.email-provider |
 | Core CI が Cloud Build free tier 内に収まる | 未検証 | poc.cloud-build-ci |
 | RPO 5 分 / RTO 60 分 | 未検証 | poc.restore-drill |

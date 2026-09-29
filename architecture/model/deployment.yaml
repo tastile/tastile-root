@@ -9,7 +9,7 @@ as_of: 2026-09-29
 providers:
   - id: prov.gcp
     name: Google Cloud (asia-northeast1 Tokyo)
-    role: target application runtime, database, secret store, scheduler, build, logs / metrics
+    role: target application runtime, database, scheduler, build, logs / metrics
     decision: adr.root.0014
     lifecycle: planned
   - id: prov.cloudflare
@@ -37,9 +37,9 @@ providers:
     retire_by: ms.m8-decommission
   - id: prov.infisical
     name: Infisical (self-hosted, user-operated)
-    role: current secret store (retiring)
-    lifecycle: retiring
-    retire_by: ms.m8-decommission
+    role: canonical secret control plane for development, CI/CD and runtime
+    decision: adr.root.0015
+    lifecycle: retained
 
 nodes:
   # ============================================================ target: production
@@ -103,13 +103,6 @@ nodes:
       max_connections_budget: "api 2×5 + worker 1×3 + web 2×3 + migrate 2 = 21 ≤ 25"
     cost_usd_month: {value: 14, basis: estimate, assumption: "db-f1-micro list $0.0105/h (us-central1) ×1.3 Tokyo uplift ≈ $10 + 10 GB SSD ≈ $2.2 + backup / log ≈ $2"}
     lifecycle: planned
-  - id: node.prod.secrets
-    env: env.production
-    provider: prov.gcp
-    service: Secret Manager (project tastile-prod)
-    hosts: []
-    cost_usd_month: {value: 1, basis: estimate, assumption: "≈ 15 active versions × $0.06"}
-    lifecycle: planned
   - id: node.shared.registry
     env: env.production
     provider: prov.gcp
@@ -123,8 +116,17 @@ nodes:
     provider: prov.gcp
     service: Cloud Build (e2-standard-2 default pool) for tastile-core CI and all image builds
     hosts: []
-    config: {project: tastile-dev, region: asia-northeast1, pr_ci_service_account: sa-cloud-build-ci, publish_service_account: sa-cloud-build-publish}
+    config: {project: tastile-dev, region: asia-northeast1, pr_ci_service_account: sa-cloud-build-ci, publish_service_account: sa-cloud-build-publish, source_bucket: tastile-dev-tastile-ci-source}
     cost_usd_month: {value: 0, max: 3, basis: verified, assumption: "2,500 free build-minutes / month / billing account"}
+    lifecycle: planned
+  - id: node.shared.ci-dispatcher
+    env: env.ci
+    provider: prov.gcp
+    service: Cloud Run Job `tastile-ci-dispatcher` + Cloud Scheduler poll
+    hosts: []
+    identity: cred.gcp-infisical-auth
+    config: {project: tastile-dev, service_account: sa-ci-dispatcher, source: GitHub App short-lived installation token from Infisical, interval: 1 min, target_repo: tastile/tastile-core}
+    cost_usd_month: {value: 0, max: 1, basis: estimate, assumption: "minute poll/job within Cloud Run and Scheduler free tiers at pre-launch volume"}
     lifecycle: planned
   - id: node.prod.downloads
     env: env.production

@@ -41,4 +41,4 @@
 
 ## Cost budget
 
-Target pre-launch: **$45/month** (staging + production infrastructure (excludes domain registration, developer tools, app store fees)). Current model estimate: **$42.3** expected, **$70.3** upper bound. Alerts: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly
+Target pre-launch: **$45/month** (staging + production infrastructure (excludes domain registration, developer tools, app store fees)). Current model estimate: **$41.3** expected, **$70.3** upper bound. Alerts: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly

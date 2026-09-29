@@ -339,9 +339,8 @@ elements:
   - id: ext.infisical
     kind: external_system
     name: Infisical (self-hosted)
-    description: current secret store。target では GCP Secret Manager に置換し retire (ADR-0015)。
-    lifecycle: retiring
-    retire_by: ms.m8-decommission
+    description: development / CI/CD / runtime の Tastile-managed secret value を保持する唯一の canonical secret control plane (ADR-0015)。
+    lifecycle: retained
   - id: ext.aws
     kind: external_system
     name: AWS (ap-northeast-1)
