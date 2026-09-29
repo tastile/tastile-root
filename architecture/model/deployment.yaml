@@ -9,7 +9,7 @@ as_of: 2026-09-29
 providers:
   - id: prov.gcp
     name: Google Cloud (asia-northeast1 Tokyo)
-    role: target application runtime, database, secret store, scheduler, build, logs / metrics
+    role: target application runtime, database, scheduler, build, logs / metrics
     decision: adr.root.0014
     lifecycle: planned
   - id: prov.cloudflare
@@ -37,9 +37,9 @@ providers:
     retire_by: ms.m8-decommission
   - id: prov.infisical
     name: Infisical (self-hosted, user-operated)
-    role: current secret store (retiring)
-    lifecycle: retiring
-    retire_by: ms.m8-decommission
+    role: canonical secret control plane for development, CI/CD and runtime
+    decision: adr.root.0015
+    lifecycle: retained
 
 nodes:
   # ============================================================ target: production
@@ -102,13 +102,6 @@ nodes:
       connectivity: Cloud SQL connector (unix socket) from Cloud Run; no authorized networks
       max_connections_budget: "api 2×5 + worker 1×3 + web 2×3 + migrate 2 = 21 ≤ 25"
     cost_usd_month: {value: 14, basis: estimate, assumption: "db-f1-micro list $0.0105/h (us-central1) ×1.3 Tokyo uplift ≈ $10 + 10 GB SSD ≈ $2.2 + backup / log ≈ $2"}
-    lifecycle: planned
-  - id: node.prod.secrets
-    env: env.production
-    provider: prov.gcp
-    service: Secret Manager (project tastile-prod)
-    hosts: []
-    cost_usd_month: {value: 1, basis: estimate, assumption: "≈ 15 active versions × $0.06"}
     lifecycle: planned
   - id: node.shared.registry
     env: env.production
