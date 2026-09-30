@@ -4,7 +4,7 @@
 | id | title | status | decides | executed | evidence |
 | --- | --- | --- | --- | --- | --- |
 | `poc.local-runtime` | Core API / Worker on vanilla PostgreSQL 17 (provider-neutral runtime baseline) | partial | adr.root.0014 | 2026-09-29 | architecture/evidence/2026-09-29-local-runtime-poc.md |
-| `poc.core-suite-vanilla-pg` | Core full test suite against vanilla PostgreSQL 17 | partial | adr.root.0014, adr.root.0020 | 2026-09-29 | architecture/evidence/2026-09-29-local-runtime-poc.md |
+| `poc.core-suite-vanilla-pg` | Core full test suite against vanilla PostgreSQL 17 | running | adr.root.0014, adr.root.0020 | 2026-09-30 | architecture/evidence/2026-09-30-core-pg17-full-suite.md |
 | `poc.cloud-run-core` | Core API on Cloud Run (asia-northeast1) with Cloud SQL connector, behind Cloudflare edge router | planned | adr.root.0014 |  |  |
 | `poc.worker-drain` | Stateless worker drain triggered by Cloud Scheduler sweep | planned | adr.root.0017 |  |  |
 | `poc.web-cloud-run` | Next.js (standalone) + Better Auth on Cloud Run with Cloud SQL | planned | adr.root.0014 |  |  |
@@ -44,16 +44,16 @@ Findings:
 
 ## poc.core-suite-vanilla-pg — Core full test suite against vanilla PostgreSQL 17
 
-- status: **partial**
+- status: **running**
 - hypothesis: Core の DB 依存 test は provider 非依存で、どこでも同じ結果になる。
-- method: cargo test --workspace --no-fail-fast (crates-v1) with TASTILE_DATABASE_URL → local PG17、4 threads。
+- method: cargo test --workspace (crates-v1) with TASTILE_DATABASE_URL → vanilla PG17。最新の exact commit は Cloud Build の postgres:17-bookworm sidecar、2 compile jobs / 1 test thread で全件実行。8 vCPU cold-target performance は別測定。
 
 | criterion | metric | op | threshold | observed | result | note |
 | --- | --- | --- | --- | --- | --- | --- |
 | c1 | tests_executed | `>=` | 900 | 934 | pass |  |
-| c2 | tests_failed | `==` | 0 | 3 | fail | api/tests/owner_profile_authz.rs ×2, api/tests/scope_enforcement.rs ×1 — regression on the release line after CI budget block (f729831, 2026-09-27) |
-| c3 | failures_attributable_to_provider | `==` | 0 | 0 | pass | failures are auth / scope expectations, not SQL dialect |
-| c4 | wall_clock_min (8 vCPU, cold target dir, build+test) | `<` | 25 | 6.3 | pass |  |
+| c2 | tests_failed | `==` | 0 | 0 | pass | exact433b1a7 / CloudBuild26bed60c: 934pass0fail0ignored; PR209 merged7c568724, core#201 closed |
+| c3 | failures_attributable_to_provider | `==` | 0 | 0 | pass | 最新934 testsは全件成功。前日のauth/scope失敗にもprovider workaroundを追加していない。 |
+| c4 | wall_clock_min (8 vCPU, cold target dir, build+test) | `<` | 25 |  |  | 最新candidateの8vCPU cold-target再計測は未実施。2026-09-29の6.3minはhistorical evidence。今回2vCPU quality step25.76minをこの基準へ読み替えない。 |
 
 ## poc.cloud-run-core — Core API on Cloud Run (asia-northeast1) with Cloud SQL connector, behind Cloudflare edge router
 
