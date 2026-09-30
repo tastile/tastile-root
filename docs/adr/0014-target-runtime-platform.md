@@ -43,7 +43,7 @@ gated_by: [poc.cloud-run-core, poc.web-cloud-run, poc.restore-drill]
    (environments.yaml)。nested hostname (`api.staging.app.tastile.app`) は廃止。
 5. **Artifact = OCI image**、Artifact Registry に digest で保存し staging → production に promotion する。Docker daemon は
    不要 (Cloud Build が build)。旧 HARNESS の「Docker を使わない」は「host に Docker daemon を前提にしない」に置き換える。
-6. **AWS・Cloudflare Workers 上の Web・Infisical runtime fetch は retire** (ms.m8-decommission)。current の AWS runbook
+6. **AWS runtime・Cloudflare Workers 上の Web・AWS-specific Infisical auth binding は retire** (ms.m8-decommission)。Infisical は ADR-0015 に従い canonical secret control plane として維持し、GCP-native workload auth で継続取得する。current の AWS runbook
    (core `docs/production/`) は cutover まで current state の手順として有効。
 
 ## Alternatives considered
@@ -52,7 +52,7 @@ gated_by: [poc.cloud-run-core, poc.web-cloud-run, poc.restore-drill]
 | --- | --- | --- |
 | A. AWS 現状維持 (EC2 + systemd + RDS) を hardening | 固定費 ≈ $90 (unverified)。VM patch・deploy 経路・IAM を自前で保守し続ける。失敗 evidence の原因がそのまま残る | 不採用 |
 | B. AWS managed container (ECS Fargate / App Runner) + RDS | VM は消えるが ALB 固定費 (≈ $20/env)、RDS ×2、NAT / IPv4 で ≈ $110+。App Runner は新規受付の継続性が不確実 (unverified) | 不採用 |
-| **C. GCP Cloud Run + Cloud SQL** | 期待 ≈ $42 / 月 (deployment.yaml)。min instance の idle 単価が低く、worker を sweep 起動にでき、PITR 込み、WIF / Secret Manager / Cloud Build と identity が一体 | **採用** |
+| **C. GCP Cloud Run + Cloud SQL** | 期待 ≈ $42 / 月 (deployment.yaml)。min instance の idle 単価が低く、worker を sweep 起動にでき、PITR 込み、WIF / Cloud Build による control-plane identity と Infisical workload auth を分離 | **採用** |
 | D. Cloudflare 中心 (Workers / Containers + Hyperdrive) | Rust core (tokio / sqlx) は Workers に載らず Containers は region 指定と常駐 worker の成熟度が不確実。DB は外部が必要 | edge のみ採用 |
 | E. Cloud Run + Supabase (Tokyo) | Pro $25 + project $10。PITR は $100 / 7 日 / project で、無しでは RPO が 24 時間 (verified: supabase.com/pricing) | 不採用 |
 | F. Tokyo VPS 1 台 (PostgreSQL 自前) | 最安だが backup / PITR / patch / failover を 1 人で持つ。qg.operability が qg.cost より上位 | 不採用 |
