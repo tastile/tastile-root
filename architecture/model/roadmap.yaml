@@ -22,7 +22,7 @@ milestones:
       - only bug fixes and platform-neutral refactors merge to release branches until ms.m6-cutover
       - core full gate green on real PostgreSQL (fix 3 failing tests; kpi.ci-real-db)
     tracking: [tastile/tastile-core#201, tastile/tastile-web#169]
-    status: in_progress
+    status: done
   - id: ms.m2-foundation
     title: Target platform foundation
     depends_on: [ms.m0-sot]

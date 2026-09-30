@@ -10,7 +10,7 @@
 
 ## ms.m1-freeze — Observable product behaviour freeze
 
-- status: **in_progress** · depends on: ms.m0-sot · tracking: tastile/tastile-core#201, tastile/tastile-web#169
+- status: **done** · depends on: ms.m0-sot · tracking: tastile/tastile-core#201, tastile/tastile-web#169
 - exit criteria:
   - only bug fixes and platform-neutral refactors merge to release branches until ms.m6-cutover
   - core full gate green on real PostgreSQL (fix 3 failing tests; kpi.ci-real-db)

@@ -47,16 +47,16 @@ pocs:
   - id: poc.core-suite-vanilla-pg
     title: Core full test suite against vanilla PostgreSQL 17
     hypothesis: Core の DB 依存 test は provider 非依存で、どこでも同じ結果になる。
-    method: cargo test --workspace --no-fail-fast (crates-v1) with TASTILE_DATABASE_URL → local PG17、4 threads。
+    method: cargo test --workspace (crates-v1) with TASTILE_DATABASE_URL → vanilla PG17。最新の exact commit は Cloud Build の postgres:17-bookworm sidecar、2 compile jobs / 1 test thread で全件実行。8 vCPU cold-target performance は別測定。
     decides: [adr.root.0014, adr.root.0020]
-    status: partial
-    executed_at: 2026-09-29
-    evidence: architecture/evidence/2026-09-29-local-runtime-poc.md
+    status: running
+    executed_at: 2026-09-30
+    evidence: architecture/evidence/2026-09-30-core-pg17-full-suite.md
     criteria:
       - {id: c1, metric: tests_executed, op: ">=", threshold: 900, observed: 934, result: pass}
-      - {id: c2, metric: tests_failed, op: "==", threshold: 0, observed: 3, result: fail, note: "api/tests/owner_profile_authz.rs ×2, api/tests/scope_enforcement.rs ×1 — regression on the release line after CI budget block (f729831, 2026-09-27)"}
-      - {id: c3, metric: failures_attributable_to_provider, op: "==", threshold: 0, observed: 0, result: pass, note: "failures are auth / scope expectations, not SQL dialect"}
-      - {id: c4, metric: "wall_clock_min (8 vCPU, cold target dir, build+test)", op: "<", threshold: 25, observed: 6.3, result: pass}
+      - {id: c2, metric: tests_failed, op: "==", threshold: 0, observed: 0, result: pass, note: "exact433b1a7 / CloudBuild26bed60c: 934pass0fail0ignored; PR209 merged7c568724, core#201 closed"}
+      - {id: c3, metric: failures_attributable_to_provider, op: "==", threshold: 0, observed: 0, result: pass, note: "最新934 testsは全件成功。前日のauth/scope失敗にもprovider workaroundを追加していない。"}
+      - {id: c4, metric: "wall_clock_min (8 vCPU, cold target dir, build+test)", op: "<", threshold: 25, note: "最新candidateの8vCPU cold-target再計測は未実施。2026-09-29の6.3minはhistorical evidence。今回2vCPU quality step25.76minをこの基準へ読み替えない。"}
 
   - id: poc.cloud-run-core
     title: Core API on Cloud Run (asia-northeast1) with Cloud SQL connector, behind Cloudflare edge router
