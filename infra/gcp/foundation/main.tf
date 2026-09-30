@@ -167,6 +167,7 @@ resource "google_project_iam_custom_role" "ci_dispatcher" {
   permissions = [
     "cloudbuild.builds.create",
     "cloudbuild.builds.get",
+    "cloudbuild.builds.list",
     "serviceusage.services.use",
   ]
 

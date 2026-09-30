@@ -21,6 +21,8 @@ jobs:
         with:
           bun-version: "1.4.2"
       - run: bun install --frozen-lockfile
+      - name: Verify CI dispatcher recovery and fencing
+        run: bun test infra/gcp/ci-dispatcher/index.test.ts
       # Regenerating must be a no-op: the committed views/catalogs must equal the model output.
       - name: Generate views and catalogs
         run: bun run architecture:generate
