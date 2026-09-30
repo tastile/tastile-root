@@ -58,5 +58,17 @@ submits `cloudbuild/ci.yaml` from the exact PR archive.
 Cloud Build runs as `sa-cloud-build-ci`, which has no Infisical, GitHub App,
 Artifact Registry write, or deployment authority.
 
-A GCS create-only lock at `locks/<head-sha>` fences duplicate submissions.
+A GCS generation-fenced lock at `locks/<head-sha>` prevents concurrent submissions.
 The GitHub status context is `tastile/cloud-build-ci`.
+The dispatcher accepts only the approved 30-minute timeout, Cloud Logging-only
+option, and a small set of step fields from the PR archive. Source, service
+account, tags, resource settings, artifacts, and destinations are fixed by the
+dispatcher. Each scheduler run submits new builds and reconciles earlier builds
+by the build ID in their pending GitHub status, so a queued build may outlive one
+Cloud Run Job invocation. If the create response or status update was lost, the
+next run recovers the build from Cloud Build tags containing the exact head SHA.
+A preparation lease abandoned for five minutes can be reclaimed by generation
+precondition. The owner must transition the lock to `submitting` before calling
+Cloud Build. An uncertain submission is never automatically repeated, because
+the create API has no idempotency key; if no build can be found for 45 minutes,
+the status becomes an explicit error and a new commit can retry.

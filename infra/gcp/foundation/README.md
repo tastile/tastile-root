@@ -59,7 +59,7 @@ reports status to GitHub. GCP Secret Manager is not enabled by this foundation.
 Pull-request build configs are controlled by the proposed commit, so PR CI must
 not run with artifact/deploy authority.
 
-- `sa-ci-dispatcher`: trusted dispatcher runtime. May create/get Cloud Builds, upload
+- `sa-ci-dispatcher`: trusted dispatcher runtime. May create/get/list Cloud Builds, upload
   source objects, and act as `sa-cloud-build-ci`; no Artifact Registry / deploy rights.
 - `sa-cloud-build-ci`: untrusted PR build execution. Logging Writer + source-bucket read only.
 - `sa-cloud-build-publish`: trusted image publication only. Logging Writer +

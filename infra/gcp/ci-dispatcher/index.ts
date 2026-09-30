@@ -11,6 +11,7 @@ type GitHubPull = {
 type GitHubStatus = {
   state: "error" | "failure" | "pending" | "success";
   context: string;
+  target_url?: string;
   updated_at: string;
 };
 
@@ -18,6 +19,7 @@ type Build = {
   id: string;
   status?: string;
   logUrl?: string;
+  tags?: string[];
 };
 
 type BuildOperation = {
@@ -28,6 +30,7 @@ type BuildOperation = {
 const STATUS_CONTEXT = "tastile/cloud-build-ci";
 const FINAL_BUILD_STATES = new Set(["SUCCESS", "FAILURE", "INTERNAL_ERROR", "TIMEOUT", "CANCELLED", "EXPIRED"]);
 const SUCCESS_BUILD_STATES = new Set(["SUCCESS"]);
+const ALLOWED_BUILD_STEP_FIELDS = new Set(["id", "name", "entrypoint", "args", "env", "dir"]);
 
 function required(name: string): string {
   const value = process.env[name]?.trim();
@@ -199,23 +202,40 @@ async function setCiStatus(
   );
 }
 
-async function createLock(gcpToken: string, sha: string): Promise<boolean> {
+async function writeLock(gcpToken: string, sha: string, generation: string, phase: "preparing" | "submitting"): Promise<string | undefined> {
   const name = `locks/${sha}`;
   const url = new URL(`https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(config.sourceBucket)}/o`);
   url.searchParams.set("uploadType", "media");
   url.searchParams.set("name", name);
-  url.searchParams.set("ifGenerationMatch", "0");
+  url.searchParams.set("ifGenerationMatch", generation);
   const response = await fetch(url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${gcpToken}`,
-      "Content-Type": "text/plain; charset=utf-8",
+      "Content-Type": "application/json",
     },
-    body: new Date().toISOString(),
+    body: JSON.stringify({ phase, updatedAt: new Date().toISOString() }),
   });
-  if (response.status === 412) return false;
+  if (response.status === 412) return undefined;
   if (!response.ok) throw new Error(`GCS lock create failed with HTTP ${response.status}`);
-  return true;
+  const payload = await response.json() as { generation: string };
+  if (!payload.generation) throw new Error("GCS lock write returned no generation");
+  return payload.generation;
+}
+
+export async function claimLock(gcpToken: string, sha: string): Promise<string | undefined> {
+  const created = await writeLock(gcpToken, sha, "0", "preparing");
+  if (created) return created;
+  const base = `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(config.sourceBucket)}/o/${encodeURIComponent(`locks/${sha}`)}`;
+  const headers = { Authorization: `Bearer ${gcpToken}` };
+  const metadata = await fetchJson<{ generation: string }>(base, { headers }, "GCS lock metadata");
+  const url = new URL(base);
+  url.searchParams.set("alt", "media");
+  url.searchParams.set("generation", metadata.generation);
+  const lock = await fetchJson<{ phase: string; updatedAt: string }>(url.toString(), { headers }, "GCS lock read");
+  // Only an abandoned preparation lease is retryable. An uncertain submission is fenced permanently.
+  if (lock.phase !== "preparing" || Date.now() - Date.parse(lock.updatedAt) < 5 * 60_000) return undefined;
+  return writeLock(gcpToken, sha, metadata.generation, "preparing");
 }
 
 async function downloadSource(token: string, sha: string): Promise<Uint8Array> {
@@ -227,7 +247,7 @@ async function downloadSource(token: string, sha: string): Promise<Uint8Array> {
   return new Uint8Array(await response.arrayBuffer());
 }
 
-async function uploadSource(gcpToken: string, sha: string, archive: Uint8Array): Promise<string> {
+export async function uploadSource(gcpToken: string, sha: string, archive: Uint8Array): Promise<string> {
   const objectName = `sources/${sha}.tar.gz`;
   const url = new URL(`https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(config.sourceBucket)}/o`);
   url.searchParams.set("uploadType", "media");
@@ -248,7 +268,7 @@ async function uploadSource(gcpToken: string, sha: string, archive: Uint8Array):
   return payload.generation;
 }
 
-async function buildConfigFromArchive(sha: string, archive: Uint8Array): Promise<Record<string, unknown>> {
+export async function buildConfigFromArchive(sha: string, archive: Uint8Array): Promise<Record<string, unknown>> {
   const path = `/tmp/tastile-core-${sha}.tar.gz`;
   await Bun.write(path, archive);
   try {
@@ -268,27 +288,44 @@ async function buildConfigFromArchive(sha: string, archive: Uint8Array): Promise
     });
     if (proc.exitCode !== 0) throw new Error("cloudbuild/ci.yaml not found in Core source archive");
     const parsed = parseYaml(proc.stdout.toString()) as Record<string, unknown>;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      throw new Error("cloudbuild/ci.yaml is not a build configuration");
+    }
+    if (Object.keys(parsed).some((key) => !["steps", "timeout", "options"].includes(key))) {
+      throw new Error("cloudbuild/ci.yaml contains an unapproved build field");
+    }
+    if (parsed.timeout !== "1800s") throw new Error("cloudbuild/ci.yaml must use the approved 1800s timeout");
+    const options = parsed.options;
+    if (typeof options !== "object" || options === null || Array.isArray(options)
+      || Object.keys(options).length !== 1 || (options as Record<string, unknown>).logging !== "CLOUD_LOGGING_ONLY") {
+      throw new Error("cloudbuild/ci.yaml must use Cloud Logging only");
+    }
     if (!Array.isArray(parsed.steps) || parsed.steps.length === 0) {
       throw new Error("cloudbuild/ci.yaml contains no build steps");
     }
-    parsed.steps = parsed.steps.map((step) => {
+    if (parsed.steps.length > 20) throw new Error("cloudbuild/ci.yaml contains too many build steps");
+    const steps = parsed.steps.map((step) => {
       if (typeof step !== "object" || step === null || Array.isArray(step)) {
         throw new Error("cloudbuild/ci.yaml contains an invalid build step");
       }
       const buildStep = step as Record<string, unknown>;
+      if (Object.keys(buildStep).some((key) => !ALLOWED_BUILD_STEP_FIELDS.has(key))) {
+        throw new Error("cloudbuild/ci.yaml contains an unapproved build step field");
+      }
       const dir = buildStep.dir;
-      if (dir !== undefined && (typeof dir !== "string" || dir.startsWith("/") || dir.split("/").includes(".."))) {
+      if (dir !== undefined && (typeof dir !== "string" || dir.startsWith("/")
+        || dir.includes("\\") || dir.split("/").includes(".."))) {
         throw new Error("cloudbuild/ci.yaml contains an unsafe step directory");
       }
       return { ...buildStep, dir: dir ? `${root}/${dir}` : root };
     });
-    return parsed;
+    return { steps, timeout: "1800s", options: { logging: "CLOUD_LOGGING_ONLY" } };
   } finally {
     await unlink(path).catch(() => {});
   }
 }
 
-async function createBuild(
+export async function createBuild(
   gcpToken: string,
   sha: string,
   generation: string,
@@ -304,7 +341,7 @@ async function createBuild(
       },
     },
     serviceAccount: config.buildServiceAccount,
-    tags: ["tastile-core-ci", sha.slice(0, 12)],
+    tags: ["tastile-core-ci", sha],
   };
   const operation = await fetchJson<BuildOperation>(
     `https://cloudbuild.googleapis.com/v1/projects/${config.gcpProjectId}/locations/${config.gcpRegion}/builds`,
@@ -323,16 +360,12 @@ async function createBuild(
   return build;
 }
 
-async function waitForBuild(gcpToken: string, id: string): Promise<Build> {
-  for (;;) {
-    const build = await fetchJson<Build>(
-      `https://cloudbuild.googleapis.com/v1/projects/${config.gcpProjectId}/locations/${config.gcpRegion}/builds/${id}`,
-      { headers: { Authorization: `Bearer ${gcpToken}` } },
-      "Cloud Build get",
-    );
-    if (build.status && FINAL_BUILD_STATES.has(build.status)) return build;
-    await Bun.sleep(10_000);
-  }
+async function getBuild(gcpToken: string, id: string): Promise<Build> {
+  return fetchJson<Build>(
+    `https://cloudbuild.googleapis.com/v1/projects/${config.gcpProjectId}/locations/${config.gcpRegion}/builds/${id}`,
+    { headers: { Authorization: `Bearer ${gcpToken}` } },
+    "Cloud Build get",
+  );
 }
 
 function buildConsoleUrl(id: string): string {
@@ -341,44 +374,97 @@ function buildConsoleUrl(id: string): string {
   return url.toString();
 }
 
-async function processPull(token: string, gcpToken: string, pr: GitHubPull): Promise<void> {
+async function findBuildForSha(gcpToken: string, sha: string): Promise<Build | undefined> {
+  const url = new URL(`https://cloudbuild.googleapis.com/v1/projects/${config.gcpProjectId}/locations/${config.gcpRegion}/builds`);
+  url.searchParams.set("filter", `tags="tastile-core-ci" AND tags="${sha}"`);
+  url.searchParams.set("pageSize", "100");
+  const page = await fetchJson<{ builds?: Build[] }>(
+    url.toString(),
+    { headers: { Authorization: `Bearer ${gcpToken}` } },
+    "Cloud Build recovery list",
+  );
+  const matches = page.builds?.filter((build) => build.tags?.includes("tastile-core-ci") && build.tags.includes(sha)) ?? [];
+  if (matches.length > 1) throw new Error("Multiple Cloud Builds found for the same locked PR head");
+  return matches[0];
+}
+
+function buildIdFromConsoleUrl(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  try {
+    const url = new URL(value);
+    if (url.hostname !== "console.cloud.google.com" || url.searchParams.get("project") !== config.gcpProjectId) return undefined;
+    const match = url.pathname.match(/^\/cloud-build\/builds;region=([^/]+)\/([a-f0-9-]{36})$/);
+    if (!match || match[1] !== config.gcpRegion) return undefined;
+    return match[2];
+  } catch {
+    return undefined;
+  }
+}
+
+export async function processPull(token: string, gcpToken: string, pr: GitHubPull): Promise<void> {
   const sha = pr.head.sha;
   const existing = await latestCiStatus(token, sha);
   if (existing) {
-    console.log(`skip PR #${pr.number} @ ${sha.slice(0, 12)}: status=${existing.state}`);
-    return;
+    let id = existing.state === "pending" ? buildIdFromConsoleUrl(existing.target_url) : undefined;
+    if (existing.state === "pending" && !id) {
+      id = (await findBuildForSha(gcpToken, sha))?.id;
+      if (id) await setCiStatus(token, sha, "pending", "Cloud Build Core CI running", buildConsoleUrl(id));
+    }
+    if (id) {
+      const build = await getBuild(gcpToken, id);
+      if (build.status && FINAL_BUILD_STATES.has(build.status)) {
+        const success = SUCCESS_BUILD_STATES.has(build.status);
+        await setCiStatus(token, sha, success ? "success" : "failure", `Cloud Build Core CI: ${build.status}`, buildConsoleUrl(id));
+        console.log(`${success ? "PASS" : "FAIL"} PR #${pr.number} @ ${sha.slice(0, 12)} build=${id}`);
+      } else {
+        console.log(`pending PR #${pr.number} @ ${sha.slice(0, 12)} build=${id}`);
+      }
+      return;
+    }
+    if (existing.state !== "pending") {
+      console.log(`skip PR #${pr.number} @ ${sha.slice(0, 12)}: status=${existing.state}`);
+      return;
+    }
   }
 
-  if (!(await createLock(gcpToken, sha))) {
-    console.log(`skip PR #${pr.number} @ ${sha.slice(0, 12)}: lock already exists`);
+  const lockGeneration = await claimLock(gcpToken, sha);
+  if (!lockGeneration) {
+    const recovered = await findBuildForSha(gcpToken, sha);
+    if (recovered || !existing) {
+      await setCiStatus(token, sha, "pending", recovered ? "Cloud Build Core CI running" : "Cloud Build Core CI queued",
+        recovered?.id ? buildConsoleUrl(recovered.id) : undefined);
+    } else if (Date.now() - Date.parse(existing.updated_at) > 45 * 60_000) {
+      await setCiStatus(token, sha, "error", "CI submission outcome unknown; push a new commit to retry");
+    }
+    console.log(`recovered PR #${pr.number} @ ${sha.slice(0, 12)}: lock already exists`);
     return;
   }
 
   await setCiStatus(token, sha, "pending", "Cloud Build Core CI queued");
 
   let targetUrl: string | undefined;
+  let submissionStarted = false;
   try {
     const archive = await downloadSource(token, sha);
     const [generation, buildConfig] = await Promise.all([
       uploadSource(gcpToken, sha, archive),
       buildConfigFromArchive(sha, archive),
     ]);
+    if (!(await writeLock(gcpToken, sha, lockGeneration, "submitting"))) {
+      console.log(`skip PR #${pr.number} @ ${sha.slice(0, 12)}: preparation lease replaced`);
+      return;
+    }
+    submissionStarted = true;
     const build = await createBuild(gcpToken, sha, generation, buildConfig);
     if (!build.id) throw new Error("Cloud Build create returned no build id");
     targetUrl = buildConsoleUrl(build.id);
     await setCiStatus(token, sha, "pending", "Cloud Build Core CI running", targetUrl);
-
-    const finished = await waitForBuild(gcpToken, build.id);
-    if (finished.status && SUCCESS_BUILD_STATES.has(finished.status)) {
-      await setCiStatus(token, sha, "success", "Cloud Build Core CI passed", targetUrl);
-      console.log(`PASS PR #${pr.number} @ ${sha.slice(0, 12)} build=${build.id}`);
-    } else {
-      await setCiStatus(token, sha, "failure", `Cloud Build Core CI: ${finished.status ?? "unknown failure"}`, targetUrl);
-      console.error(`FAIL PR #${pr.number} @ ${sha.slice(0, 12)} build=${build.id} status=${finished.status}`);
-    }
+    console.log(`submitted PR #${pr.number} @ ${sha.slice(0, 12)} build=${build.id}`);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await setCiStatus(token, sha, "error", "CI dispatcher failed before completion", targetUrl).catch(() => {});
+    if (!submissionStarted) {
+      await setCiStatus(token, sha, "error", "CI dispatcher failed before submission").catch(() => {});
+    }
     console.error(`ERROR PR #${pr.number} @ ${sha.slice(0, 12)}: ${message}`);
   }
 }
@@ -394,4 +480,4 @@ async function main(): Promise<void> {
   for (const pr of pulls) await processPull(githubToken, gcpToken, pr);
 }
 
-await main();
+if (import.meta.main) await main();
