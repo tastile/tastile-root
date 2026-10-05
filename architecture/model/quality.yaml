@@ -128,7 +128,10 @@ engineering_kpis:
 cost_budget:
   currency: USD
   period: month
-  scope: staging + production infrastructure (excludes domain registration, developer tools, app store fees)
+  scope: >-
+    staging + production infrastructure (excludes domain registration, developer tools, app store fees)。
+    Infisical正規licenseの正式見積は未取得 (risk.infisical-license)。現node数値にはこの未見積費用が含まれず、
+    数値の小計だけでlicense込み総額の予算適合を主張しない。
   target: {pre_launch: 45, post_launch_per_active_user: 0.05}
   estimate_from: deployment.yaml nodes with env in [env.staging, env.production, env.ci] and lifecycle != retiring
   alert: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly

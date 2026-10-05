@@ -5,7 +5,8 @@
 
 | id | title | L | I | status | evidence | mitigation |
 | --- | --- | --- | --- | --- | --- | --- |
-| `risk.ci-budget` | Private CI minutes stop Core delivery | high | high | open | tastile-core: every run since 2026-09-26 17:06 UTC failed with 0 steps (Actions budget $2 cap) | Core heavy CI → Cloud Build (ADR-0020, poc.cloud-build-ci); private blogs repo の失敗 workflow を停止。 |
+| `risk.ci-budget` | Private CI minutes stop Core delivery | high | high | open | 2026-09-26〜09-30はActions $2 capにより0stepで失敗。2026-10-05のCore run37302510423は正常に開始しPowerShell job成功、quality実行中。継続的なbudget可用性は未保証。 | Core heavy CI → Cloud Build (ADR-0020, poc.cloud-build-ci); private blogs repo の失敗 workflow を停止。 |
+| `risk.infisical-license` | Self-hosted secret scope requires an unpriced legitimate license | high | high | open | self-hosted Infisicalのfolder ACLに必要な正規LICENSE_KEYは未取得。 2026-10-02の公式sales返信はself-host Pro最少10 identities、Cloud Pro比約30% premiumを示したが、 正式価格・見積・license keyは提示していない (docs/journal/dev/2026-10-05.jsonl)。 | userが選択したdev/staging/productionの3 project設計を維持し、folder/path scopingを満たす正規licenseと 正式見積を取得する。資格・identity数量・請求条件と予算への影響を反映してから購入/配備を判断する。 未見積費用を0として総額の予算適合を主張しない。workload auth/deny PoC完了までstaging deploymentをgateする。 |
 | `risk.undetected-regression` | Regressions merge while CI cannot run | high | high | open | 3 failing Core tests on the release line found only by local run (poc.core-suite-vanilla-pg) | merge 前 gate を CI 可用性に依存させない (local full gate evidence を PR に添付、ADR-0020)。 |
 | `risk.db-tier` | db-f1-micro has no SLA and 25 connections | medium | medium | accepted | Cloud SQL pricing page (shared-core not covered by SLA) | pre-launch SLO を 99.5% に置く。CPU > 60% (1h)・connection > 80%・post-launch のいずれかで db-g1-small または dedicated 1 vCPU へ上げる。 |
 | `risk.gcp-lock-in` | Platform lock-in to GCP | medium | medium | accepted |  | OCI image、vanilla PostgreSQL、HTTP 起動 worker、標準 JWT / OAuth のみを contract にする。Cloud Run 固有 API を core code に入れない。 |

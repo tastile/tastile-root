@@ -1,15 +1,28 @@
 # Risks, unverified assumptions and open questions (system level). Canonical for: fd.system-risks.
 # Domain-level open questions are owned by tastile-core; they are listed here only as pointers (owner: repo.core).
 schema: tastile.architecture/risks@1
-as_of: 2026-09-29
+as_of: 2026-10-05
 
 risks:
   - id: risk.ci-budget
     title: Private CI minutes stop Core delivery
     likelihood: high
     impact: high
-    evidence: "tastile-core: every run since 2026-09-26 17:06 UTC failed with 0 steps (Actions budget $2 cap)"
+    evidence: "2026-09-26〜09-30はActions $2 capにより0stepで失敗。2026-10-05のCore run37302510423は正常に開始しPowerShell job成功、quality実行中。継続的なbudget可用性は未保証。"
     mitigation: Core heavy CI → Cloud Build (ADR-0020, poc.cloud-build-ci); private blogs repo の失敗 workflow を停止。
+    status: open
+  - id: risk.infisical-license
+    title: Self-hosted secret scope requires an unpriced legitimate license
+    likelihood: high
+    impact: high
+    evidence: >-
+      self-hosted Infisicalのfolder ACLに必要な正規LICENSE_KEYは未取得。
+      2026-10-02の公式sales返信はself-host Pro最少10 identities、Cloud Pro比約30% premiumを示したが、
+      正式価格・見積・license keyは提示していない (docs/journal/dev/2026-10-05.jsonl)。
+    mitigation: >-
+      userが選択したdev/staging/productionの3 project設計を維持し、folder/path scopingを満たす正規licenseと
+      正式見積を取得する。資格・identity数量・請求条件と予算への影響を反映してから購入/配備を判断する。
+      未見積費用を0として総額の予算適合を主張しない。workload auth/deny PoC完了までstaging deploymentをgateする。
     status: open
   - id: risk.undetected-regression
     title: Regressions merge while CI cannot run
