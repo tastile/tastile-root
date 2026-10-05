@@ -41,4 +41,4 @@
 
 ## Cost budget
 
-Target pre-launch: **$45/month** (staging + production infrastructure (excludes domain registration, developer tools, app store fees)). Current model estimate: **$41.3** expected, **$70.3** upper bound. Alerts: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly
+Target pre-launch: **$45/month** (staging + production infrastructure (excludes domain registration, developer tools, app store fees)。 Infisical正規licenseの正式見積は未取得 (risk.infisical-license)。現node数値にはこの未見積費用が含まれず、 数値の小計だけでlicense込み総額の予算適合を主張しない。). Current model estimate: **$41.3** expected, **$70.3** upper bound. Alerts: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly
