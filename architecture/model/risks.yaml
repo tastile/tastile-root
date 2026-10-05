@@ -8,7 +8,7 @@ risks:
     title: Private CI minutes stop Core delivery
     likelihood: high
     impact: high
-    evidence: "2026-09-26〜09-30はActions $2 capにより0stepで失敗。2026-10-05のCore run37302510423は正常に開始しPowerShell job成功、quality実行中。継続的なbudget可用性は未保証。"
+    evidence: "2026-09-26〜09-30はActions $2 capにより0stepで失敗。2026-10-05のCore run37306349102は全job成功、実DB937passとrollback smokeを実行。継続的なbudget可用性は未保証。"
     mitigation: Core heavy CI → Cloud Build (ADR-0020, poc.cloud-build-ci); private blogs repo の失敗 workflow を停止。
     status: open
   - id: risk.infisical-license

@@ -24,4 +24,6 @@ Git base `8702b85399c195d93edbc63311ba82d5d65bffa0` のarchiveへ、変更5 sour
 - `crates-v1/worker/src/main.rs`: `19de8787cddf9ebab72255cc2b665b9f3f86cc8c51344036ce46f148d97d3f3a`
 - `crates-v1/worker/src/prompt_tick.rs`: `8187484aa22d098e18c68569d17748300f2677f21d5774ddd77208759d42072b`
 
-これはnative GitHub commit CIのstatusではない。GitHub statusの偽装/手動successは行っていない。candidateのGitHub Actions run37302510423は別途追跡する。22.45minは1回のfresh測定で、10-run medianおよび8vCPU cold-suite performance criterionを満たしたと主張しない。poc.cloud-build-ciのworkload認証/自動status報告、Core Issue202全体、staging PoCは未完了。
+これはnative GitHub commit CIのstatusではない。GitHub statusの偽装/手動successは行っていない。最初のnative run37302510423は通常test937成功後にrollback buildのartifact混在で失敗した。baseline専用target修正後、[native run37306349102](https://github.com/tastile/tastile-core/actions/runs/37306349102) はexact90af6dc17689520509840e98bb40707367ceec69に対して全job成功、103groups937pass0fail0ignoredとcandidate migration後の旧API/worker SourceTile smokeを実行した。quality18m1s。Core PR210はeeae9887722e1a9b4235461e16855d235e50888dで統合済み。
+
+22.45minはCloud Buildでの1回のfresh測定で、10-run medianおよび8vCPU cold-suite performance criterionを満たしたと主張しない。poc.cloud-build-ciのworkload認証/自動status報告、Core Issue202全体、staging PoCは未完了。
