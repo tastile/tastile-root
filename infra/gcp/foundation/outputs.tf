@@ -31,7 +31,8 @@ output "ci_dispatcher" {
   value = {
     service_account = google_service_account.ci_dispatcher.email
     source_bucket   = google_storage_bucket.ci_source.name
-    job_name        = var.ci_dispatcher == null ? null : google_cloud_run_v2_job.ci_dispatcher[0].name
+    service_name    = var.ci_dispatcher == null ? null : google_cloud_run_v2_service.ci_dispatcher[0].name
+    service_uri     = var.ci_dispatcher == null ? null : google_cloud_run_v2_service.ci_dispatcher[0].uri
     schedule_name   = var.ci_dispatcher == null ? null : google_cloud_scheduler_job.ci_dispatcher[0].name
   }
 }

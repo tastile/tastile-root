@@ -23,7 +23,7 @@ variable "region" {
 
 
 variable "ci_dispatcher" {
-  description = "Optional non-secret configuration for the private Core CI dispatcher. Null keeps the runtime job/schedule disabled until its image and external Infisical/GitHub bindings exist."
+  description = "Optional non-secret configuration for the private Core CI dispatcher. Null keeps the runtime service/schedule disabled until its image and external Infisical/GitHub bindings exist."
   type = object({
     image                  = string
     infisical_domain       = string

@@ -252,6 +252,12 @@ resource "google_storage_bucket_iam_member" "cloud_build_ci_source_reader" {
   member = "serviceAccount:${google_service_account.cloud_build_ci.email}"
 }
 
+resource "google_storage_bucket_iam_member" "cloud_build_publish_source_reader" {
+  bucket = google_storage_bucket.ci_source.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.cloud_build_publish.email}"
+}
+
 resource "google_service_account" "github" {
   for_each = local.github_identities
 

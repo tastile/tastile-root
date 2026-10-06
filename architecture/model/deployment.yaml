@@ -4,7 +4,7 @@
 # `cost_basis: verified` = computed from an official price page; `estimate` = derived with stated assumptions;
 # `unverified` = could not be checked against a bill.
 schema: tastile.architecture/deployment@1
-as_of: 2026-09-29
+as_of: 2026-10-06
 
 providers:
   - id: prov.gcp
@@ -123,11 +123,11 @@ nodes:
   - id: node.shared.ci-dispatcher
     env: env.ci
     provider: prov.gcp
-    service: Cloud Run Job `tastile-ci-dispatcher` + Cloud Scheduler poll
+    service: private request-billed Cloud Run service `tastile-ci-dispatcher` + Cloud Scheduler poll
     hosts: []
     identity: cred.gcp-infisical-auth
-    config: {project: tastile-dev, service_account: sa-ci-dispatcher, source: GitHub App short-lived installation token from Infisical, interval: 1 min, target_repo: tastile/tastile-core, build_recovery: list tagged Cloud Builds by exact PR head SHA}
-    cost_usd_month: {value: 0, max: 1, basis: estimate, assumption: "minute poll/job within Cloud Run and Scheduler free tiers at pre-launch volume"}
+    config: {project: tastile-dev, service_account: sa-ci-dispatcher, source: GitHub App short-lived installation token from Infisical, interval: 1 min, target_repo: tastile/tastile-core, build_recovery: list tagged Cloud Builds by exact PR head SHA, ingress: internal, caller: same-project sa-ci-dispatcher, audience: canonical service URL without path, request_path: /dispatch, billing: request, min_instances: 0, max_instances: 1, concurrency: 1}
+    cost_usd_month: {value: 3.5, max: 12, basis: estimate, assumption: "ADR-0023: 43,800 polls x assumed 3s = 131,400 CPU-s; expected reserves $3.5 even without free tier. Upper assumes 10s/poll and shared free-tier exhaustion: 438,000 CPU-s x $0.000024 + 219,000 GiB-s x $0.0000025 + 43,800 requests x $0.40/M = $11.08 before egress. Latency/billing remain unmeasured; this is a conditional forecast, not a hard cap. Jobs minimum 60s/poll is excluded."}
     lifecycle: planned
   - id: node.prod.downloads
     env: env.production

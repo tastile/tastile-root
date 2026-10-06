@@ -20,11 +20,11 @@
       "svg": "architecture/views/trust-zones.svg"
     },
     "architecture/views/deployment-production.d2": {
-      "d2_sha256": "b9efd2a37f5202476b2bcedf23849691a5878d30e60152c63f63d61f7fcffd28",
+      "d2_sha256": "ac4d3f823e56d17bc6bf792157d23728c1855f4fbbd5125e8e0cd1521d8615bc",
       "svg": "architecture/views/deployment-production.svg"
     },
     "architecture/views/deployment-staging.d2": {
-      "d2_sha256": "09e51c0327675dd2624a36920bac71f7d43851ecec6cad045b9acfab63ab883a",
+      "d2_sha256": "3e6d544955dd5a0262184118c90f78dcd1b027a014022289c99a34f766a68b07",
       "svg": "architecture/views/deployment-staging.svg"
     },
     "architecture/views/deployment-production-current.d2": {
