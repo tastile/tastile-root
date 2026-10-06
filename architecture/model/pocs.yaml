@@ -3,7 +3,7 @@
 # status: planned | running | passed | failed | partial.  A decision may only rely on passed criteria;
 # anything else must stay in risks.yaml as unverified.
 schema: tastile.architecture/pocs@1
-as_of: 2026-09-29
+as_of: 2026-10-06
 
 pocs:
   - id: poc.local-runtime
@@ -154,14 +154,15 @@ pocs:
       short-lived installation token で対象 Core PR head をdownload、private GCS source bucketへuploadして Cloud Build APIを呼ぶ。
       dispatcherはADR-0023のrequest課金・非公開Cloud Run serviceとし、同一project SchedulerのOIDCを検証する。
       PR buildは sa-cloud-build-ci で e2-standard-2 + PostgreSQL sidecarを使う。dispatcherが最終commit statusをGitHubへ返し、10回実行する。
-      2026-10-06にdevの実metadata→Infisical key-name限定read→GitHub AppとScheduler200、未認証/非invoker403、他key/path/environment/project/prod403を観測済み。対象release PRが0件で、build投入/status/10回中央値は未検証。
+      2026-10-06にdevの実metadata→Infisical key-name限定read→GitHub AppとScheduler200、未認証/非invoker403、他key/path/environment/project/prod403を観測済み。その後Core PR212/c08e77e4の自動build投入からGitHub status successまで完了し、PG17 full940/0/0、24分9.167秒を観測。10回中央値は未検証。
     decides: [adr.root.0020]
-    status: planned
-    evidence: docs/evidence/2026-10-06-ci-runtime/README.md
+    status: running
+    executed_at: 2026-10-06
+    evidence: docs/evidence/2026-10-06-ci-first-build/README.md
     criteria:
       - {id: c1, metric: median_duration_min, op: "<=", threshold: 25}
       - {id: c2, metric: monthly_minutes_at_40_runs, op: "<=", threshold: 1000}
-      - {id: c3, metric: status_reported_to_github_check, op: "==", threshold: true}
+      - {id: c3, metric: status_reported_to_github_check, op: "==", threshold: true, observed: true, result: pass}
       - {id: c4, metric: provider_managed_github_credentials_outside_infisical, op: "==", threshold: 0}
       - {id: c5, metric: github_private_key_visible_to_pr_build, op: "==", threshold: false}
 
