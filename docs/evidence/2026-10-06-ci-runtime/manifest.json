@@ -1,0 +1,73 @@
+{
+  "execution_generation": 4,
+  "source_image_sha": "3917990ca95f104690fe9baacd1d1c2629ad2dd7",
+  "base_sha": "d37f3ce85cacc99368e73ba938c4c622d1949dcf",
+  "encoding": "UTF-8/LF",
+  "files": [
+    {
+      "path": "architecture/model/security.yaml",
+      "sha256": "0b8351b895ef2fc918078c44f322eb98b22549fc99ac6a51f2e7f77633923201"
+    },
+    {
+      "path": "architecture/model/pocs.yaml",
+      "sha256": "ef0db2eb5c8475e9020e5dae472e06c1dd7b5b2d0611adf7427e086a23991340"
+    },
+    {
+      "path": "infra/gcp/ci-dispatcher/index.ts",
+      "sha256": "4095a0e5243133b9de29a5ef98aadb0adfe047ca03d5b4942c1752c5b8d2617e"
+    },
+    {
+      "path": "infra/gcp/ci-dispatcher/server.ts",
+      "sha256": "b13d6cf576528eb112fcee7d5e784e5d454057d6fa90f0d7f1b8a5bc9be13aad"
+    },
+    {
+      "path": "infra/gcp/ci-dispatcher/Dockerfile",
+      "sha256": "dc28a4a02d24e17decd00fcce891320f45112868acdb39eb364d939aedf6f87b"
+    },
+    {
+      "path": "infra/gcp/foundation/ci-dispatcher.tf",
+      "sha256": "72fe9de7ba7104116bdadac17971bb299f487dc206aa98e998692675a8f8879a"
+    },
+    {
+      "path": "infra/gcp/foundation/main.tf",
+      "sha256": "c7c2909d5623a90ff4e620403582c6c8805fa7cc9780e7513c70541d7c65217e"
+    },
+    {
+      "path": "docs/adr/0023-request-billed-ci-dispatcher.md",
+      "sha256": "51b641cdb1976ea8ff5406456977fd678202811769613c047a25d99a698aa394"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-runtime/README.md",
+      "sha256": "49e4ba930b8335dcc5d322fba81e163f398a26a3a398f2d4f3b4aa751aed7445"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-runtime/image.json",
+      "sha256": "8f6384bf3b2952c4d73a378cc215a731cb4e35d04c5b4601e44d424b751db05f"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-runtime/runtime.json",
+      "sha256": "85404c3cfcafcfb2028135453f44b289312e11f615a01d709297a5df9243250c"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-runtime/runtime-logs.json",
+      "sha256": "618eb2047095e23e5a861983285819c84f7fd6da9cd9766ef80d03308c943e49"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-runtime/http-denials.json",
+      "sha256": "d60e407e376341aa99c93199a222978fc8acf8de4067550981abe8fc5d30173c"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-runtime/key-denials.json",
+      "sha256": "61a3ee8eea72e83cd52208d071cbd00ce9a72685a1b02233b618285810d3a82f"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-runtime/temporary-iam-cleanup.json",
+      "sha256": "1ef35dba8e193de843c2ccc19fc4e01d6a272c991dac815deb9284f8bce6cc54"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-runtime/runtime-receipts.json",
+      "sha256": "532e6a187afa83061a2bd3a0914d3df1789e44bf2041ed9f265608e5dda90687"
+    }
+  ],
+  "digest": "f914f131f021259b5f0ebdcbd5625e6a3a8de5e053961f8ab15e032c623626bf"
+}

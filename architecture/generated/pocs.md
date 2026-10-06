@@ -11,7 +11,7 @@
 | `poc.jwt-assertion` | Better Auth JWT (EdDSA, JWKS) replaces the web bridge secret | planned | adr.root.0016 |  |  |
 | `poc.infisical-workload-auth` | Infisical as the only Tastile-managed secret path | planned | adr.root.0015 |  |  |
 | `poc.email-provider` | Transactional email deliverability (Resend) | planned | adr.root.0018 |  |  |
-| `poc.cloud-build-ci` | Core CI on Cloud Build instead of private GitHub Actions minutes | planned | adr.root.0020 |  |  |
+| `poc.cloud-build-ci` | Core CI on Cloud Build instead of private GitHub Actions minutes | planned | adr.root.0020 |  | docs/evidence/2026-10-06-ci-runtime/README.md |
 | `poc.restore-drill` | PITR restore drill | planned | adr.root.0014 |  |  |
 | `poc.cost-30d` | 30-day cost of the target platform | planned | adr.root.0014 |  |  |
 
@@ -139,7 +139,7 @@ Findings:
 
 - status: **planned**
 - hypothesis: Core の fmt / clippy / test (実 PG) を Cloud Build free tier 内で回せる。
-- method: Cloud Scheduler → sa-ci-dispatcher を起動。dispatcher は GCP-native auth で Infisical から Tastile CI GitHub App private key を取得し、 short-lived installation token で対象 Core PR head をdownload、private GCS source bucketへuploadして Cloud Build APIを呼ぶ。 dispatcherはADR-0023のrequest課金・非公開Cloud Run serviceとし、同一project SchedulerのOIDCを検証する。 PR buildは sa-cloud-build-ci で e2-standard-2 + PostgreSQL sidecarを使う。dispatcherが最終commit statusをGitHubへ返し、10回実行する。
+- method: Cloud Scheduler → sa-ci-dispatcher を起動。dispatcher は GCP-native auth で Infisical から Tastile CI GitHub App private key を取得し、 short-lived installation token で対象 Core PR head をdownload、private GCS source bucketへuploadして Cloud Build APIを呼ぶ。 dispatcherはADR-0023のrequest課金・非公開Cloud Run serviceとし、同一project SchedulerのOIDCを検証する。 PR buildは sa-cloud-build-ci で e2-standard-2 + PostgreSQL sidecarを使う。dispatcherが最終commit statusをGitHubへ返し、10回実行する。 2026-10-06にdevの実metadata→Infisical key-name限定read→GitHub AppとScheduler200、未認証/非invoker403、他key/path/environment/project/prod403を観測済み。対象release PRが0件で、build投入/status/10回中央値は未検証。
 
 | criterion | metric | op | threshold | observed | result | note |
 | --- | --- | --- | --- | --- | --- | --- |
