@@ -1,6 +1,7 @@
 import { createSign } from "node:crypto";
 import { unlink } from "node:fs/promises";
 import { parse as parseYaml } from "yaml";
+import { serveDispatcher } from "./server";
 
 type GitHubPull = {
   number: number;
@@ -480,4 +481,9 @@ async function main(): Promise<void> {
   for (const pr of pulls) await processPull(githubToken, gcpToken, pr);
 }
 
-if (import.meta.main) await main();
+if (import.meta.main) {
+  const mode = required("CI_DISPATCHER_MODE");
+  if (mode === "http") serveDispatcher(required("PORT"), main);
+  else if (mode === "once") await main();
+  else throw new Error("CI_DISPATCHER_MODE must be http or once");
+}

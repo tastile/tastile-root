@@ -25,3 +25,4 @@
 | `adr.root.0020` | [ADR-0020: Build, CI, release, deploy — build once / promote by digest、private CI minutes を使わない](../../docs/adr/0020-build-release-and-deploy.md) | Accepted |  | all repositories |
 | `adr.root.0021` | [ADR-0021: per-commit reviewer loop を廃止する](../../docs/adr/0021-retire-per-commit-review.md) | Accepted |  | root agent tooling and commit workflow |
 | `adr.root.0022` | [ADR-0022: Infisical の開発・検証限定 RBAC 改変](../../docs/adr/0022-infisical-development-testing-overlay.md) | Accepted |  | Infisical development and staging evaluation |
+| `adr.root.0023` | [ADR-0023: 毎分 CI dispatcher を request 課金の非公開 service にする](../../docs/adr/0023-request-billed-ci-dispatcher.md) | Accepted |  | private Core CI control plane |

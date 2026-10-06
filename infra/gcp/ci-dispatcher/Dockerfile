@@ -3,6 +3,7 @@ WORKDIR /src
 COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile
 COPY infra/gcp/ci-dispatcher/index.ts ./infra/gcp/ci-dispatcher/index.ts
+COPY infra/gcp/ci-dispatcher/server.ts ./infra/gcp/ci-dispatcher/server.ts
 RUN bun build --compile ./infra/gcp/ci-dispatcher/index.ts --outfile /out/tastile-ci-dispatcher
 
 FROM debian:bookworm-slim

@@ -9,7 +9,7 @@ It exists because the project requires both:
 
 ## Credential flow
 
-1. The Cloud Run Job runs as `sa-ci-dispatcher`.
+1. The private request-billed Cloud Run service runs as `sa-ci-dispatcher`.
 2. It requests a Google-signed ID token from the metadata server with the
    Infisical machine-identity ID as the audience.
 3. It exchanges that token at `/api/v1/auth/gcp-auth/login`.
@@ -51,6 +51,15 @@ Production licensed RBAC remains a separate prerequisite.
 
 The dispatcher uses the machine identity ID as the GCP ID-token audience,
 matching Infisical's current GCP Auth verifier contract.
+
+## 呼び出し
+
+ADR-0023はrequest課金、min0/max1、internal ingress、`sa-ci-dispatcher`だけのIAM呼び出しを採用する。
+Cloud Schedulerが毎分、空bodyの`POST /dispatch`をOIDCで送る。
+audienceはpathを除くcanonical service URL。
+`CI_DISPATCHER_MODE=http`を明示し、Cloud Runが提供する`PORT`を必須にする。
+単発実行は`CI_DISPATCHER_MODE=once`を明示する。
+Jobには空振りでもinstanceごとに最低1分課金があるため、毎分の常時pollには使わない。
 
 ## Build isolation
 

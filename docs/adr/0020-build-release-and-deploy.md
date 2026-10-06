@@ -27,6 +27,7 @@ gated_by: [poc.cloud-build-ci]
    `sa-ci-dispatcher` で動くTastile-owned dispatcherをCloud Schedulerから起動し、GCP-native authでInfisicalへ入り、
    Infisicalだけに保存したTastile CI GitHub App private keyからshort-lived installation tokenを生成する。
    dispatcherがCore PR/commitを取得してprivate GCS source bucketへuploadしCloud Build APIを呼び、結果をGitHub commit statusへ返す。
+   dispatcherの毎分起動方式と費用はADR-0023で更新し、request課金の非公開Cloud Run serviceを使う。
    PR codeを実行する`sa-cloud-build-ci`にはGitHub credential / Infisical access / Artifact Registry write / deploy権限を与えない。
    private repositoryでGitHub Actions minutesを使わない (kpi.private-ci-spend = $0)。public repositoryはGitHub Actionsを使い続ける。
 3. **merge 前 gate は CI の可用性に依存させない。** CI が使えない場合、PR に local full gate (実 PostgreSQL) の結果と commit SHA を

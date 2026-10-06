@@ -244,5 +244,9 @@ controls:
     rule: auth と write endpoint は edge (WAF rate limit) と app (Core rate limit) の二段で制限する。
   - id: ctl.pr-ci-least-privilege
     rule: private PR CIのGitHub credentialはtrusted sa-ci-dispatcherだけがInfisicalから取得し、PR buildには渡さない。sa-cloud-build-ciはLogging Writer + source readのみでArtifact Registry / Infisical / deploy権限を持たない。
+  - id: ctl.ci-dispatcher-http
+    rule: ADR-0023のdev CI dispatcherはinternal ingressとservice-level IAMで同一projectのsa-ci-dispatcherだけを許可する。Scheduler短期OIDCのaudienceはcanonical service URL（path/queryなし）、POST /dispatchは空bodyだけ。allUsers/allAuthenticatedUsersを許可せず、Scheduler service agentの既定roleを保持する。min0/max1/concurrency1、request課金で実時間と費用を計測する。
+  - id: ctl.ci-evaluation-binding
+    rule: CI評価identity devtest-tastile-ci-dispatcherはorg builtin no-access、Infisical dev projectのdev environment /tastile/ci/GITHUB_CI_APP_PRIVATE_KEYだけにdescribeSecret/readValueを許可する。GCP-native authはsa-ci-dispatcher@tastile-dev.iam.gserviceaccount.comだけ、tokenTTL/maxTTL300s、write/role管理/他environment/projectは拒否する。publish専用sa-cloud-build-publishのsource readは既存private7日source bucketのObject Viewerだけを追加でき、PR CIにはpublish権限を与えない。
   - id: ctl.prod-mutation-authority
     rule: production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。
