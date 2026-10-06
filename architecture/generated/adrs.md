@@ -24,3 +24,4 @@
 | `adr.root.0019` | [ADR-0019: API contract — Core が生成し、tastile-openapi が配布し、consumer は tag を pin する](../../docs/adr/0019-api-contract-distribution.md) | Accepted |  | tastile-core, tastile-openapi, tastile-web, tastile-android, tastile-desktop, tastile-cli, tastile-root |
 | `adr.root.0020` | [ADR-0020: Build, CI, release, deploy — build once / promote by digest、private CI minutes を使わない](../../docs/adr/0020-build-release-and-deploy.md) | Accepted |  | all repositories |
 | `adr.root.0021` | [ADR-0021: per-commit reviewer loop を廃止する](../../docs/adr/0021-retire-per-commit-review.md) | Accepted |  | root agent tooling and commit workflow |
+| `adr.root.0022` | [ADR-0022: Infisical の開発・検証限定 RBAC 改変](../../docs/adr/0022-infisical-development-testing-overlay.md) | Accepted |  | Infisical development and staging evaluation |
