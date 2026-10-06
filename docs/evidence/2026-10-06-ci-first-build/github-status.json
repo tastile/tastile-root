@@ -1,0 +1,30 @@
+{
+  "sha": "c08e77e4ee3c6b53609003038185b84c0b289f51",
+  "state": "success",
+  "statuses": [
+    {
+      "context": "tastile/cloud-build-ci",
+      "state": "success",
+      "description": "Cloud Build Core CI: SUCCESS",
+      "target_url": "https://console.cloud.google.com/cloud-build/builds;region=asia-northeast1/aaf6b0a0-24cf-416a-8d8b-833b4b3434c1?project=tastile-dev",
+      "updated_at": "2026-10-06T12:55:07Z",
+      "creator": "tastile-core-ci[bot]"
+    },
+    {
+      "context": "tastile/cloud-build-ci",
+      "state": "pending",
+      "description": "Cloud Build Core CI running",
+      "target_url": "https://console.cloud.google.com/cloud-build/builds;region=asia-northeast1/aaf6b0a0-24cf-416a-8d8b-833b4b3434c1?project=tastile-dev",
+      "updated_at": "2026-10-06T12:30:11Z",
+      "creator": "tastile-core-ci[bot]"
+    },
+    {
+      "context": "tastile/cloud-build-ci",
+      "state": "pending",
+      "description": "Cloud Build Core CI queued",
+      "target_url": null,
+      "updated_at": "2026-10-06T12:30:06Z",
+      "creator": "tastile-core-ci[bot]"
+    }
+  ]
+}

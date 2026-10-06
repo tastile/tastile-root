@@ -1,0 +1,72 @@
+{
+  "execution_generation": 4,
+  "base_sha": "9c5611a441848f376a552fded42c669008d92334",
+  "encoding": "UTF-8/LF",
+  "files": [
+    {
+      "path": "architecture/model/pocs.yaml",
+      "sha256": "673d2d74499385c9524851f02f2511dcfce89921c98f037f74911cf24ed786e1"
+    },
+    {
+      "path": "architecture/generated/pocs.md",
+      "sha256": "7c0d7726dcd31c8a12b715e56a1c9d5d3daa1be4ae140a8f208c070b529627eb"
+    },
+    {
+      "path": "docs/journal/dev/2026-10-06.jsonl",
+      "sha256": "3eb53d10a5ba4d595cf79c1ded21f12f434bcccc194725fc46cb3df59b0df81a"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-first-build/README.md",
+      "sha256": "4626e36ff6c7bb2b71bfa9435ef46fe8fa476dc8491d687d7a42f7677d18e0e1"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-first-build/build.json",
+      "sha256": "df55c52109c0b3d164f89091fd0c1623c001e1e8671e8cd8df46174caaf82c94"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-first-build/tests.json",
+      "sha256": "4db8dd9b2521992328a974235eab90c419ee44ae70aa1140ea4c5c7dca675884"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-first-build/github-status.json",
+      "sha256": "39fd5878a18f6ba9fcf35cfe34032f93aab15e1192ea5fb31a8b8a639c478bda"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-ci-first-build/dispatcher.json",
+      "sha256": "adba507c564ad5894993edecf88544959be4a0188c9d145c15aa737cc08792d9"
+    }
+  ],
+  "sources": [
+    {
+      "repository": "tastile-root",
+      "commit": "3917990ca95f104690fe9baacd1d1c2629ad2dd7",
+      "path": "infra/gcp/ci-dispatcher/index.ts",
+      "sha256": "4095a0e5243133b9de29a5ef98aadb0adfe047ca03d5b4942c1752c5b8d2617e"
+    },
+    {
+      "repository": "tastile-root",
+      "commit": "3917990ca95f104690fe9baacd1d1c2629ad2dd7",
+      "path": "infra/gcp/ci-dispatcher/server.ts",
+      "sha256": "b13d6cf576528eb112fcee7d5e784e5d454057d6fa90f0d7f1b8a5bc9be13aad"
+    },
+    {
+      "repository": "tastile-root",
+      "commit": "3917990ca95f104690fe9baacd1d1c2629ad2dd7",
+      "path": "infra/gcp/ci-dispatcher/Dockerfile",
+      "sha256": "dc28a4a02d24e17decd00fcce891320f45112868acdb39eb364d939aedf6f87b"
+    },
+    {
+      "repository": "tastile-root",
+      "commit": "3917990ca95f104690fe9baacd1d1c2629ad2dd7",
+      "path": "infra/gcp/foundation/ci-dispatcher.tf",
+      "sha256": "72fe9de7ba7104116bdadac17971bb299f487dc206aa98e998692675a8f8879a"
+    },
+    {
+      "repository": "tastile-core",
+      "commit": "c08e77e4ee3c6b53609003038185b84c0b289f51",
+      "path": "cloudbuild/ci.yaml",
+      "sha256": "b9902c259f78d1710e12686077534da3b20d4b6b44a301204e0f80c4b0388983"
+    }
+  ],
+  "digest": "920ec6962ae6ee2e835c296d23f5c3a40c1ccc7f6ea25b1d839368e28ab8e3bf"
+}

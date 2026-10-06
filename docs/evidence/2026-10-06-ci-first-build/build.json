@@ -1,0 +1,75 @@
+{
+  "id": "aaf6b0a0-24cf-416a-8d8b-833b4b3434c1",
+  "status": "SUCCESS",
+  "serviceAccount": "projects/tastile-dev/serviceAccounts/sa-cloud-build-ci@tastile-dev.iam.gserviceaccount.com",
+  "source": {
+    "storageSource": {
+      "bucket": "tastile-dev-tastile-ci-source",
+      "object": "sources/c08e77e4ee3c6b53609003038185b84c0b289f51.tar.gz",
+      "generation": "1791289809417352"
+    }
+  },
+  "sourceProvenance": {
+    "resolvedStorageSource": {
+      "bucket": "tastile-dev-tastile-ci-source",
+      "object": "sources/c08e77e4ee3c6b53609003038185b84c0b289f51.tar.gz",
+      "generation": "1791289809417352"
+    },
+    "fileHashes": {
+      "gs://tastile-dev-tastile-ci-source/sources/c08e77e4ee3c6b53609003038185b84c0b289f51.tar.gz#1791289809417352": {
+        "fileHash": [
+          {
+            "type": "MD5",
+            "value": "24eCnAnGo5sPx1SOVGTLfQ=="
+          },
+          {
+            "type": "SHA256",
+            "value": "a7u9avdZZHTV9N2FCdUOqDMWOFqFSguCe/xrfOFhQaA="
+          }
+        ]
+      }
+    }
+  },
+  "tags": [
+    "tastile-core-ci",
+    "c08e77e4ee3c6b53609003038185b84c0b289f51"
+  ],
+  "startTime": "2026-10-06T12:30:11.427069171Z",
+  "finishTime": "2026-10-06T12:54:20.594311Z",
+  "durationSeconds": 1449.167,
+  "steps": [
+    {
+      "id": "postgres-start",
+      "status": "SUCCESS",
+      "timing": {
+        "startTime": "2026-10-06T12:30:15.348475357Z",
+        "endTime": "2026-10-06T12:30:29.924222414Z"
+      }
+    },
+    {
+      "id": "postgres-ready",
+      "status": "SUCCESS",
+      "timing": {
+        "startTime": "2026-10-06T12:30:29.924552076Z",
+        "endTime": "2026-10-06T12:30:31.988239893Z"
+      }
+    },
+    {
+      "id": "powershell-gate-contract",
+      "status": "SUCCESS",
+      "timing": {
+        "startTime": "2026-10-06T12:30:31.988505006Z",
+        "endTime": "2026-10-06T12:30:57.842925842Z"
+      }
+    },
+    {
+      "id": "rust-quality",
+      "status": "SUCCESS",
+      "timing": {
+        "startTime": "2026-10-06T12:30:57.843176022Z",
+        "endTime": "2026-10-06T12:54:20.185872912Z"
+      }
+    }
+  ],
+  "logUrl": "https://console.cloud.google.com/cloud-build/builds;region=asia-northeast1/aaf6b0a0-24cf-416a-8d8b-833b4b3434c1?project=561004747976"
+}
