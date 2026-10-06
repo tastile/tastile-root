@@ -43,9 +43,11 @@ Configure GCP Auth on a dedicated identity:
 
 For Cloud Run, the allowed service account email is the effective GCP Auth
 restriction. Infisical's allowed-project check applies only to GCE instances.
-The current self-hosted Free plan does not provide folder-level access control;
-configure the dedicated identity only after a valid self-hosted license enables
-that control, and verify that reads outside the CI path are denied.
+The self-hosted Free plan requires either a valid license or the bounded
+development/testing overlay in ADR-0022 for custom project role assignment.
+The overlay applies only to the declared development/staging evaluation projects.
+Verify reads outside the CI path are denied before using a dedicated identity.
+Production licensed RBAC remains a separate prerequisite.
 
 The dispatcher uses the machine identity ID as the GCP ID-token audience,
 matching Infisical's current GCP Auth verifier contract.

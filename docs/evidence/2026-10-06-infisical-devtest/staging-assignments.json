@@ -1,0 +1,64 @@
+{
+  "project": "44081e84-5983-4cc2-9fc9-dca5363005e1",
+  "roleId": "48652f5b-8372-45ea-8090-007881373db3",
+  "identityId": "d9082697-e7b4-49bd-95fd-bb159a53eca0",
+  "assigned": false,
+  "events": [
+    {
+      "check": "create-staging-role",
+      "status": 200
+    },
+    {
+      "check": "create-noaccess-identity",
+      "status": 200
+    },
+    {
+      "check": "assign-staging-role",
+      "status": 200
+    },
+    {
+      "check": "update-staging-builtin",
+      "status": 200
+    },
+    {
+      "check": "update-staging-custom",
+      "status": 200
+    },
+    {
+      "check": "deny-delete-assigned-role",
+      "status": 400
+    },
+    {
+      "check": "deny-production-assignment",
+      "status": 404
+    },
+    {
+      "check": "deny-foreign-assignment",
+      "status": 404
+    },
+    {
+      "check": "cleanup-assignment",
+      "status": 200
+    },
+    {
+      "check": "assignment-absent",
+      "status": 404
+    },
+    {
+      "check": "cleanup-identity",
+      "status": 200
+    },
+    {
+      "check": "cleanup-role",
+      "status": 200
+    },
+    {
+      "check": "cleanup-inventory",
+      "status": 200
+    },
+    {
+      "check": "evaluation-roles-zero",
+      "count": 0
+    }
+  ]
+}

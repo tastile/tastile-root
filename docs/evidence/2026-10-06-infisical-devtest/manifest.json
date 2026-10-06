@@ -1,0 +1,82 @@
+{
+  "scope": "ADR22 development/testing evaluation only",
+  "execution_generation": 3,
+  "base_sha": "27c14071c75523fe505718e79f84c228da234f26",
+  "image": "sha256:878835c6ab5057f039437d7c49bc5328f356ad07fc4c7af4cbf81629075363f8",
+  "encoding": "UTF-8 with LF normalized newlines",
+  "files": [
+    {
+      "path": ".github/workflows/architecture.yml",
+      "sha256": "c307c51bfc03ea8dc606757cdbf9953048b71e36e55e3cfd522562f7a568307c"
+    },
+    {
+      "path": "architecture/model/security.yaml",
+      "sha256": "6e36093692800fc0727b29ce4dac8ae05d1bab644ab362f42d1d4ccd84a09b29"
+    },
+    {
+      "path": "architecture/model/pocs.yaml",
+      "sha256": "f335d11192b0990413c6efb4d492dc2d055a206fa0d30a0b78b40e1b9910bd3b"
+    },
+    {
+      "path": "architecture/model/risks.yaml",
+      "sha256": "865add984354eb97e3e0aa3e3195779734120c5bc81d0a83dcb9f0a82c3fe5a4"
+    },
+    {
+      "path": "architecture/generated/security.md",
+      "sha256": "a179de9f6740e11e5816da8119a4125d31c9a8562704ac08853fbf5cc76c6664"
+    },
+    {
+      "path": "architecture/generated/risks.md",
+      "sha256": "5c5ff43577ff1ea35fd878ff1e8388ddfc420db95c237b32707f54c5ef2a1b84"
+    },
+    {
+      "path": "architecture/generated/adrs.md",
+      "sha256": "95f3f4d8f2d9522633a19482997512e18adfcf456ce58a30864d324a9c503ac7"
+    },
+    {
+      "path": "docs/adr/0022-infisical-development-testing-overlay.md",
+      "sha256": "1c74fc93c23e111e701627254b29c2c36517df7697ced344ae4cbd26401c9709"
+    },
+    {
+      "path": "infra/gcp/ci-dispatcher/README.md",
+      "sha256": "7713446a5a0e147b9763923580d00295e38a29d65214a59ec2daca0de7e51de2"
+    },
+    {
+      "path": "infra/infisical-development-testing/Dockerfile",
+      "sha256": "b833b3e892ae2c9a3d8e3c1a349df3f508e950f2d30e7310e656d6e1f944c921"
+    },
+    {
+      "path": "infra/infisical-development-testing/guard.mjs",
+      "sha256": "9c8b5416bf6ca5d61c341a41a9a00cc90523fdde4290b81c30851bdbff13a5b3"
+    },
+    {
+      "path": "infra/infisical-development-testing/guard.test.ts",
+      "sha256": "81304041e1c4655564572060c8f9a3eca1b0dc3b83cb4f5ae3770e9fa312e5f6"
+    },
+    {
+      "path": "infra/infisical-development-testing/patch.mjs",
+      "sha256": "772723e8f671416d94e72119c916605a0869ee410ac02a6156f263c32e463fcd"
+    },
+    {
+      "path": "infra/infisical-development-testing/README.md",
+      "sha256": "6e38a789600b691ee52fd3bd04ebcb47bc0464b15234b61931a8a262a33dbf6a"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-infisical-devtest/README.md",
+      "sha256": "6d51eddbd0d30f7966fbcaa19ec0112d41e277bde690195b98d7fadeb52b691e"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-infisical-devtest/roles.json",
+      "sha256": "4adde6b7f85865c97d77a723efa5835305388a708bed1c0c4997f7dedc927508"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-infisical-devtest/staging-assignments.json",
+      "sha256": "693d6cfd9cd24210e07425bb465f9ed9bff78c469e413d4baeb46bf539768e99"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-infisical-devtest/workload-auth.json",
+      "sha256": "fe09ba9f16ab61efd18ab0e2b76e7ab0634e6209660e967a3309d0c5039b2d46"
+    }
+  ],
+  "digest": "8b07223facf4f9ea257a2c1a534153d42cc27fc993ee5d108fe46246a2097f8c"
+}

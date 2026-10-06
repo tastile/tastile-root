@@ -1,7 +1,7 @@
 # Risks, unverified assumptions and open questions (system level). Canonical for: fd.system-risks.
 # Domain-level open questions are owned by tastile-core; they are listed here only as pointers (owner: repo.core).
 schema: tastile.architecture/risks@1
-as_of: 2026-10-05
+as_of: 2026-10-06
 
 risks:
   - id: risk.ci-budget
@@ -12,17 +12,19 @@ risks:
     mitigation: Core heavy CI → Cloud Build (ADR-0020, poc.cloud-build-ci); private blogs repo の失敗 workflow を停止。
     status: open
   - id: risk.infisical-license
-    title: Self-hosted secret scope requires an unpriced legitimate license
+    title: Production secret scope requires an unpriced legitimate license
     likelihood: high
     impact: high
     evidence: >-
-      self-hosted Infisicalのfolder ACLに必要な正規LICENSE_KEYは未取得。
+      production用途のInfisical folder ACLに必要な正規LICENSE_KEYは未取得。
+      v0.165.15 ee/LICENSE.mdの開発・検証目的のcopy/modify例外を確認し、ADR-0022の限定改変で非本番PoCを進める。
       2026-10-02の公式sales返信はself-host Pro最少10 identities、Cloud Pro比約30% premiumを示したが、
       正式価格・見積・license keyは提示していない (docs/journal/dev/2026-10-05.jsonl)。
     mitigation: >-
       userが選択したdev/staging/productionの3 project設計を維持し、folder/path scopingを満たす正規licenseと
       正式見積を取得する。資格・identity数量・請求条件と予算への影響を反映してから購入/配備を判断する。
-      未見積費用を0として総額の予算適合を主張しない。workload auth/deny PoC完了までstaging deploymentをgateする。
+      未見積費用を0として総額の予算適合を主張しない。開発・検証用途はADR-0022で限定し、
+      workload auth/deny PoC完了までstaging deploymentをgateする。production用途のpaid RBACは正規license取得をgateする。
     status: open
   - id: risk.undetected-regression
     title: Regressions merge while CI cannot run

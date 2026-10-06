@@ -126,7 +126,7 @@ pocs:
       secret value / token は evidence log に出さない。
     decides: [adr.root.0015]
     status: planned
-    prerequisites: [self-hosted Infisical reachable, legitimate self-hosted license enabling folder/path access scope, GCP staging project + service accounts]
+    prerequisites: [self-hosted Infisical reachable, licensed folder/path scope or ADR-0022 development/testing-only scoped overlay, GCP staging project + service accounts]
     criteria:
       - {id: c1, metric: static_infisical_credentials_in_github_or_gcp, op: "==", threshold: 0}
       - {id: c2, metric: github_oidc_infisical_read_succeeds, op: "==", threshold: true}

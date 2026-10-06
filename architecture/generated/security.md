@@ -69,6 +69,7 @@
 
 | id | rule |
 | --- | --- |
+| `ctl.infisical-development-testing` | ADR-0022によりInfisical v0.165.15の開発・検証限定RBAC改変を許可する。 TASTILE_INFISICAL_DEVELOPMENT_TESTINGが厳密に1、認証済orgがd808df2c-ec67-4046-b733-8c0db0bfa47d、 scope keyがprojectId、projectがdev949b4193-a226-4620-8371-726a37c7195bまたはstaging44081e84-5983-4cc2-9fc9-dca5363005e1のときだけ custom role作成/更新とidentityへのproject role割当/更新のplan restrictionへ例外を設ける。production ab532e90-acde-40e6-a206-3976743e5da5とorg scopeは対象外。 actor permission guard、secret read/write判定、global plan、license keyは維持する。 rollback前にこの評価で作成したidentityのproject割当を削除し、devtest-tastile- prefixの評価roleを削除・0件確認する。 GCP検証ではoperatorにdevのsa-ci-dispatcherだけのroles/iam.serviceAccountOpenIdTokenCreatorを最大30分の期限条件付きで一時付与でき、検証後に当該bindingを削除する。長期SA keyやaccess-token/signing権限は追加しない。 既存role/assignmentとproduction設定は保存する。改変版をproduction用途のRBACとして使用しない。 |
 | `ctl.secret-sot-infisical` | development / CI/CD / runtime の Tastile-managed secret value は Infisical だけを canonical とし、他 provider の editable secret store を増やさない。 |
 | `ctl.owner-boundary` | 他 owner の resource は存在しないものとして扱う (Core が強制; core v1/10-invariants.md §3)。 |
 | `ctl.command-only-writes` | domain 書き込みは Core Command API だけ。actor と occurredAt は server 側で確定する。 |

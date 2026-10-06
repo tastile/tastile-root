@@ -1,0 +1,113 @@
+{
+  "project": "949b4193-a226-4620-8371-726a37c7195b",
+  "roleId": "a3f67f4c-ca56-4256-ab08-4e5ebb2aab27",
+  "identityId": "c364be53-5296-4264-a21d-4d3dd2fa5216",
+  "membershipCreated": false,
+  "folders": [],
+  "events": [
+    {
+      "check": "create-scoped-role",
+      "status": 200
+    },
+    {
+      "check": "create-noaccess-identity",
+      "status": 200
+    },
+    {
+      "check": "assign-scoped-role",
+      "status": 200
+    },
+    {
+      "check": "update-scoped-assignment",
+      "status": 200
+    },
+    {
+      "check": "configure-native-gcp-auth",
+      "status": 200
+    },
+    {
+      "check": "other-environment-folder-inventory",
+      "status": 200
+    },
+    {
+      "check": "create-empty-environment-fixture",
+      "status": 200
+    },
+    {
+      "check": "other-environment-folder-inventory",
+      "status": 200
+    },
+    {
+      "check": "create-empty-environment-fixture",
+      "status": 200
+    },
+    {
+      "check": "gcp-mint-oidc",
+      "status": 200
+    },
+    {
+      "check": "native-gcp-login",
+      "status": 200
+    },
+    {
+      "check": "scoped-ci-read",
+      "status": 200
+    },
+    {
+      "check": "private-key-present",
+      "valid": true
+    },
+    {
+      "check": "deny-role-create",
+      "status": 403
+    },
+    {
+      "check": "deny-role-update",
+      "status": 403
+    },
+    {
+      "check": "deny-other-path",
+      "status": 403
+    },
+    {
+      "check": "deny-other-environment",
+      "status": 403
+    },
+    {
+      "check": "deny-production-read",
+      "status": 403
+    },
+    {
+      "check": "deny-write",
+      "status": 403
+    },
+    {
+      "check": "cleanup-assignment",
+      "status": 200
+    },
+    {
+      "check": "cleanup-identity",
+      "status": 200
+    },
+    {
+      "check": "cleanup-role",
+      "status": 200
+    },
+    {
+      "check": "cleanup-empty-environment-fixture",
+      "status": 200
+    },
+    {
+      "check": "cleanup-empty-environment-fixture",
+      "status": 200
+    },
+    {
+      "check": "cleanup-inventory",
+      "status": 200
+    },
+    {
+      "check": "cleanup-zero-evaluation-roles",
+      "count": 0
+    }
+  ]
+}
