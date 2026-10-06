@@ -1,0 +1,13 @@
+{
+  "id": "3864448c-d5a1-4db8-82ce-53737fa9c547",
+  "ts": "2026-10-06T04:11:24.539Z",
+  "agent": "codex",
+  "issue_id": 50,
+  "execution_generation": 4,
+  "env": "dev",
+  "operation": "oidc-proof-binding-removed",
+  "idempotency_key": "tastile-ci-key-proof-1791259794919-oidc-proof-binding-removed",
+  "target": "sa-ci-dispatcher@tastile-dev.iam.gserviceaccount.com",
+  "result": "ok",
+  "evidence": "Exact temporary IAM binding removed and readback absent; configured CI identity retained."
+}

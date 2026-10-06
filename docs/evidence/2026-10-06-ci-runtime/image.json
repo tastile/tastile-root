@@ -1,0 +1,28 @@
+{
+  "sourceSha": "3917990ca95f104690fe9baacd1d1c2629ad2dd7",
+  "id": "13ce2fe1-2223-42bb-93d2-1856104ee57d",
+  "image": "asia-northeast1-docker.pkg.dev/tastile-dev/tastile/ci-dispatcher@sha256:c18eb137165eca7d082e714abcebedb1edb3ef28ee6468de5815c24847a144d0",
+  "finishTime": "2026-10-06T04:02:31.923539Z",
+  "manifest": [
+    {
+      "path": "package.json",
+      "sha256": "14226272b7521fa96eace4660f962d72a0a0adf17589db2da39b0e0efed97df9"
+    },
+    {
+      "path": "bun.lock",
+      "sha256": "dd8837bf9033366be7087c0bef28aec77d8eae5a9cf951cd1c3624eb7a767b61"
+    },
+    {
+      "path": "infra/gcp/ci-dispatcher/index.ts",
+      "sha256": "4095a0e5243133b9de29a5ef98aadb0adfe047ca03d5b4942c1752c5b8d2617e"
+    },
+    {
+      "path": "infra/gcp/ci-dispatcher/server.ts",
+      "sha256": "b13d6cf576528eb112fcee7d5e784e5d454057d6fa90f0d7f1b8a5bc9be13aad"
+    },
+    {
+      "path": "infra/gcp/ci-dispatcher/Dockerfile",
+      "sha256": "dc28a4a02d24e17decd00fcce891320f45112868acdb39eb364d939aedf6f87b"
+    }
+  ]
+}

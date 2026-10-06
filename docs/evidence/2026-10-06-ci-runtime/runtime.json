@@ -1,0 +1,53 @@
+{
+  "uri": "https://tastile-ci-dispatcher-bydsa7kkla-an.a.run.app",
+  "ingress": "INGRESS_TRAFFIC_INTERNAL_ONLY",
+  "ready": {
+    "type": "Ready",
+    "state": "CONDITION_SUCCEEDED",
+    "lastTransitionTime": "2026-10-06T04:04:26.124577Z"
+  },
+  "revision": "projects/tastile-dev/locations/asia-northeast1/services/tastile-ci-dispatcher/revisions/tastile-ci-dispatcher-00001-mrm",
+  "image": "asia-northeast1-docker.pkg.dev/tastile-dev/tastile/ci-dispatcher@sha256:c18eb137165eca7d082e714abcebedb1edb3ef28ee6468de5815c24847a144d0",
+  "serviceAccount": "sa-ci-dispatcher@tastile-dev.iam.gserviceaccount.com",
+  "scaling": {
+    "maxInstanceCount": 1
+  },
+  "concurrency": 1,
+  "resources": {
+    "limits": {
+      "cpu": "1",
+      "memory": "512Mi"
+    },
+    "cpuIdle": true
+  },
+  "scheduler": {
+    "state": "ENABLED",
+    "status": {},
+    "lastAttemptTime": "2026-10-06T04:13:04.422671Z",
+    "httpTarget": {
+      "uri": "https://tastile-ci-dispatcher-bydsa7kkla-an.a.run.app/dispatch",
+      "httpMethod": "POST",
+      "headers": {
+        "User-Agent": "Google-Cloud-Scheduler",
+        "Content-Type": "application/json"
+      },
+      "oidcToken": {
+        "serviceAccountEmail": "sa-ci-dispatcher@tastile-dev.iam.gserviceaccount.com",
+        "audience": "https://tastile-ci-dispatcher-bydsa7kkla-an.a.run.app"
+      }
+    }
+  },
+  "policy": {
+    "version": 1,
+    "etag": "BwZdJBjI7lQ=",
+    "bindings": [
+      {
+        "role": "roles/run.invoker",
+        "members": [
+          "serviceAccount:sa-ci-dispatcher@tastile-dev.iam.gserviceaccount.com"
+        ]
+      }
+    ]
+  },
+  "unauthStatus": 404
+}

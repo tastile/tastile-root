@@ -1,0 +1,42 @@
+{
+  "identityId": "1daa0c31-bf42-4fd4-9229-3a33b92f0864",
+  "proofOrigin": "operator impersonated same SA short-lived ID token; actual metadata positive separately observed in Cloud Run",
+  "events": [
+    {
+      "check": "native-login-existing-ci-identity",
+      "status": 200
+    },
+    {
+      "check": "allowed-key",
+      "status": 200
+    },
+    {
+      "check": "private-key-present",
+      "valid": true
+    },
+    {
+      "check": "other-key-existing-folder",
+      "status": 403
+    },
+    {
+      "check": "other-path",
+      "status": 403
+    },
+    {
+      "check": "other-environment-existing-root",
+      "status": 403
+    },
+    {
+      "check": "cross-project-staging",
+      "status": 403
+    },
+    {
+      "check": "production-project",
+      "status": 403
+    },
+    {
+      "check": "role-management-denied",
+      "status": 403
+    }
+  ]
+}

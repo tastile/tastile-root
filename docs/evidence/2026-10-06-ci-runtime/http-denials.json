@@ -1,0 +1,21 @@
+{
+  "job": "projects/tastile-dev/locations/asia-northeast1/jobs/tastile-ci-auth-probe-1791259714219",
+  "events": [
+    {
+      "label": "unauthenticated-internal",
+      "status": 403,
+      "timestamp": "2026-10-06T04:08:43.416233484Z",
+      "debugInfo": "URL_ERROR-ERROR_OTHER. Original HTTP response code number = 403"
+    },
+    {
+      "label": "unauthorized-publish-sa",
+      "status": 403,
+      "timestamp": "2026-10-06T04:09:04.563170937Z",
+      "debugInfo": "URL_ERROR-ERROR_OTHER. Original HTTP response code number = 403"
+    },
+    {
+      "label": "cleanup-absent",
+      "status": 404
+    }
+  ]
+}
