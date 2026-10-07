@@ -1,0 +1,68 @@
+{
+  "baseSource": "4c05502ab9200a9918a28e052db3534696660efb",
+  "executionGeneration": 4,
+  "phase": "source/fixture-preparation; actualGitHubproofpending",
+  "files": [
+    {
+      "path": ".github/workflows/architecture.yml",
+      "sha256": "93469da1da1b3b1cc7d8b35cb840f64b6e3c07a7e576cdc2e4e783c397b0f998"
+    },
+    {
+      "path": ".github/workflows/infisical-oidc-proof.yml",
+      "sha256": "e8c621efcb5d0cac4408b80c7f4ca379ddcaa869c051439e3cc728853b9724b7"
+    },
+    {
+      "path": ".github/workflows/infisical-oidc-negative-proof.yml",
+      "sha256": "73d206f189ed5532473d90605a4e30f3ff81ea584ca7cbb6bd9037bee982ae46"
+    },
+    {
+      "path": "infra/infisical-workload-proof/probe.ts",
+      "sha256": "99c2d28a07bec89c3b285e426a2866a1a76d2528944b00b889064c245c8086e3"
+    },
+    {
+      "path": "infra/infisical-workload-proof/probe.test.ts",
+      "sha256": "dfd183c5063936ee84496d7b4e016949124fc17ba2037ccc2a17f5771d252c19"
+    },
+    {
+      "path": "infra/infisical-workload-proof/config.json",
+      "sha256": "6f09d4e0f76494f23f6c6dfeb7e549ca595007d76aa70ea99bab9b3b6ef9bed2"
+    },
+    {
+      "path": "infra/infisical-workload-proof/README.md",
+      "sha256": "a06b44afdaa5434e81a8c5789bab1c2a730994888b805363a473e7fa8f6521af"
+    },
+    {
+      "path": "architecture/model/security.yaml",
+      "sha256": "89e04d84dc2c7ac4c9c5d5a772caf9c8d70d207775b8acc1ace173b21438cc3d"
+    },
+    {
+      "path": "architecture/model/pocs.yaml",
+      "sha256": "1459432ec1ffd32c8a48428725286279cfcb665e31e6f2eb153edae1295df913"
+    },
+    {
+      "path": "architecture/generated/security.md",
+      "sha256": "0562cf40b18cc29843d6de5ea854d15d9ecc3ddd2984bc3fbbae8e1e52d84666"
+    },
+    {
+      "path": "architecture/generated/pocs.md",
+      "sha256": "56145e724032537f1f9a0c94642aed35f92ab86500bedfc2dccee7859624b7ef"
+    },
+    {
+      "path": "docs/journal/dev/2026-10-06.jsonl",
+      "sha256": "49efd469679b204a7b59a7a31727a6664d6aa776d56e97f23283f6df4a364908"
+    },
+    {
+      "path": "docs/journal/dev/2026-10-07.jsonl",
+      "sha256": "9c5b694f096a7af5535726f66c0073013eca244f5e726fd00dd270ae25b404a2"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/preparation.json",
+      "sha256": "2a08eff701d50304e5efdce724f45923078af9e332393d84383d73fc20b1268e"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/README.md",
+      "sha256": "46d1ae35d4e68617658913e3d5057ba57311704e9a3ad196181e27dde2f0a4e8"
+    }
+  ],
+  "digest": "f4adf9c01b8baf2e142db8a4b0b34944a9e647293db641cfea9891123e01e4c6"
+}
