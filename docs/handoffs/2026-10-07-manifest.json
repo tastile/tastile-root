@@ -1,0 +1,28 @@
+{
+  "baseSource": "ab4b3d55592356a3a61c2dd8a03fdcbefbc6925a",
+  "coreCheckpoint": "d7ceea19dac7a604e5f5892bb830afacd0e051da",
+  "phase": "Windows handoff; migration incomplete; no new sampling jobs",
+  "files": [
+    {
+      "path": "docs/handoffs/2026-10-07-windows-to-mac.md",
+      "sha256": "4e3b8724cf585d40a8bb78b9ec191e828f9b21d8389f80d416c9a813a542f594"
+    },
+    {
+      "path": "docs/handoffs/ci-median-replicas.ts",
+      "sha256": "9a3c77560e6c2beff430ef430039510588a2c835db84c8a600546275ab890833"
+    },
+    {
+      "path": "docs/handoffs/ci-median-collect.ts",
+      "sha256": "8915b84c3f07cc8e97bcdb1ad671ccc813b23d16bb6bf0fee52c9b270227dd03"
+    },
+    {
+      "path": "docs/handoffs/2026-10-07-ci-baseline.json",
+      "sha256": "ba654d74c31b654e4dcc112d03e1b01af83d20788b39af1729dc69a848406871"
+    },
+    {
+      "path": "docs/journal/dev/2026-10-07.jsonl",
+      "sha256": "33ed3cde52d7eab63c1dcb72a50ed67bb7a0d8eccc15579a793f1fa7b21091e5"
+    }
+  ],
+  "digest": "f57e07ab410ce6b9f77bff4bcbe73e2fbc4f957a255852bea66d9cea39104293"
+}
