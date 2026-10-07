@@ -22,7 +22,7 @@ jobs:
           bun-version: "1.4.2"
       - run: bun install --frozen-lockfile
       - name: Verify CI dispatcher recovery and fencing
-        run: bun test infra/gcp/ci-dispatcher/index.test.ts infra/gcp/ci-dispatcher/server.test.ts
+        run: bun test infra/gcp/ci-dispatcher/index.test.ts infra/gcp/ci-dispatcher/server.test.ts docs/handoffs/ci-median-recipe.test.ts
       - name: Verify Infisical development/testing scope
         run: bun test infra/infisical-development-testing/guard.test.ts
       - name: Verify value-silent GitHub OIDC probe

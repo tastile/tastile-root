@@ -8,6 +8,7 @@ for (const name of ["INFISICAL_DOMAIN", "INFISICAL_MACHINE_IDENTITY_ID", "INFISI
   process.env[name] = "test-placeholder";
 }
 process.env.GCP_PROJECT_ID = "test-project";
+process.env.GITHUB_REPOSITORY = "tastile/tastile-core";
 const {
   buildConfigFromArchive,
   claimLock,

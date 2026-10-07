@@ -9,8 +9,8 @@
     },
     {
       "path": "infra/gcp/ci-dispatcher/index.test.ts",
-      "bytes": 23688,
-      "sha256": "20b5ed0334401c371451eb227bcca545567528d961e8511b05a44d437cad0558"
+      "bytes": 23744,
+      "sha256": "3023d91fe098ee7ffe52e1deaaa2c2e05e8aac68c9e9d2c0b639e55c1a32e9dc"
     },
     {
       "path": "infra/gcp/ci-dispatcher/README.md",
