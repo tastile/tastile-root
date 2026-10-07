@@ -1,0 +1,25 @@
+{
+  "run": 37573057890,
+  "repository": "tastile/tastile-root",
+  "receipt": {
+    "status": "denied",
+    "expected": "deny",
+    "sourceSha": "9c63281f58a9098933e3253cfbebcf6ab91797f5",
+    "mintHost": "run-actions-1-azure-eastus.actions.githubusercontent.com",
+    "mintStatus": 200,
+    "claims": {
+      "iss": "https://token.actions.githubusercontent.com",
+      "aud": "https://github.com/tastile",
+      "sub": "repo:tastile/tastile-root:ref:refs/heads/release-0-7-0",
+      "repository": "tastile/tastile-root",
+      "repository_id": "1287977553",
+      "repository_owner_id": "267846510",
+      "ref": "refs/heads/release-0-7-0",
+      "ref_type": "branch",
+      "event_name": "push",
+      "workflow_ref": "tastile/tastile-root/.github/workflows/infisical-oidc-negative-proof.yml@refs/heads/release-0-7-0",
+      "workflow_sha": "9c63281f58a9098933e3253cfbebcf6ab91797f5"
+    },
+    "loginStatus": 401
+  }
+}
