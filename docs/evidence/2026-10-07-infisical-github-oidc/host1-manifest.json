@@ -1,0 +1,27 @@
+{
+  "baseSource": "2778fe5",
+  "phase": "third observed exact mint host; real PR denial observed; release proof pending",
+  "files": [
+    {
+      "path": "infra/infisical-workload-proof/probe.ts",
+      "sha256": "d6e44fcbadd275dd8466cd75b56a82a970ce9d84376727f77ac2613604ce013e"
+    },
+    {
+      "path": "infra/infisical-workload-proof/probe.test.ts",
+      "sha256": "ef27b59389746f8c84452498f5f1fea3e621d832fff3c309ae75cb48594d59a7"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/host1-failure.txt",
+      "sha256": "2e8a91846bfb30782485b09822ccfdac60f16f3e4fb704558afa634c24b0c3d2"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/pr-denial.txt",
+      "sha256": "d888f2e2b376095b32b67cf0fa628ad6b6e954b7f23d570fac745e086590c71c"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/host1-update.md",
+      "sha256": "d22ea53f68bafeffe1be7be2f6735b21d486115b16e71d2af0ea4f6b85215b5d"
+    }
+  ],
+  "digest": "91d75c2b439c1cb97f2fba7bd0a61a17b60226ab88b8c6254ca8f151d4912446"
+}

@@ -7,6 +7,7 @@ export const secretName = 'OIDC_PROOF_CANARY';
 export const audience = 'https://github.com/tastile';
 const mintHosts = new Set([
   'vstoken.actions.githubusercontent.com',
+  'run-actions-1-azure-eastus.actions.githubusercontent.com',
   'run-actions-2-azure-eastus.actions.githubusercontent.com',
   'run-actions-3-azure-eastus.actions.githubusercontent.com',
 ]);

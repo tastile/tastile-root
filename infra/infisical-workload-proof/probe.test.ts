@@ -59,7 +59,7 @@ test('an unlisted mint host is rejected before sending the request bearer', asyn
   expect(calls).toHaveLength(0);
 });
 test('observed GitHub mint hosts keep redirect and receipt safeguards', async () => {
-  for (const host of ['run-actions-2-azure-eastus.actions.githubusercontent.com', 'run-actions-3-azure-eastus.actions.githubusercontent.com']) {
+  for (const host of ['run-actions-1-azure-eastus.actions.githubusercontent.com', 'run-actions-2-azure-eastus.actions.githubusercontent.com', 'run-actions-3-azure-eastus.actions.githubusercontent.com']) {
     const { request } = mock(403);
     const receipt = await runProbe(config, { ...platform, requestUrl: `https://${host}/token` }, 'deny', request);
     expect(receipt.status).toBe('denied');
