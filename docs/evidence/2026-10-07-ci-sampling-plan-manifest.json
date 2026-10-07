@@ -1,0 +1,32 @@
+{
+  "baseSource": "864b7d0c24fc4d0971b02473b5a1b988246faf02",
+  "executionGeneration": 4,
+  "scope": "sampling method/license research/current receipts; no benchmark result or production entitlement claimed",
+  "files": [
+    {
+      "path": "architecture/model/pocs.yaml",
+      "sha256": "acd14112678b65fae723efdd5084018add567d219671dec05d4d96cc5c4b224f"
+    },
+    {
+      "path": "architecture/model/risks.yaml",
+      "sha256": "75153448aa2da301ee38c977192d3a2f05bec23e54d842d64ea4d926eb4c83f5"
+    },
+    {
+      "path": "architecture/generated/pocs.md",
+      "sha256": "3540bf66b6d68ad0086f0a0c8689ae3b88713f67703c28f59d0bf52c0cd6611b"
+    },
+    {
+      "path": "architecture/generated/risks.md",
+      "sha256": "ec17ea9fb5df3ed07abe426a2cf88b1e60decc1c48479df889a57ab34d3946dd"
+    },
+    {
+      "path": "docs/evidence/2026-10-06-infisical-license-acquisition.md",
+      "sha256": "4e25332af5a3cbf923a5b12fffe9d5169d03920b54dde5df20330b4e0e09c6bf"
+    },
+    {
+      "path": "docs/journal/dev/2026-10-06.jsonl",
+      "sha256": "838c8332643a1eee4db742289cb6b38f2a705ec8f4987fd728754b0ba978dc98"
+    }
+  ],
+  "digest": "9a488a04ab0f1fd4988069c777416e79281c7b71efcfc980b93859951ec14542"
+}
