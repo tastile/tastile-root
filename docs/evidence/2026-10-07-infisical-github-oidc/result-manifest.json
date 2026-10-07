@@ -1,0 +1,51 @@
+{
+  "baseSource": "9c63281f58a9098933e3253cfbebcf6ab91797f5",
+  "phase": "real GitHub OIDC development proof; fixture cleanup; staging criteria pending",
+  "files": [
+    {
+      "path": "architecture/model/pocs.yaml",
+      "sha256": "077217cda9f5df4cc2a875ac4b6f1683116614c89253f0ff6ea7edce04726755"
+    },
+    {
+      "path": "architecture/generated/pocs.md",
+      "sha256": "21936eb9d492be4458d189be7c1eed56b6fcfcb76c7d5056277bfafbf4ef3d69"
+    },
+    {
+      "path": "infra/infisical-workload-proof/config.json",
+      "sha256": "513deb66a64c4752e9f1fbdd35cb871c986606b0f291a689e323bf3678aaec70"
+    },
+    {
+      "path": "docs/journal/dev/2026-10-07.jsonl",
+      "sha256": "59c78bc62a806ffe0c351679373a852a5705ad6c7e139bcbd13d085bd51d8e36"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/README.md",
+      "sha256": "bb3b2d33aa0f75cbcd1e8f8b14930743ed81676b3fc2d74f2e824748a846e4eb"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/result.md",
+      "sha256": "f7d7497aedc72674ef9712f103fd50b17cab33cccfa24085c9c2006421f27fb0"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/release-allow.json",
+      "sha256": "afa11d169b15fade180305d1294307b53569cff78f8858f2d301334b302e4d25"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/release-alternate-denial.json",
+      "sha256": "20d0fff6df0dc35d70adbc80d319d97977f56bda14a222dd824535a02af36ad3"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/final-pr-denial.json",
+      "sha256": "8c69132186e6e0b271d764add7c7d48aa5795ce9846d752a27abd399e68448a5"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/final-pr-alternate-denial.json",
+      "sha256": "9ed649e3b9373f90a3f3e08c1fba52213fdc3c3aeaeeb6f644563c069ad0ce87"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/cleanup.json",
+      "sha256": "9ee8f5477a09df5f9d5999fce50560289fbd2305283ef2f1196878a9f2fcb66c"
+    }
+  ],
+  "digest": "f7708e94de3613aeacc14b721afc5fccff5220b023bfc02714be3ec11b62be40"
+}

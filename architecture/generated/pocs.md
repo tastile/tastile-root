@@ -9,7 +9,7 @@
 | `poc.worker-drain` | Stateless worker drain triggered by Cloud Scheduler sweep | planned | adr.root.0017 |  |  |
 | `poc.web-cloud-run` | Next.js (standalone) + Better Auth on Cloud Run with Cloud SQL | planned | adr.root.0014 |  |  |
 | `poc.jwt-assertion` | Better Auth JWT (EdDSA, JWKS) replaces the web bridge secret | planned | adr.root.0016 |  |  |
-| `poc.infisical-workload-auth` | Infisical as the only Tastile-managed secret path | planned | adr.root.0015 |  |  |
+| `poc.infisical-workload-auth` | Infisical as the only Tastile-managed secret path | running | adr.root.0015 | 2026-10-07 | docs/evidence/2026-10-07-infisical-github-oidc/result.md |
 | `poc.email-provider` | Transactional email deliverability (Resend) | planned | adr.root.0018 |  |  |
 | `poc.cloud-build-ci` | Core CI on Cloud Build instead of private GitHub Actions minutes | running | adr.root.0020 | 2026-10-06 | docs/evidence/2026-10-06-ci-first-build/README.md |
 | `poc.restore-drill` | PITR restore drill | planned | adr.root.0014 |  |  |
@@ -110,15 +110,15 @@ Findings:
 
 ## poc.infisical-workload-auth — Infisical as the only Tastile-managed secret path
 
-- status: **planned**
+- status: **running**
 - hypothesis: development / CI/CD / GCP runtime は long-lived Infisical credential や provider key を保存せず、 workload identity だけで必要な secret を Infisical から取得でき、repository / service / environment 境界を越えた read を拒否できる。
 - method: (1) GitHub Actions release workflow が GitHub OIDC → Infisical machine identity で scoped secret を取得する。 初回はctl.github-infisical-development-proofに従いroot release-0-7-0のexact workflow/claimと一時dev canaryで実認証し、同repo実PRと同release refの別workflowでexchange拒否を観測する。 pull_request / 許可されていない workflow では同 identity auth を拒否する。 (2) staging Cloud Run service account が GCP-native identity token → Infisical machine identity で runtime secret を取得し、 別 service / production project の secret read を拒否する。 (3) secret を欠落させた canary revision は ready にならず fail-closed する。 secret value / token は evidence log に出さない。
 
 | criterion | metric | op | threshold | observed | result | note |
 | --- | --- | --- | --- | --- | --- | --- |
 | c1 | static_infisical_credentials_in_github_or_gcp | `==` | 0 |  |  |  |
-| c2 | github_oidc_infisical_read_succeeds | `==` | true |  |  |  |
-| c3 | pull_request_or_untrusted_workflow_infisical_auth_denied | `==` | true |  |  |  |
+| c2 | github_oidc_infisical_read_succeeds | `==` | true | true | pass |  |
+| c3 | pull_request_or_untrusted_workflow_infisical_auth_denied | `==` | true | true | pass |  |
 | c4 | gcp_workload_infisical_read_succeeds | `==` | true |  |  |  |
 | c5 | cross_service_or_environment_secret_read_denied | `==` | true |  |  |  |
 | c6 | runtime_missing_secret_fails_closed | `==` | true |  |  |  |

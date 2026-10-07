@@ -1,5 +1,7 @@
 # GitHub OIDC dev proof: 準備
 
+この文書は f833da3 時点の準備記録。実 GitHub runner の認証結果と一時fixture削除は [result.md](result.md) を参照。現在の config は inactive。
+
 2026-10-07（日本時間）。正本はctl.github-infisical-development-proof / poc.infisical-workload-auth。
 
 ## 観測済み

@@ -126,12 +126,14 @@ pocs:
       (3) secret を欠落させた canary revision は ready にならず fail-closed する。
       secret value / token は evidence log に出さない。
     decides: [adr.root.0015]
-    status: planned
+    status: running
+    executed_at: 2026-10-07
+    evidence: docs/evidence/2026-10-07-infisical-github-oidc/result.md
     prerequisites: [self-hosted Infisical reachable, licensed folder/path scope or ADR-0022 development/testing-only scoped overlay, GCP staging project + service accounts]
     criteria:
       - {id: c1, metric: static_infisical_credentials_in_github_or_gcp, op: "==", threshold: 0}
-      - {id: c2, metric: github_oidc_infisical_read_succeeds, op: "==", threshold: true}
-      - {id: c3, metric: pull_request_or_untrusted_workflow_infisical_auth_denied, op: "==", threshold: true}
+      - {id: c2, metric: github_oidc_infisical_read_succeeds, op: "==", threshold: true, observed: true, result: pass}
+      - {id: c3, metric: pull_request_or_untrusted_workflow_infisical_auth_denied, op: "==", threshold: true, observed: true, result: pass}
       - {id: c4, metric: gcp_workload_infisical_read_succeeds, op: "==", threshold: true}
       - {id: c5, metric: cross_service_or_environment_secret_read_denied, op: "==", threshold: true}
       - {id: c6, metric: runtime_missing_secret_fails_closed, op: "==", threshold: true}
