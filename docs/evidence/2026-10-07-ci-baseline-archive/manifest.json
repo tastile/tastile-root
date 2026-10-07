@@ -1,0 +1,51 @@
+{
+  "execution_generation": 5,
+  "base_sha": "f681bee9b00ad7352af51d0a21a5aacf78a8421d",
+  "files": [
+    {
+      "path": "infra/gcp/ci-dispatcher/index.ts",
+      "bytes": 33683,
+      "sha256": "ef957382cf259779ef7c7fbc401a208c4f9dae9f87ba3a85c596c6b8ff752339"
+    },
+    {
+      "path": "infra/gcp/ci-dispatcher/index.test.ts",
+      "bytes": 23688,
+      "sha256": "20b5ed0334401c371451eb227bcca545567528d961e8511b05a44d437cad0558"
+    },
+    {
+      "path": "infra/gcp/ci-dispatcher/README.md",
+      "bytes": 6544,
+      "sha256": "6cd7e9d3438275b38f6581adc64abc62155a5389787f04a9f57d5cf6513452b8"
+    },
+    {
+      "path": "docs/handoffs/ci-median-replicas.ts",
+      "bytes": 4734,
+      "sha256": "6fee8518d93e66c0ad16efe7c4c314178669e7f3fed9db8e532a47b60b16a30c"
+    },
+    {
+      "path": "docs/handoffs/ci-median-collect.ts",
+      "bytes": 7471,
+      "sha256": "c977c9ec4486c9e8d1d10d27fd7d3f0c1369987f2d2d9f50c958cf9e6358631d"
+    },
+    {
+      "path": "docs/handoffs/ci-median-recipe.ts",
+      "bytes": 1249,
+      "sha256": "1559f23c3121da307724350eb5fd33ae5cd90c2bb9427e83184f7296f4cae977"
+    },
+    {
+      "path": "docs/handoffs/ci-median-recipe.test.ts",
+      "bytes": 1063,
+      "sha256": "223e2c56b3b1eac5aa424700c158459d00f2813fc69653a6789e93d232b9ac4a"
+    },
+    {
+      "path": "docs/plans/2026-10-07-cloud-build-rollback.md",
+      "bytes": 2839,
+      "sha256": "39c25557287800108641b446bbf2b1bc31fdfce18a4cad8abc68927454ddeabe"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-ci-baseline-archive/storage-proof.json",
+      "bytes": 284,
+      "sha256": "c4499b75edeff02994c085df96d45f9061cd3277244eb18c59d961cb57656a2a"
+    }
+  ]
+}

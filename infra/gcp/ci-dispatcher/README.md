@@ -83,3 +83,37 @@ precondition. The owner must transition the lock to `submitting` before calling
 Cloud Build. An uncertain submission is never automatically repeated, because
 the create API has no idempotency key; if no build can be found for 45 minutes,
 the status becomes an explicit error and a new commit can retry.
+
+## Trusted rollback baseline
+
+既存の Core recipe は `rollback_baseline` を宣言しない限り従来経路を維持する。
+信頼済み baseline 経路を使う recipe は、top-level に
+`rollback_baseline: pull-base` を厳密に宣言する。dispatcher は PR の base commit
+SHA を必須とし、固定された `GITHUB_REPOSITORY` からその commit を取得して、同じ
+private source bucket の `baselines/<sha>.tar.gz` へ保存する。
+
+source と baseline の archive は create-only object とする。object が既に存在する
+場合は、固定 generation の metadata と bytes を読み、保存済み bytes の SHA-256 を
+今回取得した bytes と比較する。digest の不一致、generation の欠落、recovery の失敗
+があれば response body を公開せず submission を停止する。
+
+opt-in recipe では、dispatcher が Cloud SDK image と read-only の
+`gcloud storage cp` を使う固定 `rollback-baseline-download` step を先頭へ追加する。
+unique な `rust-quality` step には `BASE_SHA`、
+`BASE_ARCHIVE_PATH=.tmp/rollback-baseline.tar.gz`、`BASE_ARCHIVE_SHA256` を注入する。
+PR がこれらの予約済み environment name や step ID を指定した場合は拒否する。
+Cloud Build に渡す envelope は固定の 1800 秒・Cloud Logging-only・default 2 CPU
+のままとし、
+dispatcher 内だけで使う `rollback_baseline` field は submission 前に除去する。
+
+archive と recipe の resource bound は次のとおり固定する。
+
+- GitHub / GCS から受け取る archive bytes は 32 MiB 以下。現在の trusted Core archive は約 7.6 MiB である。
+- tar listing は 2 MiB 以下かつ 20,000 entry 以下。`cloudbuild/ci.yaml` の抽出結果は 128 KiB 以下。
+- HTTP request の fetch と tar process は 15 秒 timeout、stdout / stderr は上記の bounded buffer を使う。
+- archive parse は毎回一意な temporary directory を作り、`finally` で削除する。同じ SHA の同時 parse は共有 path を使わない。
+
+median cohort の `stepsDigest` は Cloud Build API から取得した resolved recipe の識別子として維持する。
+`submissionStepsDigest` は request JSON 用に `$` を `$$` へ変換した recipe の識別子であり、`stepsCount` と
+relationship description を cohort JSON に保存する。collector は cohort の count を優先し、旧 cohort では sample 1
+の resolved recipe から count を導出して、実際の step 数と image digest 数を比較する。
