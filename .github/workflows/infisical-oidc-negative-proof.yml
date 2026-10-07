@@ -1,0 +1,38 @@
+name: Infisical OIDC different workflow rejection
+
+on:
+  push:
+    branches: [release-0-7-0]
+    paths: [infra/infisical-workload-proof/**, .github/workflows/infisical-oidc-negative-proof.yml]
+  pull_request:
+    branches: [release-0-7-0]
+    paths: [infra/infisical-workload-proof/**, .github/workflows/infisical-oidc-negative-proof.yml]
+
+permissions:
+  contents: read
+
+jobs:
+  oidc-negative-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: "1.4.2"
+      - name: Reject a different signed workflow on the same release ref
+        env:
+          PROBE_EXPECTATION: deny
+        run: bun infra/infisical-workload-proof/probe.ts
+      - name: Save value-silent receipt
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: infisical-oidc-negative-${{ github.run_id }}-${{ github.run_attempt }}
+          path: .tmp/infisical-oidc-proof.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7

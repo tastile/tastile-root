@@ -1,0 +1,39 @@
+{
+  "baseSource": "f833da34df1cd610e45918afbfd25f1396d92f0b",
+  "phase": "mint host correction; actual exchange pending",
+  "files": [
+    {
+      "path": "infra/infisical-workload-proof/probe.ts",
+      "sha256": "57215f82bfb6d31bab8d58a8614b90feb83d2b38393d9ad7b250c8b6bd84461c"
+    },
+    {
+      "path": "infra/infisical-workload-proof/probe.test.ts",
+      "sha256": "4c909a1d8a1668692f1e88fc48f729e99c7d4843e39a667cf5033e85a9353ab1"
+    },
+    {
+      "path": "infra/infisical-workload-proof/README.md",
+      "sha256": "6bef79a6d466fb3583fd8decb0b75058af9040d23e6899a3cfde19664fbce9af"
+    },
+    {
+      "path": "architecture/model/pocs.yaml",
+      "sha256": "a79107bbc11631526cce6d46fc77742c25a328ea6741a5aac04ae6b079e94972"
+    },
+    {
+      "path": "architecture/generated/pocs.md",
+      "sha256": "3cd544c48249fc8a9e261bdb4cba5799febe48e8aa842e9ab4849bcb6c0e829c"
+    },
+    {
+      "path": "docs/journal/dev/2026-10-07.jsonl",
+      "sha256": "deab5e19304715e5a3396ad60b4ffd47d4ebea82703be21b255957740b212162"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/mint-host-failure.txt",
+      "sha256": "92a7887d37939522b5e92c57a3204cd0a9cf1d63f1e9734a6d3a770f9d9e2a53"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-infisical-github-oidc/mint-host-update.md",
+      "sha256": "d1b7e338cf981afd64752a959cd59fde98d2a945284bf14ce93063dc0ddab592"
+    }
+  ],
+  "digest": "1eed35e2edf37b7cb2a39c24ba852cf6f1816bd4586fbec3b56d7be6535d7317"
+}

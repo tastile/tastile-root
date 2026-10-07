@@ -1,0 +1,105 @@
+{
+  "phase": "preparation-only",
+  "actualGithubAuthentication": "pending",
+  "preparedAt": "2026-10-07T04:09:47.546Z",
+  "projectId": "949b4193-a226-4620-8371-726a37c7195b",
+  "organizationId": "d808df2c-ec67-4046-b733-8c0db0bfa47d",
+  "identityId": "494dd2d8-32b7-4a8e-9ee9-a255eff4848c",
+  "roleId": "f4783368-38e0-4573-9fdd-ab506fa22913",
+  "folderId": "24801ca9-ecce-4029-a323-f67f37acb13c",
+  "authMethodsBefore": [],
+  "authMethodsAfter": [
+    "oidc-auth"
+  ],
+  "authPolicy": {
+    "oidcDiscoveryUrl": "https://token.actions.githubusercontent.com",
+    "boundIssuer": "https://token.actions.githubusercontent.com",
+    "boundSubject": "repo:tastile/tastile-root:ref:refs/heads/release-0-7-0",
+    "boundAudiences": "https://github.com/tastile",
+    "boundClaims": {
+      "repository": "tastile/tastile-root",
+      "repository_id": "1287977553",
+      "repository_owner_id": "267846510",
+      "ref": "refs/heads/release-0-7-0",
+      "ref_type": "branch",
+      "event_name": "push",
+      "workflow_ref": "tastile/tastile-root/.github/workflows/infisical-oidc-proof.yml@refs/heads/release-0-7-0"
+    },
+    "accessTokenTTL": 300,
+    "accessTokenMaxTTL": 300,
+    "accessTokenNumUsesLimit": 1,
+    "accessTokenTrustedIps": [
+      {
+        "ipAddress": "0.0.0.0/0"
+      },
+      {
+        "ipAddress": "::/0"
+      }
+    ]
+  },
+  "canaryEntropyBits": 256,
+  "canarySha256": "26c5c571be67233598d4ba8a2b46521f46e8e4880c03d3d8dde04e5b168864f9",
+  "events": [
+    {
+      "label": "/api/v1/projects/949b4193-a226-4620-8371-726a37c7195b/roles",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "label": "/api/v1/identities?orgId=d808df2c-ec67-4046-b733-8c0db0bfa47d",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "label": "/api/v2/folders?projectId=949b4193-a226-4620-8371-726a37c7195b&environment=dev&path=%2Ftastile",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "label": "role-create",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "label": "identity-create",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "label": "/api/v1/identities/494dd2d8-32b7-4a8e-9ee9-a255eff4848c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "label": "oidc-auth-attach",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "label": "/api/v1/auth/oidc-auth/identities/494dd2d8-32b7-4a8e-9ee9-a255eff4848c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "label": "/api/v1/identities/494dd2d8-32b7-4a8e-9ee9-a255eff4848c",
+      "method": "GET",
+      "status": 200
+    },
+    {
+      "label": "membership-create",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "label": "folder-create",
+      "method": "POST",
+      "status": 200
+    },
+    {
+      "label": "canary-create",
+      "method": "POST",
+      "status": 200
+    }
+  ],
+  "operatorHelperSha256": "cdc5ec63120daa1c61adcf7f989c903e107feaeecf14cac5655d391de132404f"
+}
