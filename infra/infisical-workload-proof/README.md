@@ -10,7 +10,7 @@
 - RESTでのidentity作成はauthMethodsが空。Universal Authが無いことをreadbackし、存在する場合だけ除去する。OIDCだけが付いていることを確認してから project membership を割り当てる。org no-access、指定 canary の read/describe、TTL/max300s、uses1。
 - release push は token exchange200 と1回の canary read200/hash一致を確認する。同repo PRと別workflowは新しい GitHub ID tokenを取得し、exchange401/403を確認する。GitHubのtoken発行失敗、Infisical500、予期しないexchange200は拒否成功に数えない。
 - response token / secret value は RAM だけ。log/artifact は許可 claim subset、source SHA、HTTP status、結果だけ。HTTP redirectを追わず、各requestを15sで制限する。
-- mint hostのallowlistは `vstoken.actions.githubusercontent.com`。実runnerで差があればbearerを送る前に失敗し、hostnameだけをreceiptへ記録する。実providerの根拠を確認してからallowlistを更新する。
+- mint hostはexact allowlist。初回実PRのGitHub jobで観測した `run-actions-2-azure-eastus.actions.githubusercontent.com` / `run-actions-3-azure-eastus.actions.githubusercontent.com` と既知の `vstoken.actions.githubusercontent.com` を使う。実runnerで差があればbearerを送る前に失敗し、hostnameだけをreceiptへ記録する。実providerの根拠を確認してからallowlistを更新する。
 - `enabled:false` は撤去済みの明示状態。結果は `inactive` であり、認証成功・拒否の証跡に数えない。
 
 ## 検証と撤去

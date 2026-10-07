@@ -5,7 +5,11 @@ export const projectId = '949b4193-a226-4620-8371-726a37c7195b';
 export const secretPath = '/tastile/oidc-g4-proof';
 export const secretName = 'OIDC_PROOF_CANARY';
 export const audience = 'https://github.com/tastile';
-const mintHosts = new Set(['vstoken.actions.githubusercontent.com']);
+const mintHosts = new Set([
+  'vstoken.actions.githubusercontent.com',
+  'run-actions-2-azure-eastus.actions.githubusercontent.com',
+  'run-actions-3-azure-eastus.actions.githubusercontent.com',
+]);
 
 export interface ProofConfig { enabled: boolean; identityId: string; projectId: string; canarySha256: string }
 export interface Platform { requestUrl: string; requestToken: string; sourceSha: string }
