@@ -3,7 +3,7 @@
 # status: planned | running | passed | failed | partial.  A decision may only rely on passed criteria;
 # anything else must stay in risks.yaml as unverified.
 schema: tastile.architecture/pocs@1
-as_of: 2026-10-07
+as_of: 2026-10-08
 
 pocs:
   - id: poc.local-runtime
@@ -158,16 +158,17 @@ pocs:
       dispatcherはADR-0023のrequest課金・非公開Cloud Run serviceとし、同一project SchedulerのOIDCを検証する。
       PR buildは sa-cloud-build-ci で e2-standard-2 + PostgreSQL sidecarを使う。dispatcherが最終commit statusをGitHubへ返し、10回実行する。
       CI内のv0/v1は共通CARGO_TARGET_DIRで同一依存のcompile artifactを再利用する。各sampleの初期targetは空、sample間cacheは共有しない。
+      rollbackのcandidateとtrusted baselineはsource・Cargo target・build-script output・final binaryを分離する。改善実験は固定version/digestのsccacheによるbuild-local compiler cacheに限定し、remote cache・sample間persistence・追加credentialを禁止する。空cacheを実証し、hit/missとfull/rollback成功を新recipeで測定する。
       時間測定の10回は同じ確定Core SHA・immutable source generation・recipeのcold buildで、dispatcherの1回と専用PoC tagの9回を使う。
       PoC replicaはoperatorが既存CI service accountを実行identityとして指定して作成し、dispatcherのrecovery tagやGitHub statusを変更しない。timeoutは各30分、9回のcomputeは運用bufferを含め無料枠適用前$1.8と見積もる（logging/storage/egressは別、請求のhard capではない）。
-      2026-10-06にdevの実metadata→Infisical key-name限定read→GitHub AppとScheduler200、未認証/非invoker403、他key/path/environment/project/prod403を観測済み。その後Core PR212/c08e77e4の自動build投入からGitHub status successまで完了し、PG17 full940/0/0、24分9.167秒を観測。Core実装6477212はPG17 full942/0/0・全step成功後でも30分のbuild全体TIMEOUTとなったため計測成功に含めず、CI profileを改善して再検証する。4e8a88dは全106groups942/0/0とbuild SUCCESSを達成したが単発26分24.219秒で25分基準を超えたため、追加9回より先に共通targetを適用し、新SHA/recipeでcohortを固定する。10回中央値は未検証。
+      2026-10-06にdevの実metadata→Infisical key-name限定read→GitHub AppとScheduler200、未認証/非invoker403、他key/path/environment/project/prod403を観測済み。その後Core PR212/c08e77e4の自動build投入からGitHub status successまで完了し、PG17 full940/0/0、24分9.167秒を観測。Core実装6477212はPG17 full942/0/0・全step成功後でも30分のbuild全体TIMEOUTとなったため計測成功に含めず、CI profileを改善して再検証する。4e8a88dは全106groups942/0/0とbuild SUCCESSを達成したが単発26分24.219秒で25分基準を超えたため、追加9回より先に共通targetを適用し、新SHA/recipeでcohortを固定する。2026-10-07の4333400 cold10回は全SUCCESS/106groups942/0/0だが中央値26.3427分・40回/月1053.71分で基準失敗。9633837のtrusted rollback recipeはbaseline generation/digest取得成功後の独立baseline compile中に1800秒TIMEOUT。全gateを保持し、新recipeで再検証する。
     decides: [adr.root.0020]
     status: running
-    executed_at: 2026-10-06
-    evidence: docs/evidence/2026-10-06-ci-first-build/README.md
+    executed_at: 2026-10-08
+    evidence: docs/evidence/2026-10-08-ci-duration.md
     criteria:
-      - {id: c1, metric: median_duration_min, op: "<=", threshold: 25}
-      - {id: c2, metric: monthly_minutes_at_40_runs, op: "<=", threshold: 1000}
+      - {id: c1, metric: median_duration_min, op: "<=", threshold: 25, observed: 26.342666666666666, result: fail, note: "4333400 cold10回の観測。新rollback recipeの完了・新cohortは未検証。"}
+      - {id: c2, metric: monthly_minutes_at_40_runs, op: "<=", threshold: 1000, observed: 1053.7066666666667, result: fail, note: "同じ旧cohort中央値から換算。請求額の観測ではない。"}
       - {id: c3, metric: status_reported_to_github_check, op: "==", threshold: true, observed: true, result: pass}
       - {id: c4, metric: provider_managed_github_credentials_outside_infisical, op: "==", threshold: 0}
       - {id: c5, metric: github_private_key_visible_to_pr_build, op: "==", threshold: false}

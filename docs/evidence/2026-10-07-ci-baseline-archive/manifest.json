@@ -46,6 +46,11 @@
       "path": "docs/evidence/2026-10-07-ci-baseline-archive/storage-proof.json",
       "bytes": 284,
       "sha256": "c4499b75edeff02994c085df96d45f9061cd3277244eb18c59d961cb57656a2a"
+    },
+    {
+      "path": "docs/evidence/2026-10-07-ci-baseline-archive/runtime-proof.json",
+      "bytes": 1277,
+      "sha256": "66219f1881dad6e25f00726186f4e7703210e990fdbf387c511fe6cbaaeeae01"
     }
   ]
 }

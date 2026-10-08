@@ -11,7 +11,7 @@
 | `poc.jwt-assertion` | Better Auth JWT (EdDSA, JWKS) replaces the web bridge secret | planned | adr.root.0016 |  |  |
 | `poc.infisical-workload-auth` | Infisical as the only Tastile-managed secret path | running | adr.root.0015 | 2026-10-07 | docs/evidence/2026-10-07-infisical-github-oidc/result.md |
 | `poc.email-provider` | Transactional email deliverability (Resend) | planned | adr.root.0018 |  |  |
-| `poc.cloud-build-ci` | Core CI on Cloud Build instead of private GitHub Actions minutes | running | adr.root.0020 | 2026-10-06 | docs/evidence/2026-10-06-ci-first-build/README.md |
+| `poc.cloud-build-ci` | Core CI on Cloud Build instead of private GitHub Actions minutes | running | adr.root.0020 | 2026-10-08 | docs/evidence/2026-10-08-ci-duration.md |
 | `poc.restore-drill` | PITR restore drill | planned | adr.root.0014 |  |  |
 | `poc.cost-30d` | 30-day cost of the target platform | planned | adr.root.0014 |  |  |
 
@@ -139,12 +139,12 @@ Findings:
 
 - status: **running**
 - hypothesis: Core の fmt / clippy / test (実 PG) を Cloud Build free tier 内で回せる。
-- method: Cloud Scheduler → sa-ci-dispatcher を起動。dispatcher は GCP-native auth で Infisical から Tastile CI GitHub App private key を取得し、 short-lived installation token で対象 Core PR head をdownload、private GCS source bucketへuploadして Cloud Build APIを呼ぶ。 dispatcherはADR-0023のrequest課金・非公開Cloud Run serviceとし、同一project SchedulerのOIDCを検証する。 PR buildは sa-cloud-build-ci で e2-standard-2 + PostgreSQL sidecarを使う。dispatcherが最終commit statusをGitHubへ返し、10回実行する。 CI内のv0/v1は共通CARGO_TARGET_DIRで同一依存のcompile artifactを再利用する。各sampleの初期targetは空、sample間cacheは共有しない。 時間測定の10回は同じ確定Core SHA・immutable source generation・recipeのcold buildで、dispatcherの1回と専用PoC tagの9回を使う。 PoC replicaはoperatorが既存CI service accountを実行identityとして指定して作成し、dispatcherのrecovery tagやGitHub statusを変更しない。timeoutは各30分、9回のcomputeは運用bufferを含め無料枠適用前$1.8と見積もる（logging/storage/egressは別、請求のhard capではない）。 2026-10-06にdevの実metadata→Infisical key-name限定read→GitHub AppとScheduler200、未認証/非invoker403、他key/path/environment/project/prod403を観測済み。その後Core PR212/c08e77e4の自動build投入からGitHub status successまで完了し、PG17 full940/0/0、24分9.167秒を観測。Core実装6477212はPG17 full942/0/0・全step成功後でも30分のbuild全体TIMEOUTとなったため計測成功に含めず、CI profileを改善して再検証する。4e8a88dは全106groups942/0/0とbuild SUCCESSを達成したが単発26分24.219秒で25分基準を超えたため、追加9回より先に共通targetを適用し、新SHA/recipeでcohortを固定する。10回中央値は未検証。
+- method: Cloud Scheduler → sa-ci-dispatcher を起動。dispatcher は GCP-native auth で Infisical から Tastile CI GitHub App private key を取得し、 short-lived installation token で対象 Core PR head をdownload、private GCS source bucketへuploadして Cloud Build APIを呼ぶ。 dispatcherはADR-0023のrequest課金・非公開Cloud Run serviceとし、同一project SchedulerのOIDCを検証する。 PR buildは sa-cloud-build-ci で e2-standard-2 + PostgreSQL sidecarを使う。dispatcherが最終commit statusをGitHubへ返し、10回実行する。 CI内のv0/v1は共通CARGO_TARGET_DIRで同一依存のcompile artifactを再利用する。各sampleの初期targetは空、sample間cacheは共有しない。 rollbackのcandidateとtrusted baselineはsource・Cargo target・build-script output・final binaryを分離する。改善実験は固定version/digestのsccacheによるbuild-local compiler cacheに限定し、remote cache・sample間persistence・追加credentialを禁止する。空cacheを実証し、hit/missとfull/rollback成功を新recipeで測定する。 時間測定の10回は同じ確定Core SHA・immutable source generation・recipeのcold buildで、dispatcherの1回と専用PoC tagの9回を使う。 PoC replicaはoperatorが既存CI service accountを実行identityとして指定して作成し、dispatcherのrecovery tagやGitHub statusを変更しない。timeoutは各30分、9回のcomputeは運用bufferを含め無料枠適用前$1.8と見積もる（logging/storage/egressは別、請求のhard capではない）。 2026-10-06にdevの実metadata→Infisical key-name限定read→GitHub AppとScheduler200、未認証/非invoker403、他key/path/environment/project/prod403を観測済み。その後Core PR212/c08e77e4の自動build投入からGitHub status successまで完了し、PG17 full940/0/0、24分9.167秒を観測。Core実装6477212はPG17 full942/0/0・全step成功後でも30分のbuild全体TIMEOUTとなったため計測成功に含めず、CI profileを改善して再検証する。4e8a88dは全106groups942/0/0とbuild SUCCESSを達成したが単発26分24.219秒で25分基準を超えたため、追加9回より先に共通targetを適用し、新SHA/recipeでcohortを固定する。2026-10-07の4333400 cold10回は全SUCCESS/106groups942/0/0だが中央値26.3427分・40回/月1053.71分で基準失敗。9633837のtrusted rollback recipeはbaseline generation/digest取得成功後の独立baseline compile中に1800秒TIMEOUT。全gateを保持し、新recipeで再検証する。
 
 | criterion | metric | op | threshold | observed | result | note |
 | --- | --- | --- | --- | --- | --- | --- |
-| c1 | median_duration_min | `<=` | 25 |  |  |  |
-| c2 | monthly_minutes_at_40_runs | `<=` | 1000 |  |  |  |
+| c1 | median_duration_min | `<=` | 25 | 26.342666666666666 | fail | 4333400 cold10回の観測。新rollback recipeの完了・新cohortは未検証。 |
+| c2 | monthly_minutes_at_40_runs | `<=` | 1000 | 1053.7066666666667 | fail | 同じ旧cohort中央値から換算。請求額の観測ではない。 |
 | c3 | status_reported_to_github_check | `==` | true | true | pass |  |
 | c4 | provider_managed_github_credentials_outside_infisical | `==` | 0 |  |  |  |
 | c5 | github_private_key_visible_to_pr_build | `==` | false |  |  |  |
