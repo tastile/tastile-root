@@ -1,0 +1,57 @@
+{
+  "observed_at": "2026-10-08T00:18:49.191Z",
+  "execution_generation": 6,
+  "id": "522a1288-0d7b-47e4-988c-31b3968ccac6",
+  "status": "TIMEOUT",
+  "start_time": "2026-10-07T13:04:13.583166643Z",
+  "finish_time": "2026-10-07T13:34:33.978119Z",
+  "source": {
+    "bucket": "tastile-dev-tastile-ci-source",
+    "generation": "1791378249982969",
+    "object": "sources/963383772cccf83e9dabc8e764600fa2425ca6f7.tar.gz"
+  },
+  "steps": [
+    {
+      "id": "rollback-baseline-download",
+      "status": "SUCCESS",
+      "timing": {
+        "endTime": "2026-10-07T13:04:57.337024710Z",
+        "startTime": "2026-10-07T13:04:17.323752078Z"
+      }
+    },
+    {
+      "id": "postgres-start",
+      "status": "SUCCESS",
+      "timing": {
+        "endTime": "2026-10-07T13:05:21.469126176Z",
+        "startTime": "2026-10-07T13:04:57.338266374Z"
+      }
+    },
+    {
+      "id": "postgres-ready",
+      "status": "SUCCESS",
+      "timing": {
+        "endTime": "2026-10-07T13:05:23.540794052Z",
+        "startTime": "2026-10-07T13:05:21.469594452Z"
+      }
+    },
+    {
+      "id": "powershell-gate-contract",
+      "status": "SUCCESS",
+      "timing": {
+        "endTime": "2026-10-07T13:05:53.875423156Z",
+        "startTime": "2026-10-07T13:05:23.541042834Z"
+      }
+    },
+    {
+      "id": "rust-quality",
+      "status": "CANCELLED",
+      "timing": {
+        "endTime": "2026-10-07T13:34:19.160293727Z",
+        "startTime": "2026-10-07T13:05:53.875720957Z"
+      }
+    }
+  ],
+  "criterion_verdict": "failed",
+  "limitation": "Full/rollback recipe did not complete before1800s; baseline download success alone is not full gate success."
+}
