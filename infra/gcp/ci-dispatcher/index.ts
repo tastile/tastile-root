@@ -59,6 +59,7 @@ const ALLOWED_BUILD_STEP_FIELDS = new Set(["id", "name", "entrypoint", "args", "
 const ALLOWED_BUILD_CONFIG_FIELDS = new Set(["steps", "timeout", "options", "rollback_baseline"]);
 const BASELINE_DOWNLOAD_STEP_ID = "rollback-baseline-download";
 const BASELINE_ENV_NAMES = ["BASE_SHA", "BASE_ARCHIVE_PATH", "BASE_ARCHIVE_SHA256"] as const;
+const SOURCE_SHA_ENV_NAME = "TASTILE_CI_SOURCE_SHA";
 const BASELINE_ARCHIVE_PATH = ".tmp/rollback-baseline.tar.gz";
 const CANONICAL_GITHUB_REPOSITORY = "tastile/tastile-core";
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -561,6 +562,32 @@ function envName(entry: unknown): string | undefined {
   return separator > 0 ? entry.slice(0, separator) : undefined;
 }
 
+export function injectSourceShaBuildConfig(buildConfig: BuildConfig, sourceSha: string): BuildConfig {
+  validateSha(sourceSha, "PR head SHA");
+  const rustQuality = buildConfig.steps.filter((step) => step.id === "rust-quality");
+  if (rustQuality.length !== 1) {
+    throw new Error("cloudbuild/ci.yaml must contain exactly one rust-quality step for source SHA metadata");
+  }
+  for (const step of buildConfig.steps) {
+    const stepEnv = step.env === undefined ? [] : step.env;
+    if (!Array.isArray(stepEnv)) throw new Error("build step env must be an array");
+    for (const entry of stepEnv) {
+      const name = envName(entry);
+      if (!name) throw new Error("build step env must contain KEY=VALUE entries");
+      if (name === SOURCE_SHA_ENV_NAME) {
+        throw new Error(`build step env reserves ${SOURCE_SHA_ENV_NAME}`);
+      }
+    }
+  }
+  const rustStep = rustQuality[0]!;
+  const rustEnv = rustStep.env === undefined ? [] : rustStep.env as unknown[];
+  const env = [...rustEnv, `${SOURCE_SHA_ENV_NAME}=${sourceSha}`];
+  return {
+    ...buildConfig,
+    steps: buildConfig.steps.map((step) => step.id === "rust-quality" ? { ...step, env } : step),
+  };
+}
+
 function baselineStep(sha: string, digest: string, generation: string, root: string): BuildStep {
   const substitutionSafeEnv = (name: string) => `$$` + `{${name}}`;
   return {
@@ -587,6 +614,7 @@ function baselineStep(sha: string, digest: string, generation: string, root: str
 export function injectBaselineBuildConfig(
   buildConfig: BuildConfig,
   baseline: { sha: string; generation: string; sha256: string },
+  sourceSha?: string,
 ): BuildConfig {
   validateSha(baseline.sha, "Baseline archive SHA");
   if (!/^\d+$/.test(baseline.generation)) {
@@ -598,7 +626,8 @@ export function injectBaselineBuildConfig(
   if (buildConfig.rollback_baseline !== "pull-base") {
     throw new Error("cloudbuild/ci.yaml does not declare rollback_baseline: pull-base");
   }
-  const steps = buildConfig.steps;
+  const sourceInjected = sourceSha === undefined ? buildConfig : injectSourceShaBuildConfig(buildConfig, sourceSha);
+  const steps = sourceInjected.steps;
   if (steps.some((step) => step.id === BASELINE_DOWNLOAD_STEP_ID)) {
     throw new Error(`cloudbuild/ci.yaml reserves the ${BASELINE_DOWNLOAD_STEP_ID} step id`);
   }
@@ -612,7 +641,8 @@ export function injectBaselineBuildConfig(
     for (const entry of stepEnv) {
       const name = envName(entry);
       if (!name) throw new Error("build step env must contain KEY=VALUE entries");
-      if ((BASELINE_ENV_NAMES as readonly string[]).includes(name)) {
+      if ((BASELINE_ENV_NAMES as readonly string[]).includes(name)
+        || (name === SOURCE_SHA_ENV_NAME && sourceSha === undefined)) {
         throw new Error(`build step env reserves ${name}`);
       }
     }
@@ -634,7 +664,7 @@ export function injectBaselineBuildConfig(
   ];
   const nextSteps = steps.map((step) => step.id === "rust-quality" ? { ...step, env } : step);
   return {
-    ...buildConfig,
+    ...sourceInjected,
     steps: [baselineStep(baseline.sha, baseline.sha256, baseline.generation, root), ...nextSteps],
   };
 }
@@ -764,8 +794,8 @@ export async function processPull(token: string, gcpToken: string, pr: GitHubPul
     const archive = await downloadSource(token, sha);
     const buildConfig = await buildConfigFromArchive(sha, archive);
     if (buildConfig.rollback_baseline === "pull-base") validateSha(pr.base.sha, "PR base SHA");
+    let submittedConfig = injectSourceShaBuildConfig(buildConfig, sha);
     const generation = await uploadSource(gcpToken, sha, archive);
-    let submittedConfig = buildConfig;
     if (buildConfig.rollback_baseline === "pull-base") {
       const baselineArchive = await downloadSource(token, pr.base.sha);
       const baseline = await uploadBaseline(gcpToken, pr.base.sha, baselineArchive);
@@ -773,7 +803,7 @@ export async function processPull(token: string, gcpToken: string, pr: GitHubPul
         sha: pr.base.sha,
         generation: baseline.generation,
         sha256: baseline.sha256,
-      });
+      }, sha);
     }
     if (!(await writeLock(gcpToken, sha, lockGeneration, "submitting"))) {
       console.log(`skip PR #${pr.number} @ ${sha.slice(0, 12)}: preparation lease replaced`);
