@@ -14,6 +14,7 @@ const {
   claimLock,
   createBuild,
   injectBaselineBuildConfig,
+  injectSourceShaBuildConfig,
   archiveManifest,
   processPull,
   uploadBaseline,
@@ -371,6 +372,22 @@ test("strips the dispatcher-only baseline contract before Cloud Build submission
   expect(submitted?.timeout).toBe("1800s");
 });
 
+test("injects the trusted PR head SHA into the rust-quality step", async () => {
+  const parsed = await buildConfigFromArchive(sha, await archiveForConfig(legacyConfig));
+  const injected = injectSourceShaBuildConfig(parsed, sha);
+  const rustStep = injected.steps.find((step) => step.id === "rust-quality");
+  expect(rustStep?.env).toEqual(expect.arrayContaining([`TASTILE_CI_SOURCE_SHA=${sha}`]));
+});
+
+test("rejects a source SHA environment override from the untrusted CI config", async () => {
+  const config = legacyConfig.replace(
+    "CARGO_TARGET_DIR=/tmp/tastile-ci-target",
+    "TASTILE_CI_SOURCE_SHA=attacker\n      - CARGO_TARGET_DIR=/tmp/tastile-ci-target",
+  );
+  const parsed = await buildConfigFromArchive(sha, await archiveForConfig(config));
+  expect(() => injectSourceShaBuildConfig(parsed, sha)).toThrow("TASTILE_CI_SOURCE_SHA");
+});
+
 test("fetches and binds the PR base archive from the fixed Core repository", async () => {
   const candidateArchive = await archiveForConfig(baselineConfig);
   const baselineArchive = new TextEncoder().encode("base-archive");
@@ -415,6 +432,7 @@ test("fetches and binds the PR base archive from the fixed Core repository", asy
   const steps = buildRequest?.steps as Array<Record<string, unknown>>;
   expect(steps[0]?.id).toBe("rollback-baseline-download");
   expect(steps[1]?.id).toBe("rust-quality");
+  expect(steps[1]?.env).toEqual(expect.arrayContaining([`TASTILE_CI_SOURCE_SHA=${sha}`]));
 });
 
 test("rejects an oversized streamed GitHub archive before source upload", async () => {

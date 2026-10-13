@@ -1,0 +1,62 @@
+{
+  "observed_at": "2026-10-08T11:32:43.075Z",
+  "source_sha": "f98c58efde0c8bf6962694c89920c9e8e229ed16",
+  "id": "be499da4-b695-4980-a03d-5714bec22460",
+  "status": "TIMEOUT",
+  "source": {
+    "storageSource": {
+      "bucket": "tastile-dev-tastile-ci-source",
+      "object": "sources/f98c58efde0c8bf6962694c89920c9e8e229ed16.tar.gz",
+      "generation": "1791439090204510"
+    }
+  },
+  "service_account": "projects/tastile-dev/serviceAccounts/sa-cloud-build-ci@tastile-dev.iam.gserviceaccount.com",
+  "timeout": "1800s",
+  "start_time": "2026-10-08T05:58:13.897563738Z",
+  "finish_time": "2026-10-08T06:28:34.293166Z",
+  "steps": [
+    {
+      "id": "rollback-baseline-download",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "postgres-start",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "postgres-ready",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "powershell-gate-contract",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "rust-quality",
+      "status": "CANCELLED"
+    }
+  ],
+  "tests": {
+    "groups": 106,
+    "passed": 942,
+    "failed": 0,
+    "ignored": 0
+  },
+  "phase_durations_seconds": {
+    "clippy": 458,
+    "migrate_run": 284,
+    "rust_tests": 804
+  },
+  "rollback": {
+    "candidate_recompile_started": true,
+    "baseline_started": false,
+    "smoke_completed": false
+  },
+  "cache_terminal_stats": null,
+  "new_ten_build_cohort": null,
+  "raw_log_sha256": "98214c69dbac6f90fef8188f844d021ed0c08240fc670fc165d691feb37f07ba",
+  "limitations": [
+    "Raw detailed Core log retained privately; summary includes metadata only.",
+    "Timeout is not a successful hosted rollback or performance sample."
+  ]
+}
