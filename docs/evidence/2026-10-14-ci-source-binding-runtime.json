@@ -1,0 +1,76 @@
+{
+  "observed_at": "2026-10-14T06:16:42.246Z",
+  "execution_generation": 10,
+  "source_commit": "54adf15bb07c07e95e21ee1c57f6e837c62fcffe",
+  "merged_commit": "c7a32644abc29020b5648f12a2cfbdc8dded4b7f",
+  "root_pr": 90,
+  "image_build": {
+    "id": "fcf2a1a9-6d43-46c8-92e0-652fcb4a2762",
+    "status": "SUCCESS",
+    "source": {
+      "storageSource": {
+        "bucket": "tastile-dev-tastile-ci-source",
+        "generation": "1791857328177284",
+        "object": "dispatcher-source/54adf15bb07c07e95e21ee1c57f6e837c62fcffe.tar.gz"
+      }
+    },
+    "service_account": "projects/tastile-dev/serviceAccounts/sa-cloud-build-publish@tastile-dev.iam.gserviceaccount.com",
+    "archive_sha256": "b5d7b3a58c335662799e5dac1f1f029d98c9cd089309383b3e627a2a171d60ad",
+    "digest": "sha256:64f3ff0286a69b5351b7a6e83720b24efb93d1f1dce6c5a48cc8b3ff2b2bce4c"
+  },
+  "targeted_apply": {
+    "binary_plan_sha256": "d0c9795030dc425245d73ad7653b98e06c50a5d11db0560dbf06ba9692f82f6e",
+    "changes": [
+      {
+        "address": "google_cloud_run_v2_service.ci_dispatcher[0]",
+        "actions": [
+          "update"
+        ]
+      }
+    ],
+    "creates": 0,
+    "destroys": 0,
+    "nonimage_differences": 0,
+    "exit_code": 0
+  },
+  "live": {
+    "prior_image": "asia-northeast1-docker.pkg.dev/tastile-dev/tastile/ci-dispatcher@sha256:c846e8b8b50f0a09a2060f71eafcf25696b551a571d4e1f10345bed992e68851",
+    "image": "asia-northeast1-docker.pkg.dev/tastile-dev/tastile/ci-dispatcher@sha256:64f3ff0286a69b5351b7a6e83720b24efb93d1f1dce6c5a48cc8b3ff2b2bce4c",
+    "revision": "tastile-ci-dispatcher-00003-6d7",
+    "ready": true,
+    "scheduler_status": 200,
+    "scheduler_at": "2026-10-14T06:00:12.164457511Z"
+  },
+  "submission_recovery": {
+    "head": "3d7b0d0435794df74200c3e49039d525892d3df6",
+    "first_request": {
+      "timestamp": "2026-10-14T06:04:04.450438Z",
+      "http_status": 503,
+      "latency_seconds": 12.007333218,
+      "diagnosis": "Cloud Run proxy or instance connection failure; exact mechanism unproven, no OOM evidence."
+    },
+    "immutable_source": {
+      "object": "sources/3d7b0d0435794df74200c3e49039d525892d3df6.tar.gz",
+      "generation": "1791957850283594",
+      "size": 8033271
+    },
+    "recovered_submission_at": "2026-10-14T06:09:16.474140Z",
+    "build_id": "8499d6f4-3425-4746-bba3-09d1fd55100f",
+    "observed_build_status": "WORKING",
+    "tag_matched_build_count": 1,
+    "manual_resubmission": false,
+    "preparing_only_reclaim_after_five_minutes": true,
+    "submitting_lock_force_replacement": false
+  },
+  "independent_review": {
+    "agent": "/root/g10_dispatcher_plan",
+    "plan_fence": "generation10-dispatcher-plan-1",
+    "recovery_fence": "generation10-dispatcher-diagnosis-1",
+    "actual_model": null
+  },
+  "limitations": [
+    "Cloud Build outcome and cold10 performance remain pending.",
+    "No change to credentials, IAM, nonimage service settings, or production.",
+    "Targeted plan does not claim unrelated fullfoundation drift is absent."
+  ]
+}
