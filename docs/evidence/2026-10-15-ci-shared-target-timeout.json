@@ -1,0 +1,134 @@
+{
+  "observed_at": "2026-10-14T23:04:15.504Z",
+  "execution_generation": 13,
+  "source_sha": "6429407a09c671def29fee5c63783901adb8b256",
+  "build_id": "6b9591df-7f6d-4843-859a-a98fc95ca91c",
+  "status": "TIMEOUT",
+  "source": {
+    "storageSource": {
+      "bucket": "tastile-dev-tastile-ci-source",
+      "object": "sources/6429407a09c671def29fee5c63783901adb8b256.tar.gz",
+      "generation": "1791971291168666"
+    }
+  },
+  "service_account": "projects/tastile-dev/serviceAccounts/sa-cloud-build-ci@tastile-dev.iam.gserviceaccount.com",
+  "timeout": "1800s",
+  "start": "2026-10-14T09:48:14.948953870Z",
+  "finish": "2026-10-14T10:18:35.484983Z",
+  "steps": [
+    {
+      "id": "rollback-baseline-download",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "postgres-start",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "postgres-ready",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "powershell-gate-contract",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "rust-quality",
+      "status": "CANCELLED"
+    }
+  ],
+  "tests": {
+    "groups": 106,
+    "passed": 942,
+    "failed": 0,
+    "ignored": 0
+  },
+  "phases": [
+    {
+      "name": "compiler-cache-contract",
+      "status": 0,
+      "seconds": 2,
+      "at": "2026-10-14T09:50:50Z"
+    },
+    {
+      "name": "candidate-artifact-contract",
+      "status": 0,
+      "seconds": 3,
+      "at": "2026-10-14T09:50:53Z"
+    },
+    {
+      "name": "sync-version",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T09:50:54Z"
+    },
+    {
+      "name": "rust-impact",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T09:50:54Z"
+    },
+    {
+      "name": "fmt-v1",
+      "status": 0,
+      "seconds": 2,
+      "at": "2026-10-14T09:50:56Z"
+    },
+    {
+      "name": "fmt-v0",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T09:50:56Z"
+    },
+    {
+      "name": "clippy",
+      "status": 0,
+      "seconds": 494,
+      "at": "2026-10-14T09:59:10Z"
+    },
+    {
+      "name": "v0-build",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T09:59:10Z"
+    },
+    {
+      "name": "candidate-precompile",
+      "status": 0,
+      "seconds": 700,
+      "at": "2026-10-14T10:10:50Z"
+    },
+    {
+      "name": "candidate-seal",
+      "status": 0,
+      "seconds": 1,
+      "at": "2026-10-14T10:10:51Z"
+    },
+    {
+      "name": "migrate-run-sealed",
+      "status": 0,
+      "seconds": 1,
+      "at": "2026-10-14T10:10:52Z"
+    },
+    {
+      "name": "rust-tests",
+      "status": 0,
+      "seconds": 275,
+      "at": "2026-10-14T10:15:27Z"
+    }
+  ],
+  "rollback": {
+    "independent_baseline_compile_started": true,
+    "old_api_worker_smoke_completed": false,
+    "candidate_recompiled": false
+  },
+  "raw_log_sha256": "e9f8efb38425e7096a3541189ccb09a5b8d7a78881ceb74ceb926001b0da1aae",
+  "raw_log_location": "private recovery capture .tmp/g11-current-shared-hosted.txt",
+  "terminal_cache_stats": null,
+  "new_ten_run_cohort": null,
+  "limits": [
+    "Initialtargetsharing localcorrectness remains valid, but hostedwholegate TIMEOUT.",
+    "106/942/0/0 onlybeforebaseline rollback; required smoke/cache terminalstats absent.",
+    "Keepallgates/default2CPU/jobs2/1800; no sameSHAreplicas or falsecold10 completion."
+  ]
+}
