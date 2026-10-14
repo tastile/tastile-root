@@ -1,0 +1,121 @@
+{
+  "observed_at": "2026-10-14T09:34:11.697Z",
+  "execution_generation": 11,
+  "implementation_base_sha": "3d7b0d0435794df74200c3e49039d525892d3df6",
+  "recipe_sha256": "1e2921e3f7b2661cf7dca51a849b3663054236bdde661fb72aba4eb976440539",
+  "fixture": {
+    "os": "Linux ARM64",
+    "container": "tastile-g5-rust",
+    "rust": "1.97.1",
+    "postgresql": "17.11",
+    "cpus": 4,
+    "jobs": 2,
+    "target": "initially empty /tmp/tastile-g11-quality-target",
+    "cache": "initially empty build-local sccache0.18.0",
+    "cache_archive_sha256": "2b3284d5da3b46a47dc4229e75bb7b88ac4aa99c8d754fb7d2f84997e5a4354a",
+    "source_metadata_sha": "3d7b0d0435794df74200c3e49039d525892d3df6"
+  },
+  "tests": {
+    "groups": 106,
+    "passed": 942,
+    "failed": 0,
+    "ignored": 0
+  },
+  "runner_exit": 0,
+  "terminal_duration_seconds": 422,
+  "cache": {
+    "rust_hits": 313,
+    "rust_misses": 851,
+    "errors": 0
+  },
+  "phases": [
+    {
+      "name": "compiler-cache-contract",
+      "status": 0,
+      "seconds": 2,
+      "at": "2026-10-14T09:26:29Z"
+    },
+    {
+      "name": "candidate-artifact-contract",
+      "status": 0,
+      "seconds": 1,
+      "at": "2026-10-14T09:26:30Z"
+    },
+    {
+      "name": "sync-version",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T09:26:31Z"
+    },
+    {
+      "name": "rust-impact",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T09:26:31Z"
+    },
+    {
+      "name": "fmt-v1",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T09:26:31Z"
+    },
+    {
+      "name": "fmt-v0",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T09:26:31Z"
+    },
+    {
+      "name": "clippy",
+      "status": 0,
+      "seconds": 93,
+      "at": "2026-10-14T09:28:04Z"
+    },
+    {
+      "name": "v0-build",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T09:28:04Z"
+    },
+    {
+      "name": "candidate-precompile",
+      "status": 0,
+      "seconds": 104,
+      "at": "2026-10-14T09:29:48Z"
+    },
+    {
+      "name": "candidate-seal",
+      "status": 0,
+      "seconds": 1,
+      "at": "2026-10-14T09:29:49Z"
+    },
+    {
+      "name": "migrate-run-sealed",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T09:29:49Z"
+    },
+    {
+      "name": "rust-tests",
+      "status": 0,
+      "seconds": 99,
+      "at": "2026-10-14T09:31:28Z"
+    },
+    {
+      "name": "rollback-compatibility",
+      "status": 0,
+      "seconds": 116,
+      "at": "2026-10-14T09:33:24Z"
+    }
+  ],
+  "rollback": {
+    "baseline_sha": "9b3f8b5363af52a12ab5912318cfdabe5af8728d",
+    "independent_target": true,
+    "remaining_fixture_databases": 0,
+    "authenticated_source_tile_smoke": true
+  },
+  "raw_log_sha256": "174b7cc971b8a2b4e741128ad60bad21e147f07a7d81a6382951162170747a8e",
+  "raw_log_location": "private Core docs/evidence/2026-10-14-ci-shared-target/full-workspace.txt",
+  "hosted_success": false,
+  "new_cold_cohort": null
+}
