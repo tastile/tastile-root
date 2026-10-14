@@ -1,0 +1,138 @@
+{
+  "observed_at": "2026-10-14T23:28:19.804Z",
+  "execution_generation": 13,
+  "actual_model": null,
+  "source": {
+    "candidate": {
+      "commit": "6429407a09c671def29fee5c63783901adb8b256",
+      "tree": "03a1851e600e7fc6ad54ccc34a5144adf06036ce",
+      "archive_path": ".tmp/g13-ci-analysis/6429407a09c671def29fee5c63783901adb8b256",
+      "verified_crates_v1_and_wrapper_blobs": 322
+    },
+    "baseline": {
+      "commit": "9b3f8b5363af52a12ab5912318cfdabe5af8728d",
+      "tree": "e7269733b981a8f14f892e7368757e203d4bf5a3",
+      "archive_path": ".tmp/g13-ci-analysis/baseline-9b3f8b5363af52a12ab5912318cfdabe5af8728d",
+      "verified_crates_v1_and_wrapper_blobs": 321
+    },
+    "crates_v1_lock_sha256": "8150136d3a62e5d15d6fb3fc00714e748016453b0e14e64ebbd5bc2f8c35fa8b"
+  },
+  "runtime": {
+    "os": "Linux ARM64",
+    "cpus": 4,
+    "cargo": "1.97.1 (c980f4866 2026-06-30)",
+    "rustc": "1.97.1 (8bab26f4f 2026-07-14)",
+    "sccache": "0.18.0",
+    "jobs": 2,
+    "cargo_incremental": "0",
+    "profile_debug": "0",
+    "test_incremental": "false",
+    "rustflags": [
+      "-C debuginfo=0",
+      "-C strip=debuginfo",
+      "-C link-arg=-fuse-ld=mold",
+      "-C link-arg=-Wl,--no-keep-memory"
+    ],
+    "cache": {
+      "kind": "fresh local disk",
+      "max_bytes": 1073741824,
+      "server_socket": "experiment-owned",
+      "target_dirs": [
+        "target-candidate",
+        "target-baseline"
+      ],
+      "independent_targets": true,
+      "zeroed_before_candidate": true
+    }
+  },
+  "initial_cache": {
+    "reported_bytes": null,
+    "executed_requests": 0,
+    "writes": 0,
+    "setup": "Executed owned-path removal then mkdir/start; null size preserved as unavailable"
+  },
+  "commands": {
+    "candidate": "cargo test --workspace --locked --jobs 2 --no-run --message-format=json",
+    "baseline": "cargo build --locked -p api -p worker --jobs 2 --message-format=json"
+  },
+  "phases": {
+    "candidate": {
+      "rust_wrapper_requests": 449,
+      "rust_hits": 0,
+      "rust_misses": 449,
+      "cache_writes": 449,
+      "cache_errors": 0,
+      "compile_failures": 0,
+      "cache_bytes_after": 307912759,
+      "target_bytes_after": 3045354728
+    },
+    "baseline_delta": {
+      "rust_wrapper_requests": 404,
+      "rust_hits": 313,
+      "rust_misses": 91,
+      "hit_rate": 0.7747524752475248,
+      "cache_errors": 0,
+      "compile_failures": 0,
+      "cache_bytes_after": 425382260,
+      "target_bytes_after": 1603499708
+    }
+  },
+  "inputs": {
+    "wrapper_behavior": "registry lib/rlib invocations pass argv unchanged to sccache; other invocations bypass it",
+    "debug_flag_order": "Cargo -C debuginfo=1 precedes RUSTFLAGS -C debuginfo=0 in captured argv",
+    "selected_metadata_difference": {
+      "sqlx": {
+        "candidate": [
+          "8f7aabd9f39a2cb1",
+          "63dc4744727cc91d"
+        ],
+        "baseline": [
+          "e9e429d2a00dc3e3",
+          "08186f085d285dea"
+        ]
+      },
+      "aws_config": {
+        "candidate": [
+          "2dc0b8dfb8e578d6",
+          "b38b76e92b51d193"
+        ],
+        "baseline": [
+          "024f6ce38574716d",
+          "87b6fca7a77c83dc"
+        ]
+      }
+    }
+  },
+  "artifacts": {
+    "baseline_normal_binaries_sha256": {
+      "api": "2c3881565fcab1f00231ae8963fdc49055b43aa4d3d3fead2d88e95528fe8f94",
+      "worker": "1e2f9e1178e9f71b953526b49b450292d7c4fbf3a7cbf8e54df4ff15ef2d35fd"
+    },
+    "candidate_no_run_ordinary_api_sha256": "cd2413681a8df083c53f360997598bd8cf919a0dec75c0f04d2dbfeac481b148",
+    "candidate_no_run_ordinary_worker": null,
+    "artifact_manifest_sha256": "1013f2573d08b99a25804ea8a03139c92f3a426cb7d36a5775f51420b35a7cc1"
+  },
+  "cleanup": {
+    "trap_stop_server_invoked": true,
+    "post_run_experiment_processes": 0,
+    "receipt_sha256": "d87965bd844627f0cd9c2350ddf45057135d84f49f39c594f1aa7fb62c494d54"
+  },
+  "captures": {
+    "provenance.txt": "b5b5c654819bfa80a00fef538f5de32cda7e661fbd65ccfbce910bba16c03ccb",
+    "candidate.stats-after.json": "9cc73ed66bc5536e7b7c99ebebf50221ad6b216acb0a1f758328260b1d800018",
+    "baseline.stats-after.json": "83d619f709f1e76841568fbc5853206f209cb47ef88a4bf2240be3aaeb383e65",
+    "invocations.txt": "8132bd4888e7b3e1d39e163e77595f1706b80f237b5a06ec4d7f073c8cc17b98",
+    "per_pid_log_aggregate": "2d1d6e9c0c55c8cada6c9e7be116135ef5f74cc9e2efc355f8610367fc5734f7",
+    "run-a.sh": "3f38691289e1c40aeff89f836ef9cc0c63080e6451e83ce840ddeba659681113",
+    "log-rustc-wrapper.sh": "b9fca5dd6559fbbde8c4b82d38872bf7ce7c393d85d876a38db7e5db83f415c7"
+  },
+  "result_sha256": "84d79b6c45bf1a9c04964f23d499b43ad27111346846d2196160d111a60acd4a",
+  "limits": [
+    "Aggregate sccache statistics cannot attribute the 91 baseline misses to individual crates.",
+    "Feature/flag equality for selected crates and recorded metadata differences establish input variation, not miss causality.",
+    "Candidate no-run builds test harnesses and does not provide an ordinary worker binary.",
+    "This local ARM experiment establishes cache reuse behavior only; it is not a hosted timing or capacity measurement.",
+    "Separate local historical-input experiment; no fullPG/rollback proof ornewhosted success.",
+    "Core642 hosted6b959 remainsTIMEOUT; oldcold10FAIL andrequiredgates/default2CPU/jobs2/1800 remain."
+  ]
+}
