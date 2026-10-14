@@ -1,0 +1,137 @@
+{
+  "observed_at": "2026-10-14T06:45:30.004Z",
+  "execution_generation": 10,
+  "source_sha": "3d7b0d0435794df74200c3e49039d525892d3df6",
+  "build_id": "8499d6f4-3425-4746-bba3-09d1fd55100f",
+  "status": "TIMEOUT",
+  "source": {
+    "storageSource": {
+      "bucket": "tastile-dev-tastile-ci-source",
+      "object": "sources/3d7b0d0435794df74200c3e49039d525892d3df6.tar.gz",
+      "generation": "1791957850283594"
+    }
+  },
+  "service_account": "projects/tastile-dev/serviceAccounts/sa-cloud-build-ci@tastile-dev.iam.gserviceaccount.com",
+  "timeout": "1800s",
+  "start": "2026-10-14T06:09:15.663094669Z",
+  "finish": "2026-10-14T06:39:38.210168Z",
+  "steps": [
+    {
+      "id": "rollback-baseline-download",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "postgres-start",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "postgres-ready",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "powershell-gate-contract",
+      "status": "SUCCESS"
+    },
+    {
+      "id": "rust-quality",
+      "status": "CANCELLED"
+    }
+  ],
+  "tests": {
+    "groups": 106,
+    "passed": 942,
+    "failed": 0,
+    "ignored": 0
+  },
+  "phases": [
+    {
+      "name": "compiler-cache-contract",
+      "status": 0,
+      "seconds": 2,
+      "at": "2026-10-14T06:11:33Z"
+    },
+    {
+      "name": "candidate-artifact-contract",
+      "status": 0,
+      "seconds": 3,
+      "at": "2026-10-14T06:11:36Z"
+    },
+    {
+      "name": "sync-version",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T06:11:37Z"
+    },
+    {
+      "name": "rust-impact",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T06:11:37Z"
+    },
+    {
+      "name": "fmt-v1",
+      "status": 0,
+      "seconds": 2,
+      "at": "2026-10-14T06:11:39Z"
+    },
+    {
+      "name": "fmt-v0",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T06:11:39Z"
+    },
+    {
+      "name": "clippy",
+      "status": 0,
+      "seconds": 536,
+      "at": "2026-10-14T06:20:35Z"
+    },
+    {
+      "name": "v0-build",
+      "status": 0,
+      "seconds": 1,
+      "at": "2026-10-14T06:20:36Z"
+    },
+    {
+      "name": "candidate-precompile",
+      "status": 0,
+      "seconds": 814,
+      "at": "2026-10-14T06:34:10Z"
+    },
+    {
+      "name": "candidate-seal",
+      "status": 0,
+      "seconds": 2,
+      "at": "2026-10-14T06:34:12Z"
+    },
+    {
+      "name": "migrate-run-sealed",
+      "status": 0,
+      "seconds": 0,
+      "at": "2026-10-14T06:34:12Z"
+    },
+    {
+      "name": "rust-tests",
+      "status": 0,
+      "seconds": 249,
+      "at": "2026-10-14T06:38:21Z"
+    }
+  ],
+  "prepared_candidate": {
+    "normal_bin_precompile_and_seal_completed": true,
+    "actual_migrator_completed": true,
+    "candidate_cargo_rebuild_in_rollback": false
+  },
+  "rollback": {
+    "independent_baseline_compile_started": true,
+    "smoke_completed": false
+  },
+  "raw_log_sha256": "954574f289b8e21571c7a40c7df3274e362bdeba0308153921905331b824c539",
+  "terminal_cache_stats": null,
+  "new_ten_run_cohort": null,
+  "limitations": [
+    "Raw private Core log retained in root.tmp; this public evidence is metadata only.",
+    "Local prepared/native correctness does not establish hosted rollback completion.",
+    "Required clippy536+precompile814+tests249 plus setup left insufficient independent baseline time; no timeout/gate/hardware increase."
+  ]
+}

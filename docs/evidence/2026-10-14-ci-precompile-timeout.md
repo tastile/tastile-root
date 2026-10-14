@@ -1,0 +1,5 @@
+# 候補再compile除去後の実 timeout
+
+Core3d7b0d／build8499d6f4は1800秒TIMEOUT。候補の通常bin生成・seal・実migrator・full106groups942/0/0が完了し、rollbackのcandidate Cargo再起動は除去できた。しかしclippy536秒＋precompile814秒＋tests249秒とsetup後、独立baseline compileに残る時間が足りず、旧APIworker smokeには到達しなかった。[terminal metadata](2026-10-14-ci-precompile-timeout.json)。
+
+ローカルの互換性証明は維持するが、hosted成功とcold10中央値は未達。追加9回は投入しない。次の問いは「通常test compilationのmetadataを必須clippyでも再利用できるか」。同一の初期空targetでno-run→clippyと逆順を小さい実Linux fixtureで比較し、gates/hardware/timeoutを変えずに実際のdependency再利用を確認してから次のrecipeを決める。まだその順序を採用・成功と判断していない。
