@@ -1,0 +1,6 @@
+Step #2 - "exact-image-rollback": BASELINE_INDEPENDENT_BUILD_OK
+Step #2 - "exact-image-rollback": EXACT_IMAGE_MIGRATOR_OK
+Step #2 - "exact-image-rollback": EXACT_IMAGE_API_READY_OK
+Step #2 - "exact-image-rollback": PASS: exact OCI migrator/API and independent baseline API/worker SourceTile write/materialize/read/reflow/list
+Step #2 - "exact-image-rollback": OWNED_ROLLBACK_DATABASES_REMAINING=0
+Step #2 - "exact-image-rollback": IMAGE_ROLLBACK_EXIT=0 CLEANUP_EXIT=0

@@ -55,7 +55,7 @@ milestones:
       - poc.restore-drill passed (staging)
       - exact candidate/baselineに対する実PG rollback証明をstateful migrationとserving trafficの前に取得し、API read/writeとworker実行を実環境で確認する
     tracking: [tastile/tastile-core#202]
-    status: planned
+    status: in_progress
   - id: ms.m4-web-staging
     title: Web on Cloud Run staging, JWT assertion, edge router
     depends_on: [ms.m3-core-staging]

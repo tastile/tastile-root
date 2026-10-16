@@ -1,0 +1,39 @@
+{
+  "at": "2026-10-16T11:05:10.275Z",
+  "url": "https://core-api-vr74ihzzja-an.a.run.app",
+  "revision": "core-api-g20bridge1",
+  "image": "asia-northeast1-docker.pkg.dev/tastile-dev/tastile/core@sha256:90d936ea5fb8d8f6adb3ab229fb665e22f3ae5c6d487a357d80aa3104cc94ac0",
+  "candidate_sha": "9b097f4e9a93e1c1451686a80c021864c549733c",
+  "source_tile_id": "01a14463-1946-7583-9dbf-9d3753db5b0e",
+  "markers": [
+    {
+      "name": "wrong-bridge-rejected",
+      "status": 401
+    },
+    {
+      "name": "create",
+      "status": 200
+    },
+    {
+      "name": "read",
+      "status": 200
+    },
+    {
+      "name": "list",
+      "status": 200
+    },
+    {
+      "name": "reflow",
+      "status": 200
+    },
+    {
+      "name": "cancel",
+      "status": 200
+    }
+  ],
+  "source_canceled": true,
+  "worker_verified": false,
+  "initial_occurrences": 1,
+  "initial_placements": 1,
+  "secret_values_recorded": false
+}

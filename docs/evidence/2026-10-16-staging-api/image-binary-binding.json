@@ -1,0 +1,32 @@
+{
+  "schema": "tastile-core-image-rollback-input-v1",
+  "candidate_sha": "9b097f4e9a93e1c1451686a80c021864c549733c",
+  "baseline_sha": "9b3f8b5363af52a12ab5912318cfdabe5af8728d",
+  "image": "asia-northeast1-docker.pkg.dev/tastile-dev/tastile/core@sha256:90d936ea5fb8d8f6adb3ab229fb665e22f3ae5c6d487a357d80aa3104cc94ac0",
+  "build_id": "2946e861-89e5-4ab7-9cc6-4abc92b1280b",
+  "build_source_generation": "1792128577279167",
+  "build_source_archive_sha256": "993d7a1d65401b85041a166e68f06be6a5b4c3c848e0078d34df95b83a0b5d14",
+  "image_manifest_digest": "sha256:90d936ea5fb8d8f6adb3ab229fb665e22f3ae5c6d487a357d80aa3104cc94ac0",
+  "image_config_digest": "sha256:ba0fe2470392ef4826824668d258eadea3831e396de31e10e83a56a18429f61a",
+  "binaries": {
+    "api": {
+      "sha256": "sha256:a8d021fc852ede8fa685ae0178b59338c37cdfbec0c771fe0cdcc078e3656c9c",
+      "bytes": 54508160,
+      "layer_digest": "sha256:a765f40097010c74007cc843bec2868df8dd00129866ca580c1d5c5fb7b7c891"
+    },
+    "worker": {
+      "sha256": "sha256:9e691cb96f6b5a096b1f7a117541fe9a14fde17cbf07a74a5ebc138ddddb2a07",
+      "bytes": 23620056,
+      "layer_digest": "sha256:b598c86ebf8b9a131904ec53dd6619f7375157ea653632c386d6f336de6dd4cd"
+    },
+    "migrate_run": {
+      "sha256": "sha256:c11a142562e97a2a41a25f222749bef5fe09dbcf440295cffbc667f3289e7d13",
+      "bytes": 8807280,
+      "layer_digest": "sha256:9ed9cc96daebd417b17b8ec455077ec8b0965db25de11a42e389c2b6ab726eb9"
+    }
+  },
+  "baseline_archive_sha256": "sha256:cbcdd4df1895d5e3a734ee0133622e8fb2324efeb312e38540b3e6eb5f71ae04",
+  "smoke_sha256": "sha256:e62b0fa9376688fa4407fc7f5ffed78c01b76dd4e6746c9a7a10a3e0a50bf47c",
+  "prepared_at": "2026-10-16T06:03:12.909Z",
+  "credential_values_recorded": false
+}

@@ -1,0 +1,54 @@
+{
+  "source": {
+    "storageSource": {
+      "bucket": "tastile-dev-tastile-ci-source",
+      "object": "release-proof/g19-9b097f4-c505c6e9e7d674229180f2bf352dc4903cc346c4226a2ed29fab4f5e6ea8d7da.tar.gz",
+      "generation": "1792130918301620"
+    }
+  },
+  "steps": [
+    {
+      "id": "postgres-start",
+      "name": "gcr.io/cloud-builders/docker",
+      "args": [
+        "run",
+        "--detach",
+        "--name=tastile-ci-postgres",
+        "--network=cloudbuild",
+        "--env=POSTGRES_USER=tastile",
+        "--env=POSTGRES_PASSWORD=tastile",
+        "--env=POSTGRES_DB=postgres",
+        "postgres:17-bookworm"
+      ]
+    },
+    {
+      "id": "postgres-ready",
+      "name": "postgres:17-bookworm",
+      "entrypoint": "bash",
+      "args": [
+        "-ceu",
+        "for i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30; do pg_isready -h tastile-ci-postgres -U tastile -d postgres && exit 0; sleep 1; done; exit 1"
+      ]
+    },
+    {
+      "id": "exact-image-rollback",
+      "name": "rust:1.97.1-bookworm",
+      "entrypoint": "bash",
+      "env": [
+        "BUILD_ID=$BUILD_ID"
+      ],
+      "args": [
+        "/workspace/g19-image-rollback-input/run-rollback.sh"
+      ]
+    }
+  ],
+  "serviceAccount": "projects/tastile-dev/serviceAccounts/sa-cloud-build-ci@tastile-dev.iam.gserviceaccount.com",
+  "options": {
+    "logging": "CLOUD_LOGGING_ONLY",
+    "machineType": "E2_STANDARD_2"
+  },
+  "timeout": "1800s",
+  "tags": [
+    "image-rollback-g19-9b097f4"
+  ]
+}

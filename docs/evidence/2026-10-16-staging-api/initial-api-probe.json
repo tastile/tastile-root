@@ -1,0 +1,19 @@
+{
+  "at": "2026-10-16T11:01:05.603Z",
+  "image": "sha256:90d936ea5fb8d8f6adb3ab229fb665e22f3ae5c6d487a357d80aa3104cc94ac0",
+  "revision": "core-api-00001-668",
+  "markers": [
+    {
+      "name": "ready",
+      "status": 200
+    },
+    {
+      "name": "anonymous-rejected",
+      "status": 403
+    },
+    {
+      "name": "application-auth-required",
+      "status": 401
+    }
+  ]
+}

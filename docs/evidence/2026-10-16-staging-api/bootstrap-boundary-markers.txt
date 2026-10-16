@@ -1,0 +1,11 @@
+[90m2026-10-16T06:12:56Z[0m [32mINF[0m Injecting 1 Infisical secrets into your application process
+BOOTSTRAP_APPLICATION_ENVIRONMENT_OK secret_values_printed=false migration_executed=false
+GCP_METADATA_INFISICAL_OWN_PATH_READ_OK
+INFISICAL_NAMED_OWN_PATH_READ_200
+INFISICAL_DENIED_403 project=44081e84-5983-4cc2-9fc9-dca5363005e1 env=staging path=/tastile/core/shared
+INFISICAL_DENIED_403 project=44081e84-5983-4cc2-9fc9-dca5363005e1 env=staging path=/tastile/platform/cloud-sql
+INFISICAL_DENIED_403 project=44081e84-5983-4cc2-9fc9-dca5363005e1 env=dev path=/
+INFISICAL_DENIED_403 project=ab532e90-acde-40e6-a206-3976743e5da5 env=prod path=/tastile/core
+PASS: actual staging workload bootstrap and read boundaries; no SQL migration
+Container called exit(0).
+
