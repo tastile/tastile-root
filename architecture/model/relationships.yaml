@@ -209,7 +209,7 @@ relationships:
   - id: rel.scheduler-worker
     from: ext.scheduler
     to: ctr.core-worker
-    description: 1 分ごとの drain 起動と、available_at 指定の targeted wake
+    description: same-project sa-schedulerから1分ごとにPOST /drain。audienceはpath/queryなしのcanonical service URL。service単位のrun.invokerだけを付与し、public principalを拒否。targeted wakeはSLO未達の実測後だけ追加
     protocol: HTTPS POST (OIDC-authenticated, internal ingress)
     credential: cred.gcp-service-identity
     lifecycle: planned

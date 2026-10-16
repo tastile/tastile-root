@@ -1,0 +1,78 @@
+{
+  "fence": "generation15-ci-input-graph-1",
+  "actual_model": null,
+  "raw": {
+    "result_json": {
+      "path": ".tmp/g13-ci-cache-input-experiment/result.json",
+      "sha256": "84d79b6c45bf1a9c04964f23d499b43ad27111346846d2196160d111a60acd4a"
+    },
+    "candidate_cargo_json": {
+      "path": ".tmp/g13-ci-cache-input-experiment/candidate.cargo.json",
+      "sha256": "3c7a980b3ba3265a46c1680e3c2b6be2e70b0234479c2c0e16456f28ee931ead"
+    },
+    "baseline_cargo_json": {
+      "path": ".tmp/g13-ci-cache-input-experiment/baseline.cargo.json",
+      "sha256": "230e0aed63b88c71309b0ad2afc4226f2ba99bd0b00130aa29bdfbc9ea4dd9f9"
+    },
+    "invocations": {
+      "path": ".tmp/g13-ci-cache-input-experiment/invocations.txt",
+      "sha256": "8132bd4888e7b3e1d39e163e77595f1706b80f237b5a06ec4d7f073c8cc17b98"
+    }
+  },
+  "units": [
+    {
+      "unit": "either",
+      "candidate": "features default,serde,std,use_std; extra 3124f5ed9a3c7560",
+      "baseline": "features default,serde,std; extra c9f554febbb54bcc",
+      "conclusion": "lowest observed feature-set divergence; candidate-only dev/test closure is consistent, but cache miss attribution unavailable"
+    },
+    {
+      "unit": "bytes-utils -> aws-smithy-types -> aws-config",
+      "candidate": "7e6ee7311822d7c1 -> c213a342302794e5 -> b38b76e92b51d193",
+      "baseline": "3576ea6ed5ebf121 -> 1e6cfae7c3e06c78 -> 87b6fca7a77c83dc",
+      "conclusion": "DAG propagation through --extern identities; selected aws-config features/profile same"
+    },
+    {
+      "unit": "crossbeam-utils -> crossbeam-queue -> sqlx-core -> sqlx",
+      "candidate": "74460ebff9091af2 -> 55b68ea1831ab491 -> 72e8fbb047c6fe05 -> 63dc4744727cc91d",
+      "baseline": "0a12fcdebfd22e3c -> ff82a166aa2b41e9 -> a4c32d4d432f4771 -> 08186f085d285dea",
+      "conclusion": "DAG propagation; sqlx feature/profile same"
+    }
+  ],
+  "assessment": {
+    "baseline_workspace_build": "not supported as a remedy by current evidence: it can align workspace package selection but cargo build excludes dev dependencies, while first observed candidate-only either use_std derives from test/no-run closure",
+    "uncertainties": [
+      "91 misses are aggregate and cannot be attributed per crate",
+      "captured argv establishes different extern identities, not their cache-key/miss causality",
+      "root-source path is not shown as an argv difference for registry units"
+    ]
+  },
+  "immediate_observed_consumers": {
+    "either_use_std_candidate_hash": "3124f5ed9a3c7560",
+    "either_baseline_comparator_hash": "c9f554febbb54bcc",
+    "candidate_consumers": [
+      "sqlx-core",
+      "rayon",
+      "bytes-utils",
+      "itertools"
+    ],
+    "baseline_consumers": [
+      "sqlx-core",
+      "bytes-utils"
+    ],
+    "crossbeam_queue_candidate_hash": "55b68ea1831ab491",
+    "crossbeam_queue_baseline_hash": "ff82a166aa2b41e9",
+    "crossbeam_queue_consumers": [
+      "sqlx-core"
+    ],
+    "crossbeam_utils_candidate_hash": "74460ebff9091af2",
+    "crossbeam_utils_baseline_hash": "0a12fcdebfd22e3c",
+    "crossbeam_utils_consumers_observed": [
+      "crossbeam-queue",
+      "crossbeam-epoch",
+      "crossbeam-deque",
+      "rayon-core"
+    ],
+    "limitation": "These are captured --extern consumers, not causal cache-miss attribution or a complete Cargo resolve graph."
+  }
+}

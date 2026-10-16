@@ -64,7 +64,7 @@ ext_infisical: "Infisical (self-hosted)" {
 
 actor_api_client -> sys_tastile: "user 発行の scoped token で公開 /v1 API を呼ぶ"
 actor_user -> sys_tastile: "ブラウザで公開サイトと dashboard を使う"
-ext_scheduler -> sys_tastile: "1 分ごとの drain 起動と、available_at 指定の targeted wake"
+ext_scheduler -> sys_tastile: "same-project sa-schedulerから1分ごとにPOST /drain。audienceはpath/queryなしのcanonical service URL。service単位のrun.invokerだけを付与し、public principalを拒否。targeted wakeはSLO未達の実測後だけ追加"
 ext_stripe -> sys_tastile: "webhook (署名検証必須)"
 sys_tastile -> ext_apple_identity: "Sign in with Apple"
 sys_tastile -> ext_email: "Delivery channel としての email"

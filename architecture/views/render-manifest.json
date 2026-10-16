@@ -4,7 +4,7 @@
   "layout": "elk",
   "views": {
     "architecture/views/context.d2": {
-      "d2_sha256": "316571ccf6dc8b2fe707aeb838342464f4ba35360fe8c8b9db0fcfb7c465d137",
+      "d2_sha256": "3d75be1284653514ae00444c869338833a5dd20823f1a84d73b39a83a137c3b1",
       "svg": "architecture/views/context.svg"
     },
     "architecture/views/containers.d2": {

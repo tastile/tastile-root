@@ -26,7 +26,7 @@
 | `rel.migrate-db` | ctr.core-migrate | ctr.domain-db | PostgreSQL wire | cred.db-core-migrate |  | planned |  | schema migration (DDL) |
 | `rel.web-auth-db` | cmp.web.auth | ctr.auth-db | PostgreSQL wire (Cloud SQL connector unix socket) | cred.db-auth-runtime | dc.pii, dc.credential | retained |  | Better Auth store |
 | `rel.core-media` | ctr.core-api | ctr.media | S3 API (R2 endpoint) | cred.r2-media | dc.user-content | planned |  | avatar の presigned upload / commit |
-| `rel.scheduler-worker` | ext.scheduler | ctr.core-worker | HTTPS POST (OIDC-authenticated, internal ingress) | cred.gcp-service-identity |  | planned |  | 1 分ごとの drain 起動と、available_at 指定の targeted wake |
+| `rel.scheduler-worker` | ext.scheduler | ctr.core-worker | HTTPS POST (OIDC-authenticated, internal ingress) | cred.gcp-service-identity |  | planned |  | same-project sa-schedulerから1分ごとにPOST /drain。audienceはpath/queryなしのcanonical service URL。service単位のrun.invokerだけを付与し、public principalを拒否。targeted wakeはSLO未達の実測後だけ追加 |
 | `rel.worker-fcm` | ctr.core-worker | ext.fcm | FCM HTTP v1 | cred.gcp-service-identity | dc.telemetry | planned |  | Android への wake-up push (Session / Prompt 更新の hint) |
 | `rel.worker-webpush` | ctr.core-worker | ext.webpush | Web Push (VAPID) | cred.vapid | dc.telemetry | planned |  | browser への wake-up push |
 | `rel.worker-email` | ctr.core-worker | ext.email | HTTPS API | cred.email-api | dc.pii | planned |  | Delivery channel としての email |

@@ -56,4 +56,19 @@ gated_by: [poc.cloud-build-ci]
 
 ## Verification
 
-poc.cloud-build-ci (Infisical-backed dispatcher、median ≤ 25 分、40 run / 月で ≤ 1,000 分、GitHub status報告、provider-managed GitHub credential 0) を ms.m2-foundation の exit 条件にする。
+poc.cloud-build-ci (Infisical-backed dispatcher、通常PR品質のmedian ≤ 25 分、40 run / 月で ≤ 1,000 分、GitHub status報告、provider-managed GitHub credential 0) を ms.m2-foundation の exit 条件にする。
+
+## 2026-10-15: 品質・rollback・性能のgate配置
+
+全942テスト後に独立baseline compileがTIMEOUTした事実と、旧cold10中央値26.3427分の失敗を保持する。
+通常PRではfmt/clippy全target/v0 build/実migrator/全workspace実PostgreSQL testを必須とする。
+独立baselineとのrollback証明は統合候補・配備前の必須gateへ分離する。検証を省略する変更ではない。
+候補SHA、source generation/digest、trusted baseline SHA/archive generation/digest、recipe、実api/migratorのpackage/target/profile/digestを固定し、
+候補migration後に別targetでbuildした旧API/workerによる認証済みwrite/read/materialize/reflowとfixture DB残数0を実証する。
+source・baseline・migration・artifactが変われば証跡を再取得し、trusted deployment経路は一致しない証跡を拒否する。
+
+このgateはstateful migrationとserving trafficの前に必須とする。no-traffic diagnostic revisionで起動・認証・欠損設定の拒否を確認する作業は先行できる。
+25分/1000分基準は通常PR品質gateへ適用する。新構成が自動経路で1回成功してから同一構成のcold10を測る。
+release rollbackとimage buildの時間も月間総量へ加算し、分離によって無料枠への適合を仮定しない。
+ms.m2-foundation全体はPoC未達のまま残すが、必要なfoundation能力を実確認すればms.m3-core-stagingへ着手できる。
+14日観測は本番切替後のms.m7-soakであり、stagingや他の独立作業の開始条件にしない。
