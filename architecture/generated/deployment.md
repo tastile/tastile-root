@@ -7,8 +7,8 @@
 | --- | --- | --- |
 | target env.ci | 3.5 | 15 |
 | target env.production | 35.3 | 60.3 |
-| target env.staging | 6 | 6 |
-| **target total** | 44.8 | 81.3 |
+| target env.staging | 6 | 15 |
+| **target total** | 44.8 | 90.3 |
 | current (retiring nodes, unverified) | 93 |  |
 | budget (quality.yaml cost_budget.pre_launch) | 45 |  |
 
@@ -41,8 +41,8 @@
 | `node.prod.media` | env.production | prov.cloudflare | R2 bucket `tastile-media-prod` + custom domain media.tastile.app | ctr.media |  | 0 (verified) | planned |
 | `node.prod.email` | env.production | prov.resend | Resend (domain tastile.app, sending subdomain mail.tastile.app) | ext.email |  | 0–20 (verified) Free 3,000/month & 100/day; Pro $20 before public announcement if volume requires | planned |
 | `node.staging.edge` | env.staging | prov.cloudflare | same Worker `tastile-edge` with staging routes | ctr.edge, cmp.edge.router | {"routes":["staging.tastile.app","staging-app.tastile.app","staging-api.tastile.app"]} | 0 (verified) | planned |
-| `node.staging.run` | env.staging | prov.gcp | Cloud Run `core-api`, `core-worker`, `web`, job `core-migrate` (project tastile-staging) | ctr.core-api, ctr.core-worker, ctr.core-migrate, ctr.web | {"min_instances":0,"sweep_interval":"5 min (paused when environment idle)"} | 1 (estimate) | planned |
-| `node.staging.db` | env.staging | prov.gcp | Cloud SQL for PostgreSQL 17 `tastile-staging-pg` (db-f1-micro, stopped when idle) | ctr.domain-db, ctr.auth-db |  | 5 (estimate) storage ≈ $2.2 + ~25% running time | planned |
+| `node.staging.run` | env.staging | prov.gcp | Cloud Run `core-api`, `core-worker`, `web`, job `core-migrate` (project tastile-staging) | ctr.core-api, ctr.core-worker, ctr.core-migrate, ctr.web | {"min_instances":0,"api_max_instances":2,"worker_max_instances":1,"api_db_pool_max":5,"worker_db_pool_max":3,"migrator_db_pool_max":2,"bootstrap_command":"/app/infisical-bootstrap.sh","process_arguments":"/app/api or /app/worker http or /app/migrate_run","image":"shared registry digest only","diagnostic_api_access":"IAM authenticated operator and sa-web until edge binding is verified","sweep_interval":"1 min while staging active","worker_ingress":"internal","worker_caller":"same-project sa-scheduler","worker_audience":"canonical service URL without path or query","worker_invoker":"service-scoped roles/run.invoker","scheduler_service_agent":"roles/cloudscheduler.serviceAgent retained"} | 1 (estimate) | planned |
+| `node.staging.db` | env.staging | prov.gcp | Cloud SQL for PostgreSQL 17 Enterprise `tastile-staging-pg` (db-f1-micro, stopped when idle) | ctr.domain-db, ctr.auth-db | {"storage":"10 GB SSD with auto-increase","backups":"daily with 7 retained","pitr":"enabled with 7 days logs","connectivity":"Cloud SQL connector only and no authorized networks","deletion_protection":"enabled"} | 5–14 (estimate) storage ≈ $2.2 + ~25% running time (unmeasured). Operator-controlled database_active starts/stops staging after callers/connections stop. Continuous use is estimated at $14/month like the matching production tier; running-time/cost must be observed. | planned |
 | `node.current.prod.ec2` | env.production | prov.aws | EC2 foundation instance (t3.small default) running tastile-api.service / tastile-worker.service via systemd + tastile-infisical-run; web via systemd + nginx | ctr.core-api, ctr.core-worker, ctr.web |  | 24 (unverified) t3.small Tokyo on-demand ≈ $0.0272/h + EBS + public IPv4 $3.65; billing not accessible from this workspace | retiring |
 | `node.current.prod.rds` | env.production | prov.aws | RDS PostgreSQL db.t4g.micro (20 GB, 7-day backups) in private subnets | ctr.domain-db, ctr.auth-db |  | 21 (unverified) | retiring |
 | `node.current.staging.aws` | env.staging | prov.aws | tastile-staging-foundation (EC2 + staging RDS) | ctr.core-api, ctr.core-worker, ctr.domain-db |  | 45 (unverified) | retiring |

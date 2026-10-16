@@ -1,0 +1,36 @@
+{
+  "observed_at": "2026-10-15T23:25:47.732Z",
+  "bindings": [
+    {
+      "service": "api",
+      "identity_id": "d9239088-d7c7-42df-90b8-9e0c7d28ee45",
+      "role_slug": "devtest-tastile-staging-core-api-read",
+      "service_account": "sa-core-api@tastile-staging.iam.gserviceaccount.com",
+      "project_id": "44081e84-5983-4cc2-9fc9-dca5363005e1",
+      "environment": "staging",
+      "secret_path": "/tastile/core/api",
+      "ttl": 300
+    },
+    {
+      "service": "worker",
+      "identity_id": "e781528a-742e-451a-98cf-e31279600436",
+      "role_slug": "devtest-tastile-staging-core-worker-read",
+      "service_account": "sa-core-worker@tastile-staging.iam.gserviceaccount.com",
+      "project_id": "44081e84-5983-4cc2-9fc9-dca5363005e1",
+      "environment": "staging",
+      "secret_path": "/tastile/core/worker",
+      "ttl": 300
+    },
+    {
+      "service": "migrate",
+      "identity_id": "8b8e2905-9328-4922-afb6-dfc12beba0cc",
+      "role_slug": "devtest-tastile-staging-core-migrate-read",
+      "service_account": "sa-core-migrate@tastile-staging.iam.gserviceaccount.com",
+      "project_id": "44081e84-5983-4cc2-9fc9-dca5363005e1",
+      "environment": "staging",
+      "secret_path": "/tastile/core/migrate",
+      "ttl": 300
+    }
+  ],
+  "secret_values_read": false
+}

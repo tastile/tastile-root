@@ -1,0 +1,33 @@
+{
+  "started_at": "2026-10-16T05:23:19.729Z",
+  "environment": "tastile-staging",
+  "instance": "tastile-staging-pg",
+  "secret_values_recorded": false,
+  "roles": [
+    {
+      "rolname": "tastile_app",
+      "rolsuper": false,
+      "rolcreatedb": false,
+      "rolcreaterole": false,
+      "rolreplication": false,
+      "rolbypassrls": false,
+      "rolconnlimit": 13
+    },
+    {
+      "rolname": "tastile_migrator",
+      "rolsuper": false,
+      "rolcreatedb": false,
+      "rolcreaterole": false,
+      "rolreplication": false,
+      "rolbypassrls": false,
+      "rolconnlimit": 2
+    }
+  ],
+  "dml_read_write_delete": true,
+  "runtime_ddl_denied": true,
+  "auth_database_connect_denied": true,
+  "migrator_schema_owner": true,
+  "owned_probe_tables_remaining": 0,
+  "finished_at": "2026-10-16T05:23:26.318Z",
+  "exit_code": 0
+}

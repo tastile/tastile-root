@@ -1,0 +1,8 @@
+{
+  "observed_at": "2026-10-15T23:44:09.303Z",
+  "name": "tastile-staging-pg",
+  "settings": {
+    "activationPolicy": "ALWAYS"
+  },
+  "state": "RUNNABLE"
+}

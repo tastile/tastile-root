@@ -30,8 +30,9 @@
 
 ## ms.m3-core-staging — Core on Cloud Run staging
 
-- status: **planned** · depends on: ms.m2-foundation · tracking: tastile/tastile-core#202
+- status: **planned** · depends on: ms.m1-freeze · tracking: tastile/tastile-core#202
 - work:
+  - staging配備に必要なproject/API/service identity/registry/IaCとInfisical境界を実確認する。ms.m2-foundation全体の性能PoC完了は着手条件にしない
   - OCI image with api / worker / migrate entrypoints; stripped binary; no AWS SDK default-chain probing (f.imds-startup)
   - migration job + DML-only runtime role (f.migrations-at-startup)
   - configurable pool sizes (f.pool-size)
@@ -42,6 +43,7 @@
   - poc.cloud-run-core passed
   - poc.worker-drain passed
   - poc.restore-drill passed (staging)
+  - exact candidate/baselineに対する実PG rollback証明をstateful migrationとserving trafficの前に取得し、API read/writeとworker実行を実環境で確認する
 
 ## ms.m4-web-staging — Web on Cloud Run staging, JWT assertion, edge router
 

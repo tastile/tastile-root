@@ -165,16 +165,17 @@ nodes:
     provider: prov.gcp
     service: Cloud Run `core-api`, `core-worker`, `web`, job `core-migrate` (project tastile-staging)
     hosts: [ctr.core-api, ctr.core-worker, ctr.core-migrate, ctr.web]
-    config: {min_instances: 0, sweep_interval: 5 min (paused when environment idle)}
+    config: {min_instances: 0, api_max_instances: 2, worker_max_instances: 1, api_db_pool_max: 5, worker_db_pool_max: 3, migrator_db_pool_max: 2, bootstrap_command: /app/infisical-bootstrap.sh, process_arguments: /app/api or /app/worker http or /app/migrate_run, image: shared registry digest only, diagnostic_api_access: IAM authenticated operator and sa-web until edge binding is verified, sweep_interval: 1 min while staging active, worker_ingress: internal, worker_caller: same-project sa-scheduler, worker_audience: canonical service URL without path or query, worker_invoker: service-scoped roles/run.invoker, scheduler_service_agent: roles/cloudscheduler.serviceAgent retained}
     identity: cred.gcp-service-identity
     cost_usd_month: {value: 1, basis: estimate}
     lifecycle: planned
   - id: node.staging.db
     env: env.staging
     provider: prov.gcp
-    service: Cloud SQL for PostgreSQL 17 `tastile-staging-pg` (db-f1-micro, stopped when idle)
+    service: Cloud SQL for PostgreSQL 17 Enterprise `tastile-staging-pg` (db-f1-micro, stopped when idle)
     hosts: [ctr.domain-db, ctr.auth-db]
-    cost_usd_month: {value: 5, basis: estimate, assumption: "storage ≈ $2.2 + ~25% running time"}
+    config: {storage: 10 GB SSD with auto-increase, backups: daily with 7 retained, pitr: enabled with 7 days logs, connectivity: Cloud SQL connector only and no authorized networks, deletion_protection: enabled}
+    cost_usd_month: {value: 5, max: 14, basis: estimate, assumption: "storage ≈ $2.2 + ~25% running time (unmeasured). Operator-controlled database_active starts/stops staging after callers/connections stop. Continuous use is estimated at $14/month like the matching production tier; running-time/cost must be observed."}
     lifecycle: planned
 
   # ============================================================ current (retiring) — for cutover planning
