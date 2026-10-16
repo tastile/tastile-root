@@ -1,0 +1,13 @@
+# Core staging API実動作
+
+2026-10-16、tastile-staging / asia-northeast1 / Cloud SQL PostgreSQL17でCore 9b097f4を配備した。image digestは90d936ea5fb8d8f6adb3ab229fb665e22f3ae5c6d487a357d80aa3104cc94ac0。Root IaCは809eb53 (PR96)。API最新revisionはcore-api-g20bridge1。
+
+配備前gateは実imageからdigest検証して抽出したrelease api/migratorと、trusted baseline9b3f8b5の独立target compile/API/workerを使った。Cloud Build52f9dd16-cf98-48f2-b79b-22ed6e5481afはSUCCESS (612.839秒)、認証済みSourceTile write/materialize/read/reflow/list、DB0/cleanup0。baseline.tarは不変source bundle generation1792130918301620の内pathとhashで固定し、独立baseline専用objectは作成していない。専用objectを要求する規定は無く、独立性はbaseline commitと別targetにある。
+
+Cloud Run job core-migrateの実GCP metadata→Infisical ownkey200、shared/operator/otherenvironment/production403、appへのcontrol token/selector非継承を診断実行hdvlxで確認後、default processでq28p5を実行し成功した。再試行max0、migrator role/pool2、固定imageであり、runtime起動時DDLではない。先行した診断1/2の不成立はjournalとcheckpointに保持する。
+
+APIのreadiness200、IAM未認証403、アプリ認証なし401を確認した。既存のretiring bridge secretはInfisical /tastile/coreを唯一の正本としてAPI pathからreferenceし、APIだけに当該keyの追加readを許可した。値のcopy/変更は無い。新revisionで誤bridge401、実write/read/list/reflow/cancelは全200。専用probe userのSourceTile01a14463-1946-7583-9dbf-9d3753db5b0eは取消済み。初回readでoccurrence1/placement1を確認したが、API内のmaterializationでありworkerの証明には数えない。
+
+限定独立reviewはsource/receipt/image/rollback/migrationのbindingを確認しblocking findingなし。manifestは保存したbounded証跡を固定する。secret/token/endpoint registration tokenは記録していない。
+
+現在利用できるのはoperatorによる認証付きCore staging API。Web新規登録から完了・再ログイン、実Android/Windows、worker/Scheduler、R2、restore、stripped binaryを含むm3全条件は未成立。m1done、m2partial、m3in_progress、m4-m9未成立。CI dc6def0の自動結果/25分性能とは別の実動作証拠である。

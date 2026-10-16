@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-16T06:34:21.805Z",
+  "image": "asia-northeast1-docker.pkg.dev/tastile-dev/tastile/core@sha256:90d936ea5fb8d8f6adb3ab229fb665e22f3ae5c6d487a357d80aa3104cc94ac0",
+  "candidate_sha": "9b097f4e9a93e1c1451686a80c021864c549733c",
+  "apply_exit": 0,
+  "service": "core-api",
+  "migration_execution": "projects/tastile-staging/locations/asia-northeast1/jobs/core-migrate/executions/core-migrate-q28p5"
+}

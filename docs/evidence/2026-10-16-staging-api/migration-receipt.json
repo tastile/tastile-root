@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-16T06:33:29.251Z",
+  "operation": "projects/tastile-staging/locations/asia-northeast1/operations/f4840a8b-4f90-4392-a9c0-d3fabc937121",
+  "execution": "projects/tastile-staging/locations/asia-northeast1/jobs/core-migrate/executions/core-migrate-q28p5",
+  "image": "asia-northeast1-docker.pkg.dev/tastile-dev/tastile/core@sha256:90d936ea5fb8d8f6adb3ab229fb665e22f3ae5c6d487a357d80aa3104cc94ac0",
+  "candidate_sha": "9b097f4e9a93e1c1451686a80c021864c549733c",
+  "result": "completed",
+  "production": false
+}

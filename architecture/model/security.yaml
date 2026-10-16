@@ -265,6 +265,7 @@ controls:
       projectはstaging44081e84-5983-4cc2-9fc9-dca5363005e1、environmentはstaging、service pathは/tastile/core/api・/tastile/core/worker・/tastile/core/migrateに分離する。
       api/workerが共用するDB URLとdelivery暗号keyの正本は/tastile/core/sharedのTASTILE_DATABASE_URLとTASTILE_DELIVERY_KEYだけとし、service pathから同environmentのsecret referenceで参照する。migrator URLはmigrate pathに別credentialで置く。
       roleは自身のservice pathと必要なshared keyのdescribeSecret/readValueだけを許可し、write・role管理・他service・他environment/project・production readを拒否する。importは使わず、secret reference展開だけを許可する。
+      ms.m4-web-stagingでJWTへ移行するまで、APIだけは既存の/tastile/core/TASTILE_WEB_BRIDGE_SECRETをservice pathのsecret referenceから読み、同じstaging environmentの当該keyだけに追加readを許可する。編集可能なcopyを作らず、worker/migratorへ許可せず、JWT移行時にreferenceと追加ACLを削除する。
       Infisical selectorはRoot deployment adapterの非秘密設定、アプリ設定はCoreが検証する。INFISICAL_DOMAINはHTTPS originとし、CLI adapterが/apiを付ける。人間profile/SSH/license keyをアプリruntimeへ渡さない。
       tokenと取得valueはRAMのみ。bootstrap後にcontrol-plane token/selectorをappへ継承させず、取得失敗・必須値欠如は起動拒否する。
       SQL bootstrap用POSTGRES_ADMIN_PASSWORDはoperator専用/tastile/platform/cloud-sqlのInfisical値を正本にし、runtime identityへreadを与えない。API/workerはDML role、migratorだけがschema ownerを使う。state/plan/argv/logへcredentialを出さない。

@@ -1,0 +1,55 @@
+{
+  "at": "2026-10-16T11:08:20.605Z",
+  "root_base_sha": "809eb53d7e7d66c6d13716097401bfae6656da66",
+  "core_candidate_sha": "9b097f4e9a93e1c1451686a80c021864c549733c",
+  "files": [
+    {
+      "path": "image-rollback-proof.json",
+      "sha256": "a315a36e19f303d8f1ec8c17b69e9a1dbde5e5cdc5acf7ebf8ea1b063b0d26ee"
+    },
+    {
+      "path": "image-rollback-markers.txt",
+      "sha256": "f3034762ab637ae2a8ea4d060d760e9c7986aaa9df0a1fce5ada8aa5d38d3774"
+    },
+    {
+      "path": "image-binary-binding.json",
+      "sha256": "c38b18a617ae0753c9a062075d2a261cfffcc16f80524edae29381ce2dc0d7e0"
+    },
+    {
+      "path": "run-image-rollback.sh",
+      "sha256": "b17b46619d84da0eaca6c3352ff20646d42a03918e93d4992687abfedd0736ef"
+    },
+    {
+      "path": "image-rollback-recipe.json",
+      "sha256": "1df449b35167d850e4da0086760fdcdd4936675e041999ad1dcef619c97ea5a1"
+    },
+    {
+      "path": "bootstrap-boundary-markers.txt",
+      "sha256": "1f0d99bd7828f1d6591cb7daa209d9443d2c870e05b5433588ddc5ab86d72795"
+    },
+    {
+      "path": "migration-receipt.json",
+      "sha256": "2ed5caefd771816f3cefc888de752fb8b1c58231d5e47df23e10566e553b6286"
+    },
+    {
+      "path": "initial-api-deployment.json",
+      "sha256": "43472dc3d8565021cd5f80ea2be5c20e3e3abf116473e8ea922761e93976f67c"
+    },
+    {
+      "path": "initial-api-probe.json",
+      "sha256": "8bc899daaf69f015b7fc23502cd1202569e8b517205846f4311e5f956ac66476"
+    },
+    {
+      "path": "bridge-reference-receipt.json",
+      "sha256": "f124e1823fa2aa8264662bc887f267c9119a279fbb8be960314b2c1173cba606"
+    },
+    {
+      "path": "api-revision-receipt.json",
+      "sha256": "41ce3a824183644fba8ecb1b4f4098ab74137e94b222adfb937b93c03b711856"
+    },
+    {
+      "path": "api-write-read-receipt.json",
+      "sha256": "bac74be9fab8182a2f36f4d036af0c6b27e2dd452c19ae9a50ac9bc4c8afa5fd"
+    }
+  ]
+}

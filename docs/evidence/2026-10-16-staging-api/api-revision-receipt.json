@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-16T11:04:37.314Z",
+  "service": "core-api",
+  "project": "tastile-staging",
+  "region": "asia-northeast1",
+  "revision_suffix": "g20bridge1",
+  "image": "asia-northeast1-docker.pkg.dev/tastile-dev/tastile/core@sha256:90d936ea5fb8d8f6adb3ab229fb665e22f3ae5c6d487a357d80aa3104cc94ac0",
+  "reason": "Reload Infisical reference in fresh application process",
+  "credential_in_config": false,
+  "revision": "core-api-g20bridge1",
+  "url": "https://core-api-vr74ihzzja-an.a.run.app",
+  "exit": 0
+}

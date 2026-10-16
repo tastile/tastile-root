@@ -30,7 +30,7 @@
 
 ## ms.m3-core-staging — Core on Cloud Run staging
 
-- status: **planned** · depends on: ms.m1-freeze · tracking: tastile/tastile-core#202
+- status: **in_progress** · depends on: ms.m1-freeze · tracking: tastile/tastile-core#202
 - work:
   - staging配備に必要なproject/API/service identity/registry/IaCとInfisical境界を実確認する。ms.m2-foundation全体の性能PoC完了は着手条件にしない
   - OCI image with api / worker / migrate entrypoints; stripped binary; no AWS SDK default-chain probing (f.imds-startup)
