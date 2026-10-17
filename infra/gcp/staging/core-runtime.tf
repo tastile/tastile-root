@@ -21,6 +21,12 @@ variable "core_worker_enabled" {
   default     = false
 }
 
+variable "core_avatar_enabled" {
+  description = "Enable avatars after the staging R2 credential, CORS, and public media domain are verified."
+  type        = bool
+  default     = false
+}
+
 variable "worker_sweep_paused" {
   description = "Keep scheduled work paused until actual worker startup/authentication checks succeed."
   type        = bool
@@ -97,8 +103,16 @@ resource "google_cloud_run_v2_service" "core" {
           }, each.key == "api" ? {
           TASTILE_API_HOST               = "0.0.0.0"
           TASTILE_ALLOWED_ORIGINS        = "https://staging-app.tastile.app"
-          TASTILE_FEATURE_AVATAR_ENABLED = "false"
-        } : { TASTILE_WORKER__DEADLINE_MS = "55000" })
+          TASTILE_FEATURE_AVATAR_ENABLED = tostring(var.core_avatar_enabled)
+          TASTILE_AVATAR_BUCKET          = "tastile-media-staging"
+          TASTILE_AVATAR_ENDPOINT        = "https://c6ab6651a5d4d6d0d07686bbd3c3d56f.r2.cloudflarestorage.com"
+          TASTILE_AVATAR_REGION          = "auto"
+          TASTILE_AVATAR_CDN_BASE        = "https://staging-media.tastile.app"
+          } : {
+          TASTILE_WORKER__DEADLINE_MS = "55000"
+          TASTILE_DELIVERY_PROVIDER   = "fcm"
+          TASTILE_FCM_PROJECT_ID      = "tastile-staging"
+        })
         content {
           name  = env.key
           value = env.value

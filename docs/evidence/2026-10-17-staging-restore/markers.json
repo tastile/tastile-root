@@ -1,0 +1,14 @@
+[
+  {
+    "timestamp": "2026-10-16T17:17:30.746738Z",
+    "message": "RESTORED_API_READY_200 at=2026-10-16T17:17:30Z",
+    "execution": "root50-g21-restore-probe-ddlsl",
+    "job": "root50-g21-restore-probe"
+  },
+  {
+    "timestamp": "2026-10-16T17:17:29.652175Z",
+    "message": "RESTORE_ROW_PARITY_OK sha256=5c076bc3cbf50bf185fdc19825d02b043f07a6a900122ea6d32430be9dbfdaa0",
+    "execution": "root50-g21-restore-probe-ddlsl",
+    "job": "root50-g21-restore-probe"
+  }
+]

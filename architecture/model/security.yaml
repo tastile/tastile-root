@@ -270,5 +270,29 @@ controls:
       tokenと取得valueはRAMのみ。bootstrap後にcontrol-plane token/selectorをappへ継承させず、取得失敗・必須値欠如は起動拒否する。
       SQL bootstrap用POSTGRES_ADMIN_PASSWORDはoperator専用/tastile/platform/cloud-sqlのInfisical値を正本にし、runtime identityへreadを与えない。API/workerはDML role、migratorだけがschema ownerを使う。state/plan/argv/logへcredentialを出さない。
       正式production license/auth境界は別gateであり、staging評価identityをproductionへ転用しない。
+  - id: ctl.staging-core-fcm
+    rule: >-
+      stagingのFCM/Firebase capabilityはtastile-stagingだけで有効化し、production projectへ転用しない。
+      sa-core-workerだけにproject custom role coreFcmSenderのcloudmessaging.messages.createを付与する。topic管理・他serviceへの送信権限を追加しない。
+      workerはTASTILE_DELIVERY_PROVIDER=fcmと非秘密のTASTILE_FCM_PROJECT_ID=tastile-stagingを明示し、固定GCP metadata endpointの短期OAuthで固定FCM HTTP v1 endpointを呼ぶ。SA key/file/static bearerや外部gatewayを作らない。
+      push payloadはsession_idとstable delivery_idだけのhintとし、domain stateやtitle/bodyを送らない。FCM受理と端末受信を区別し、再送hintからbusiness side effectを作らない。実端末のSync/Readと重複hint検証はms.m5-clientsに残す。
+      API有効化とFirebase project bootstrapはIaCとoperator journalで管理し、既存projectの削除・再作成を行わない。
+  - id: ctl.staging-restore-drill
+    rule: >-
+      staging PITR検証はtastile-staging-pgをsourceとし、root50-g21-restore-20261017という新規一時instanceへ復元する。source/productionへの上書きrestore・削除・credential変更を禁止する。
+      sourceへのsynthetic writeは専用probe userの認証済みCore APIだけから行い、snapshot timestamp・table別count/content digest・write sequenceを固定して、復元側のrow parityと同imageの/v1/readyを確認する。
+      cloneは同region・同db-f1-micro/10GiB・authorized network無し・Cloud SQL connector必須。確認用jobはsa-core-apiのInfisical認証後にRAM内だけでDSNのconnection nameをcloneへ差し替え、cloneだけをmountし、schema mutationを行わない。
+      一時clone/jobはgenerationと作成receiptで所有権を固定し、検証後に当該一時resourceだけをcleanupする。元instanceのdeletion protection/prevent_destroyは維持する。上限60分を目安とする一時費用は1USD未満と見込み、失敗時は実状態を照合してcleanupし、未検証を成功扱いしない。
+  - id: ctl.staging-media
+    rule: >-
+      staging mediaはCloudflare account c6ab6651a5d4d6d0d07686bbd3c3d56fのtastile-media-stagingだけを使い、Standard/APAC automaticで作成する。既存bucket/production mediaを変更しない。
+      bucketはprivateで作成し、署名付きuploadのS3 APIとavatar配信用staging-media.tastile.appのpublic readを区別する。r2.devは有効にしない。独立staging originだけのCORSを設定する。
+      新runtime credentialは当該bucketのobject read/writeだけに制限し、Cloudflare account全体のadmin tokenをappへ渡さない。Infisical staging projectの/tastile/core/apiにCore-owned TASTILE_AVATAR_ACCESS_KEY_ID/SECRET_ACCESS_KEY/HMAC_SECRETを唯一の編集可能な正本として保存する。key実値をstate/argv/log/chatへ出さない。
+      endpoint/bucket/region/CDN base/feature flagはRoot deployment adapterの非秘密設定、credential取得は既存sa-core-apiのservice path権限で行う。設定・R2 write/read/copy/delete・API upload/commit/readの実確認前にmedia接続成功としない。
+  - id: ctl.staging-worker-trigger-probe
+    rule: >-
+      常設core-worker-sweepをpausedのまま認証付きdrainを確認するため、stagingの一時Scheduler root50-g21-worker-probeだけを作成できる。次の自動実行は翌年1月1日とし、manual runを1回だけ行う。
+      既存sa-schedulerの短期OIDCとcanonical worker URLのaudience、空bodyのPOST /drainを使い、IAM権限追加・公開ingress化・静的tokenを禁止する。retry_count=0、deadline=60秒とし、実応答を確認後に一時Jobを削除して不存在を確認する。
+      HTTP応答が失敗した場合の診断に限り、同じverified image・sa-core-worker・Infisical worker path・pool上限3の一時Cloud Run Job root50-g21-worker-cli-probeで既存worker drain CLIを1回実行し、JSON reportを取得できる。schema変更・retry・追加IAMを行わず、常設Schedulerはpausedを維持し、診断後にJobを削除する。Flow timeoutの切り分けに限り、別の一時Job root50-g21-worker-flow-probeで同じ設定を用い、既存のmaintenance_batch=1・item_budget_ms=54000・work_lease_secs=60だけを変更した単一owner診断を1回実行できる。追加IAM・恒久設定変更・自動retryは禁止し、実行後にJobを削除する。
   - id: ctl.prod-mutation-authority
     rule: production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。
