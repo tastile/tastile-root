@@ -12,7 +12,7 @@
 | `poc.infisical-workload-auth` | Infisical as the only Tastile-managed secret path | running | adr.root.0015 | 2026-10-07 | docs/evidence/2026-10-07-infisical-github-oidc/result.md |
 | `poc.email-provider` | Transactional email deliverability (Resend) | planned | adr.root.0018 |  |  |
 | `poc.cloud-build-ci` | Core CI on Cloud Build instead of private GitHub Actions minutes | running | adr.root.0020 | 2026-10-08 | docs/evidence/2026-10-08-ci-duration.md |
-| `poc.restore-drill` | PITR restore drill | planned | adr.root.0014 |  |  |
+| `poc.restore-drill` | PITR restore drill | passed | adr.root.0014 | 2026-10-17 | docs/evidence/2026-10-17-staging-restore/README.md |
 | `poc.cost-30d` | 30-day cost of the target platform | planned | adr.root.0014 |  |  |
 
 ## poc.local-runtime — Core API / Worker on vanilla PostgreSQL 17 (provider-neutral runtime baseline)
@@ -151,15 +151,15 @@ Findings:
 
 ## poc.restore-drill — PITR restore drill
 
-- status: **planned**
+- status: **passed**
 - hypothesis: Cloud SQL PITR で RPO 5 分 / RTO 60 分を満たし、restore 後に Core が ready になる。
 - method: staging で synthetic write を続けながら PITR clone を作り、row parity と /v1/ready を確認。production では同 project 内の一時 instance で月次実施。
 
 | criterion | metric | op | threshold | observed | result | note |
 | --- | --- | --- | --- | --- | --- | --- |
-| c1 | rpo_observed_min | `<=` | 5 |  |  |  |
-| c2 | rto_observed_min | `<=` | 60 |  |  |  |
-| c3 | row_parity | `==` | true |  |  |  |
+| c1 | rpo_observed_min | `<=` | 5 | 2.8512833333333334 | pass |  |
+| c2 | rto_observed_min | `<=` | 60 | 56.55396666666667 | pass |  |
+| c3 | row_parity | `==` | true | true | pass |  |
 
 ## poc.cost-30d — 30-day cost of the target platform
 

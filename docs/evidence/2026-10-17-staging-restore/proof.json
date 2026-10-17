@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-17T02:31:42.965Z",
+  "reconciled_execution_generation": 22,
+  "original_execution_generation": 21,
+  "execution": "projects/tastile-staging/locations/asia-northeast1/jobs/root50-g21-restore-probe/executions/root50-g21-restore-probe-ddlsl",
+  "rpo_minutes": 2.8512833333333334,
+  "rto_minutes": 56.55396666666667,
+  "table_count": 173,
+  "row_parity": true,
+  "restored_api_ready": true,
+  "cleanup_verified": true,
+  "original_log_collection_failure_preserved": true
+}

@@ -184,11 +184,13 @@ pocs:
     hypothesis: Cloud SQL PITR で RPO 5 分 / RTO 60 分を満たし、restore 後に Core が ready になる。
     method: staging で synthetic write を続けながら PITR clone を作り、row parity と /v1/ready を確認。production では同 project 内の一時 instance で月次実施。
     decides: [adr.root.0014]
-    status: planned
+    status: passed
+    executed_at: 2026-10-17
+    evidence: docs/evidence/2026-10-17-staging-restore/README.md
     criteria:
-      - {id: c1, metric: rpo_observed_min, op: "<=", threshold: 5}
-      - {id: c2, metric: rto_observed_min, op: "<=", threshold: 60}
-      - {id: c3, metric: row_parity, op: "==", threshold: true}
+      - {id: c1, metric: rpo_observed_min, op: "<=", threshold: 5, observed: 2.8512833333333334, result: pass}
+      - {id: c2, metric: rto_observed_min, op: "<=", threshold: 60, observed: 56.55396666666667, result: pass}
+      - {id: c3, metric: row_parity, op: "==", threshold: true, observed: true, result: pass}
 
   - id: poc.cost-30d
     title: 30-day cost of the target platform

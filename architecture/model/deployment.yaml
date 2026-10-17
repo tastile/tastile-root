@@ -143,6 +143,15 @@ nodes:
     hosts: [ctr.media]
     cost_usd_month: {value: 0, basis: verified}
     lifecycle: planned
+  - id: node.staging.media
+    env: env.staging
+    provider: prov.cloudflare
+    service: R2 bucket `tastile-media-staging` + custom domain staging-media.tastile.app
+    hosts: [ctr.media]
+    identity: cred.r2-media
+    config: {account_id: c6ab6651a5d4d6d0d07686bbd3c3d56f, storage_class: Standard, location: APAC automatic, initial_access: private, public_read: custom domain only, runtime: Core API S3-compatible port}
+    cost_usd_month: {value: 0, max: 1, basis: estimate, assumption: "Account currently about163MB and0USD. Staging probe objects are small and cleaned; shared10GB free tier assumed. Upper reserves1USD for growth; actual usage must be observed."}
+    lifecycle: planned
   - id: node.prod.email
     env: env.production
     provider: prov.resend

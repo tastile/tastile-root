@@ -1,0 +1,16 @@
+[
+  {
+    "origin": "https://staging-app.tastile.app",
+    "status": 204,
+    "allow_origin": "https://staging-app.tastile.app",
+    "allow_methods": "GET, HEAD, PUT",
+    "allow_headers": "content-type"
+  },
+  {
+    "origin": "https://untrusted.example",
+    "status": 403,
+    "allow_origin": null,
+    "allow_methods": null,
+    "allow_headers": null
+  }
+]

@@ -1,0 +1,43 @@
+{
+  "name": "projects/tastile-staging/locations/asia-northeast1/jobs/root50-g21-restore-probe/executions/root50-g21-restore-probe-ddlsl",
+  "uid": "5c590f6c-229c-40c4-90a2-33ed4cf8846d",
+  "create_time": "2026-10-16T17:17:17.587836Z",
+  "completion_time": "2026-10-16T17:17:34.325677Z",
+  "succeeded_count": 1,
+  "failed_count": 0,
+  "conditions": [
+    {
+      "type": "Started",
+      "state": "CONDITION_SUCCEEDED",
+      "message": "Started deployed execution in 5.55s.",
+      "lastTransitionTime": "2026-10-16T17:17:23.969384Z"
+    },
+    {
+      "type": "Retry",
+      "state": "CONDITION_SUCCEEDED",
+      "message": "System will retry after 00:00 from lastTransitionTime for attempt 0.",
+      "lastTransitionTime": "2026-10-16T17:17:34.436764Z",
+      "severity": "INFO",
+      "reason": "IMMEDIATE_RETRY"
+    },
+    {
+      "type": "Completed",
+      "state": "CONDITION_SUCCEEDED",
+      "message": "Execution completed successfully in 13.36s.",
+      "lastTransitionTime": "2026-10-16T17:17:34.325677Z"
+    },
+    {
+      "type": "ContainerReady",
+      "state": "CONDITION_SUCCEEDED",
+      "message": "Imported container image.",
+      "lastTransitionTime": "2026-10-16T17:17:18.315231Z"
+    },
+    {
+      "type": "ResourcesAvailable",
+      "state": "CONDITION_SUCCEEDED",
+      "message": "Provisioned imported containers.",
+      "lastTransitionTime": "2026-10-16T17:17:18.419346Z"
+    }
+  ],
+  "image": "asia-northeast1-docker.pkg.dev/tastile-dev/tastile/core@sha256:90d936ea5fb8d8f6adb3ab229fb665e22f3ae5c6d487a357d80aa3104cc94ac0"
+}

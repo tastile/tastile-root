@@ -41,4 +41,4 @@
 
 ## Cost budget
 
-Target pre-launch: **$45/month** (staging + production infrastructure (excludes domain registration, developer tools, app store fees)。 Cloud Buildは通常PR40回×中央値にrelease rollback回数×実所要時間とimage buildを加算する。gate分離を費用削減の実証とみなさない。 Infisical正規licenseの正式見積は未取得 (risk.infisical-license)。現node数値にはこの未見積費用が含まれず、 数値の小計だけでlicense込み総額の予算適合を主張しない。). Current model estimate: **$44.8** expected, **$90.3** upper bound. Alerts: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly
+Target pre-launch: **$45/month** (staging + production infrastructure (excludes domain registration, developer tools, app store fees)。 Cloud Buildは通常PR40回×中央値にrelease rollback回数×実所要時間とimage buildを加算する。gate分離を費用削減の実証とみなさない。 Infisical正規licenseの正式見積は未取得 (risk.infisical-license)。現node数値にはこの未見積費用が含まれず、 数値の小計だけでlicense込み総額の予算適合を主張しない。). Current model estimate: **$44.8** expected, **$91.3** upper bound. Alerts: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly
