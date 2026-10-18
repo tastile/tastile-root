@@ -1,0 +1,6 @@
+$ bun scripts/architecture/validate.ts
+ADVISORY cost.upper-bound             target upper bound $91.3 exceeds budget $45 (expected $44.8)
+INFO     cost.summary                 target expected $44.8/mo, upper $91.3/mo, current (unverified) $93/mo, budget $45/mo
+
+architecture:validate PASS — 0 error(s), 1 advisory, 400 ids
+exit=0
