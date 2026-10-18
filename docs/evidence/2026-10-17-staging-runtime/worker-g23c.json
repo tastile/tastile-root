@@ -1,0 +1,159 @@
+{
+  "at": "2026-10-18T05:2xZ",
+  "candidate_sha": "3e735e637787de765c9bf691531067d6d5393260",
+  "image": "core@sha256:29eb22e70aad8eed8d07fcdeaa7779a49eeebc1fa383e73032c9292c8bb5162d",
+  "revisions": [
+    "core-api-00008-kh2",
+    "core-worker-00004-lgl"
+  ],
+  "migrate": "core-migrate-29465",
+  "execution": "root50-g23c-worker-drain-probe-85bp6",
+  "job_absent": true,
+  "report": {
+    "decision": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "delivery": {
+      "authorized": 0,
+      "cancelled": 0,
+      "claimed": 0,
+      "completed": 0,
+      "dead_lettered": 0,
+      "failed": 0,
+      "failure_codes": [],
+      "in_flight_unknown": 0,
+      "retried": 0,
+      "sent": 0,
+      "stale": 0,
+      "termination": "empty"
+    },
+    "execution_due": {
+      "claimed": 32,
+      "completed": 32,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "execution_flow": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "failures": 1,
+    "flow": {
+      "completed": 0,
+      "emitted": 0,
+      "failure_codes": [
+        "timeout"
+      ],
+      "failures": 1,
+      "in_flight_unknown": 2,
+      "owners_completed": 0,
+      "owners_discovered": 0,
+      "owners_seen": 2,
+      "rescheduled": 0,
+      "retired": 0,
+      "retried": 1,
+      "stale_finalizations": 0,
+      "termination": "empty"
+    },
+    "outbox": {
+      "claimed": 128,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 128,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "passes": 1,
+    "progress": 304,
+    "prompt": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 16,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "reason": "deadline",
+    "relation": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "relation_decisions": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "source": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "source_decisions": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "termination": "deadline",
+    "unknown_in_flight": true
+  }
+}
