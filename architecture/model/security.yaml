@@ -313,5 +313,9 @@ controls:
     rule: >-
       Flow評価窓分割 (Core V1_072 cursor) の収束を確認するため、独立レビュー済み・exact OCI rollback証明済みの候補imageをmigrator→API/workerの順でstagingへ配備した後に限り、常設core-worker-sweepを最大15分だけOpenTofuでunpauseし、終了時に同じ経路でpausedへ戻して実状態を確認する。
       V1_072はnullable列の追加のみで旧imageへのrollbackを妨げない。既存sa-schedulerのOIDC・retry設定・internal ingressを変更せず、追加IAM・他resource変更を行わない。各passの/drain HTTP status (200はfailures=0かつunknown無し) を回収し、200への収束を確認するまでworker成功と判定しない。失敗・中断時もpausedへ戻すことを最優先する。
+  - id: ctl.staging-worker-cadence-window
+    rule: >-
+      Flow maintenance の完了 cadence 延長 (Core、5秒→15分) の効果を確認するため、独立レビュー済み・exact OCI rollback証明済みの候補imageをmigrator→API/workerの順でstagingへ配備した後に限り、常設core-worker-sweepを最大30分だけOpenTofuでunpauseし、終了時に同じ経路でpausedへ戻して実状態を確認する。
+      cadence 延長は schema を変えず旧imageへのrollbackを妨げない。既存sa-schedulerのOIDC・retry設定・internal ingressを変更せず、追加IAM・他resource変更を行わない。各passの/drain HTTP status を回収し、backlog解消後のpassが200 (failures=0かつunknown無し) になることを確認するまでworker成功と判定しない。失敗・中断時もpausedへ戻すことを最優先する。
   - id: ctl.prod-mutation-authority
     rule: production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。
