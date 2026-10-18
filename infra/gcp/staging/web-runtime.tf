@@ -60,6 +60,10 @@ resource "google_cloud_run_v2_service" "web" {
           TASTILE_RUST_API_URL          = google_cloud_run_v2_service.core["api"].uri
           TASTILE_CORE_URL              = google_cloud_run_v2_service.core["api"].uri
           TASTILE_CORE_IAM_AUDIENCE     = google_cloud_run_v2_service.core["api"].uri
+          # Also inlined at build; server code that reads them by dynamic key needs runtime values.
+          NEXT_PUBLIC_APP_URL   = "https://staging-app.tastile.app"
+          NEXT_PUBLIC_APEX_HOST = "staging.tastile.app"
+          NEXT_PUBLIC_APP_HOST  = "staging-app.tastile.app"
         })
         content {
           name  = env.key
