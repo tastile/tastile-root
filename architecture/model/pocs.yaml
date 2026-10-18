@@ -191,6 +191,7 @@ pocs:
       - {id: c1, metric: rpo_observed_min, op: "<=", threshold: 5, observed: 2.8512833333333334, result: pass}
       - {id: c2, metric: rto_observed_min, op: "<=", threshold: 60, observed: 56.55396666666667, result: pass}
       - {id: c3, metric: row_parity, op: "==", threshold: true, observed: true, result: pass}
+      - {id: c4, metric: restored_api_ready, op: "==", threshold: true, observed: true, result: pass, note: "復元 clone だけを mount した同 image の /v1/ready が 200 (docs/evidence/2026-10-17-staging-restore/proof.json の restored_api_ready)。"}
 
   - id: poc.cost-30d
     title: 30-day cost of the target platform

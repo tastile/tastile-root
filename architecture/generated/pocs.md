@@ -160,6 +160,7 @@ Findings:
 | c1 | rpo_observed_min | `<=` | 5 | 2.8512833333333334 | pass |  |
 | c2 | rto_observed_min | `<=` | 60 | 56.55396666666667 | pass |  |
 | c3 | row_parity | `==` | true | true | pass |  |
+| c4 | restored_api_ready | `==` | true | true | pass | 復元 clone だけを mount した同 image の /v1/ready が 200 (docs/evidence/2026-10-17-staging-restore/proof.json の restored_api_ready)。 |
 
 ## poc.cost-30d — 30-day cost of the target platform
 
