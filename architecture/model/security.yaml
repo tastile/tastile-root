@@ -317,5 +317,11 @@ controls:
     rule: >-
       Flow maintenance の完了 cadence 延長 (Core、5秒→15分) の効果を確認するため、独立レビュー済み・exact OCI rollback証明済みの候補imageをmigrator→API/workerの順でstagingへ配備した後に限り、常設core-worker-sweepを最大30分だけOpenTofuでunpauseし、終了時に同じ経路でpausedへ戻して実状態を確認する。
       cadence 延長は schema を変えず旧imageへのrollbackを妨げない。既存sa-schedulerのOIDC・retry設定・internal ingressを変更せず、追加IAM・他resource変更を行わない。各passの/drain HTTP status を回収し、backlog解消後のpassが200 (failures=0かつunknown無し) になることを確認するまでworker成功と判定しない。失敗・中断時もpausedへ戻すことを最優先する。
+  - id: ctl.staging-web-runtime-bootstrap
+    rule: >-
+      MVP の browser E2E を staging の Core・PostgreSQL で行うため、Web を staging Cloud Run `web` (sa-web) として配備する。invoker は IAM 認証済み operator だけとし allUsers を付与しない。公開 hostname・edge router・edge assertion は別途 operator 承認後に扱う。
+      auth DB `tastile_auth` に専用 built-in user `tastile_auth_app` を作り、`tastile_auth` の public schema だけを所有させる (domain DB への権限なし)。password は生成直後に Infisical staging `/tastile/web/runtime` の `TASTILE_AUTH_DATABASE_URL` (Cloud SQL socket) だけへ保存し、`BETTER_AUTH_SECRET` も同 path に生成する。値は log・state・evidence に記録しない。
+      Infisical machine identity は gcp-auth (gce、allowedServiceAccounts=sa-web、TTL 300 秒) で、`/tastile/web/runtime` の read と `/tastile/core/api` の `TASTILE_WEB_BRIDGE_SECRET` 1 key の参照 read だけを許可する。bridge secret は複製せず secret reference とする。
+      Web→Core は既存 sa-web の core-api run.invoker と metadata ID token (`x-serverless-authorization`) を使い、追加 IAM を付与しない。image は shared registry の digest 固定で、build source は commit 済み Web tree の git archive に限る。
   - id: ctl.prod-mutation-authority
     rule: production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。
