@@ -323,5 +323,9 @@ controls:
       auth DB `tastile_auth` に専用 built-in user `tastile_auth_app` を作り、`tastile_auth` の public schema だけを所有させる (domain DB への権限なし)。password は生成直後に Infisical staging `/tastile/web/runtime` の `TASTILE_AUTH_DATABASE_URL` (Cloud SQL socket) だけへ保存し、`BETTER_AUTH_SECRET` も同 path に生成する。値は log・state・evidence に記録しない。
       Infisical machine identity は gcp-auth (gce、allowedServiceAccounts=sa-web、TTL 300 秒) で、`/tastile/web/runtime` の read と canonical な `/tastile/core` の `TASTILE_WEB_BRIDGE_SECRET` 1 key の参照 read だけを許可する。bridge secret は複製せず、Core と同じ canonical 値への secret reference とする。
       Web→Core は既存 sa-web の core-api run.invoker と metadata ID token (`x-serverless-authorization`) を使い、追加 IAM を付与しない。image は shared registry の digest 固定で、build source は commit 済み Web tree の git archive に限る。
+  - id: ctl.staging-mvp-e2e-sweep
+    rule: >-
+      MVP の実利用 E2E (自動配置・実行・ズレ検出は worker の sweep に依存する) の間に限り、配備済みで独立レビュー・exact OCI rollback 証明済みの Core image のまま、常設 core-worker-sweep を 1 回あたり最大 3 時間 OpenTofu で unpause し、終了時に同じ経路で paused へ戻して実状態を確認する。
+      cadence 15 分で 30 分 window の 28/30 pass が 200 に収束した実測 (generation 24c) を前提とし、既存 sa-scheduler の OIDC・retry 設定・internal ingress を変更せず、追加 IAM・他 resource 変更を行わない。失敗・中断時も paused へ戻すことを最優先する。
   - id: ctl.prod-mutation-authority
     rule: production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。
