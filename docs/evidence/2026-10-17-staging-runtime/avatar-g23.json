@@ -1,0 +1,23 @@
+{
+  "at": "2026-10-18T03:06:46.309Z",
+  "user": "root50-g23-avatar-2554fbb8-7225-439a-ae84-c55b1a38f858",
+  "owner_id": "13ec432b-f431-5b03-b840-26e8426f2ee2",
+  "fixture_sha256": "f501fb53f2619a88bfc53c1e80c7d3d189deb1917f0f95a89e429a5c12089186",
+  "fixture_bytes": 36,
+  "canonical_credentials_only": true,
+  "claim_and_signed_url_persisted": false,
+  "profile_before_status": 200,
+  "create_upload_status": 201,
+  "presigned_put_status": 200,
+  "commit_status": 200,
+  "profile_read_status": 200,
+  "cdn_source_verified": true,
+  "cdn_variants_verified": [
+    32,
+    64,
+    128
+  ],
+  "profile_avatar_reset": true,
+  "owned_r2_keys_absent": 5,
+  "synthetic_profile_retained": true
+}

@@ -9,3 +9,5 @@ R2 は Infisical staging の API path だけに credential を保持する。buc
 公開domainの設定はoperator承認済み。r2.devは無効。minimum TLSはCloudflare UI既定1.0の表示が残り、1.2へ変更したとは主張しない。
 
 追加の通常設定診断 root50-g22-worker-sampled-probe-8dd47 は Flow393件・1owner完了、timeout1/unknown1で未成立。DB待機観測器は統計snapshotを保持して空結果になり、後発のfresh観測も実行終了後だったため性能証拠として採用しない。実行reportと一時Job不存在だけを採用する。
+
+generation 23 (Claude, 2026-10-18): Core `a06cf06` image `core@sha256:2ea0368…` (exact OCI rollback proof `6effbc1f` SUCCESS) を migrator `core-migrate-9ckmg` (pending0) → `core-api-00006-mn8`/`core-worker-00002-8jr` の順で配備。新規 bridge USER の profile GET は 200 (旧404解消)、avatar upload作成201・R2署名PUT200・commit200・CDN source hash一致・32/64/128 WebP variant・profile reset・所有R2 key5件の不存在を実確認 (`avatar-g23.json`、credential値は不記録)。worker Flow timeout は未成立のまま (Scheduler paused)。Web・Android利用可能とは判定しない。
