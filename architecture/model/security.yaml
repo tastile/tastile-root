@@ -301,5 +301,9 @@ controls:
     rule: >-
       Flow replay冪等化の実効性を確認するため、独立レビュー済み・exact OCI rollback証明済みの候補imageをcore-workerへ配備した後に限り、root50-g23-worker-drain-probeを同じimage・既存worker SA/path/pool3・通常設定・deadline 55000msのまま1回だけ実行できる。
       追加IAM・schema変更・恒久設定変更・自動retryは行わない。常設Schedulerはpausedを維持し、in_flight_unknown=0かつfailures=0のreportを得るまでworker成功と判定しない。実行終了後に所有UIDを照合してJobを削除・不存在確認する。
+  - id: ctl.staging-worker-prefilter-probe
+    rule: >-
+      busy span range絞込み (Core 3e735e6) の効果を確認するため、独立レビュー済み・exact OCI rollback証明済みの同候補imageをcore-workerへ配備した後に限り、root50-g23c-worker-drain-probeを同じimage・既存worker SA/path/pool3・通常設定・deadline 55000msのまま1回だけ実行できる。
+      追加IAM・schema変更・恒久設定変更・自動retryは行わない。常設Schedulerはpausedを維持し、in_flight_unknown=0かつfailures=0のreportを得るまでworker成功と判定しない。実行終了後に所有UIDを照合してJobを削除・不存在確認する。
   - id: ctl.prod-mutation-authority
     rule: production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。
