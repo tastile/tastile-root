@@ -1,0 +1,161 @@
+{
+  "at": "2026-10-17T02:47:24.098Z",
+  "candidate_sha": "f0c1ffc54a145577838864bfae7cb6c7b369b737",
+  "execution": "root50-g22-worker-sampled-probe-8dd47",
+  "report": {
+    "decision": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "delivery": {
+      "authorized": 0,
+      "cancelled": 0,
+      "claimed": 0,
+      "completed": 0,
+      "dead_lettered": 0,
+      "failed": 0,
+      "failure_codes": [],
+      "in_flight_unknown": 0,
+      "retried": 0,
+      "sent": 0,
+      "stale": 0,
+      "termination": "empty"
+    },
+    "execution_due": {
+      "claimed": 10,
+      "completed": 10,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "execution_flow": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "failures": 1,
+    "flow": {
+      "completed": 1,
+      "emitted": 393,
+      "failure_codes": [
+        "timeout"
+      ],
+      "failures": 1,
+      "in_flight_unknown": 1,
+      "owners_completed": 1,
+      "owners_discovered": 0,
+      "owners_seen": 3,
+      "rescheduled": 0,
+      "retired": 0,
+      "retried": 1,
+      "stale_finalizations": 0,
+      "termination": "empty"
+    },
+    "outbox": {
+      "claimed": 128,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 128,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "passes": 1,
+    "progress": 668,
+    "prompt": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 5,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "reason": "deadline",
+    "relation": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "relation_decisions": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "source": {
+      "claimed": 2,
+      "completed": 2,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 2,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "source_decisions": {
+      "claimed": 0,
+      "completed": 0,
+      "deferred": 0,
+      "failure_codes": [],
+      "failures": 0,
+      "in_flight_unknown": 0,
+      "newly_enqueued": 0,
+      "rescheduled": 0,
+      "retired": 0,
+      "stale": 0
+    },
+    "termination": "deadline",
+    "unknown_in_flight": true
+  },
+  "cleanup": {
+    "at": "2026-10-17T02:41:12.062Z",
+    "name": "projects/tastile-staging/locations/asia-northeast1/jobs/root50-g22-worker-sampled-probe",
+    "uid": "629bd5ed-1eea-413a-a0dd-ee936b3fa3c2",
+    "absent": true
+  },
+  "statistics_samples_accepted": false,
+  "statistics_failure": "Observer kept one PostgreSQL statistics snapshot; all sampled rows were empty. Late fresh observer started after execution. Neither sample set is evidence of runtime wait distribution.",
+  "metadata_label_correction": "Copied Job root50-generation label remained21; actual current lease/intent generation22 and exactUID cleanup verified. Label was not used as fencing authority."
+}
