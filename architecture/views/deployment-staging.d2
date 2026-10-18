@@ -44,6 +44,12 @@ provider_stack: "" {
   prov_cloudflare: "Cloudflare" {
     grid-columns: 1
     grid-gap: 30
+    node_staging_media: "R2 bucket `tastile-media-sta… ~\$0/mo (estimate)" {
+      ctr_media: "User media storage" {
+        shape: cylinder
+        style.stroke-dash: 4
+      }
+    }
     node_staging_edge: "same Worker `tastile-edge` w… ~\$0/mo (verified)" {
       ctr_edge: "Edge"
       cmp_edge_router: "Edge router Worker" {

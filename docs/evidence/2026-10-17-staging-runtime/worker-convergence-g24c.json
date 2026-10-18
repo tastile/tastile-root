@@ -1,0 +1,182 @@
+[
+  {
+    "at": "2026-10-18T12:35:00.904880Z",
+    "status": 200,
+    "latency": "55.005693945s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:36:04.934950Z",
+    "status": 200,
+    "latency": "39.462440863s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:37:04.342228Z",
+    "status": 200,
+    "latency": "0.151063114s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:38:04.988070Z",
+    "status": 200,
+    "latency": "18.746692247s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:39:04.366160Z",
+    "status": 200,
+    "latency": "0.131162974s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:40:05.012756Z",
+    "status": 200,
+    "latency": "0.139023118s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:41:05.010878Z",
+    "status": 200,
+    "latency": "0.318385298s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:42:04.337923Z",
+    "status": 200,
+    "latency": "0.138736781s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:43:04.663870Z",
+    "status": 200,
+    "latency": "0.120758910s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:44:04.294709Z",
+    "status": 200,
+    "latency": "0.124160582s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:45:04.361856Z",
+    "status": 200,
+    "latency": "0.130805425s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:46:04.319761Z",
+    "status": 200,
+    "latency": "0.124235101s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:47:04.320855Z",
+    "status": 200,
+    "latency": "0.120771039s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:48:04.384280Z",
+    "status": 200,
+    "latency": "0.137585224s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:49:04.897724Z",
+    "status": 200,
+    "latency": "0.121641809s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:50:04.284981Z",
+    "status": 200,
+    "latency": "0.446410892s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:51:04.350720Z",
+    "status": 503,
+    "latency": "55.005758958s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:52:09.743962Z",
+    "status": 200,
+    "latency": "21.212650057s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:53:04.286951Z",
+    "status": 200,
+    "latency": "0.128120337s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:54:04.296321Z",
+    "status": 503,
+    "latency": "55.002811004s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:55:09.664374Z",
+    "status": 200,
+    "latency": "0.170036356s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:56:04.807854Z",
+    "status": 200,
+    "latency": "0.727912167s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:57:04.344858Z",
+    "status": 200,
+    "latency": "5.449329567s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:58:04.874080Z",
+    "status": 200,
+    "latency": "0.120085449s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T12:59:05.009944Z",
+    "status": 200,
+    "latency": "0.121266806s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T13:00:05.060335Z",
+    "status": 200,
+    "latency": "0.144683001s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T13:01:04.324484Z",
+    "status": 200,
+    "latency": "0.130445688s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T13:02:04.370661Z",
+    "status": 200,
+    "latency": "0.129775292s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T13:03:04.907854Z",
+    "status": 200,
+    "latency": "0.119769164s",
+    "revision": "core-worker-00006-n26"
+  },
+  {
+    "at": "2026-10-18T13:04:04.950520Z",
+    "status": 200,
+    "latency": "0.167580743s",
+    "revision": "core-worker-00006-n26"
+  }
+]

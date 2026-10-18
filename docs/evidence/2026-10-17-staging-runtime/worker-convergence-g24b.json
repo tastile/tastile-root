@@ -1,0 +1,80 @@
+[
+  {
+    "at": "2026-10-18T10:12:00.918707Z",
+    "status": 503,
+    "latency": "55.004007668s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:13:06.541250Z",
+    "status": 503,
+    "latency": "55.002132800s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:14:22.185426Z",
+    "status": 503,
+    "latency": "55.001823847s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:15:57.827496Z",
+    "status": 503,
+    "latency": "55.004674416s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:17:05.010091Z",
+    "status": 503,
+    "latency": "55.002177790s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:18:10.701497Z",
+    "status": 503,
+    "latency": "55.003664389s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:19:26.279073Z",
+    "status": 503,
+    "latency": "55.002557872s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:21:01.874665Z",
+    "status": 503,
+    "latency": "55.003208739s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:22:04.648048Z",
+    "status": 503,
+    "latency": "55.002691178s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:23:10.074085Z",
+    "status": 503,
+    "latency": "55.003171591s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:24:25.581713Z",
+    "status": 503,
+    "latency": "55.003452066s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:26:01.014083Z",
+    "status": 503,
+    "latency": "55.002691961s",
+    "revision": "core-worker-00005-nct"
+  },
+  {
+    "at": "2026-10-18T10:27:05.002011Z",
+    "status": 503,
+    "latency": "55.002931659s",
+    "revision": "core-worker-00005-nct"
+  }
+]

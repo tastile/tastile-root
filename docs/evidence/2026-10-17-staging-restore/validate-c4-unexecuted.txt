@@ -1,0 +1,10 @@
+id: c4, metric: restored_api_ready, op: "==", threshold: true, 
+$ bun scripts/architecture/validate.ts
+ADVISORY cost.upper-bound             target upper bound $91.3 exceeds budget $45 (expected $44.8)
+INFO     cost.summary                 target expected $44.8/mo, upper $91.3/mo, current (unverified) $93/mo, budget $45/mo
+ERROR    poc.status                   poc.restore-drill: passed requires every criterion to be executed and pass
+ERROR    generated.stale              architecture/generated/pocs.md is stale — run bun run architecture:generate
+
+architecture:validate FAIL — 2 error(s), 1 advisory, 400 ids
+error: script "architecture:validate" exited with code 1
+exit=1

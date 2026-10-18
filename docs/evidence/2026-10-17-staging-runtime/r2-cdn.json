@@ -1,0 +1,11 @@
+{
+  "at": "2026-10-16T16:21:19.322Z",
+  "bucket": "tastile-media-staging",
+  "key": ".probes/root50-g21-cdn-dfe61fb8-eb5b-4eda-bb1e-650e7cf01e1d",
+  "credential_source": "Infisical staging /tastile/core/api",
+  "credential_values_recorded": false,
+  "put_get_verified": true,
+  "cdn_public_read_verified": true,
+  "owned_object_absent": true,
+  "local_probe_files_removed": true
+}

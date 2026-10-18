@@ -7,8 +7,8 @@
 | --- | --- | --- |
 | target env.ci | 3.5 | 15 |
 | target env.production | 35.3 | 60.3 |
-| target env.staging | 6 | 15 |
-| **target total** | 44.8 | 90.3 |
+| target env.staging | 6 | 16 |
+| **target total** | 44.8 | 91.3 |
 | current (retiring nodes, unverified) | 93 |  |
 | budget (quality.yaml cost_budget.pre_launch) | 45 |  |
 
@@ -39,6 +39,7 @@
 | `node.shared.ci-dispatcher` | env.ci | prov.gcp | private request-billed Cloud Run service `tastile-ci-dispatcher` + Cloud Scheduler poll |  | {"project":"tastile-dev","service_account":"sa-ci-dispatcher","source":"GitHub App short-lived installation token from Infisical","interval":"1 min","target_repo":"tastile/tastile-core","build_recovery":"list tagged Cloud Builds by exact PR head SHA","ingress":"internal","caller":"same-project sa-ci-dispatcher","audience":"canonical service URL without path","request_path":"/dispatch","billing":"request","min_instances":0,"max_instances":1,"concurrency":1} | 3.5–12 (estimate) ADR-0023: 43,800 polls x assumed 3s = 131,400 CPU-s; expected reserves $3.5 even without free tier. Upper assumes 10s/poll and shared free-tier exhaustion: 438,000 CPU-s x $0.000024 + 219,000 GiB-s x $0.0000025 + 43,800 requests x $0.40/M = $11.08 before egress. Latency/billing remain unmeasured; this is a conditional forecast, not a hard cap. Jobs minimum 60s/poll is excluded. | planned |
 | `node.prod.downloads` | env.production | prov.cloudflare | R2 bucket `tastile-downloads` + custom domain download.tastile.app | ctr.downloads |  | 0 (verified) < 10 GB storage, egress free | retained |
 | `node.prod.media` | env.production | prov.cloudflare | R2 bucket `tastile-media-prod` + custom domain media.tastile.app | ctr.media |  | 0 (verified) | planned |
+| `node.staging.media` | env.staging | prov.cloudflare | R2 bucket `tastile-media-staging` + custom domain staging-media.tastile.app | ctr.media | {"account_id":"c6ab6651a5d4d6d0d07686bbd3c3d56f","storage_class":"Standard","location":"APAC automatic","initial_access":"private","public_read":"custom domain only","runtime":"Core API S3-compatible port"} | 0–1 (estimate) Account currently about163MB and0USD. Staging probe objects are small and cleaned; shared10GB free tier assumed. Upper reserves1USD for growth; actual usage must be observed. | planned |
 | `node.prod.email` | env.production | prov.resend | Resend (domain tastile.app, sending subdomain mail.tastile.app) | ext.email |  | 0–20 (verified) Free 3,000/month & 100/day; Pro $20 before public announcement if volume requires | planned |
 | `node.staging.edge` | env.staging | prov.cloudflare | same Worker `tastile-edge` with staging routes | ctr.edge, cmp.edge.router | {"routes":["staging.tastile.app","staging-app.tastile.app","staging-api.tastile.app"]} | 0 (verified) | planned |
 | `node.staging.run` | env.staging | prov.gcp | Cloud Run `core-api`, `core-worker`, `web`, job `core-migrate` (project tastile-staging) | ctr.core-api, ctr.core-worker, ctr.core-migrate, ctr.web | {"min_instances":0,"api_max_instances":2,"worker_max_instances":1,"api_db_pool_max":5,"worker_db_pool_max":3,"migrator_db_pool_max":2,"bootstrap_command":"/app/infisical-bootstrap.sh","process_arguments":"/app/api or /app/worker http or /app/migrate_run","image":"shared registry digest only","diagnostic_api_access":"IAM authenticated operator and sa-web until edge binding is verified","sweep_interval":"1 min while staging active","worker_ingress":"internal","worker_caller":"same-project sa-scheduler","worker_audience":"canonical service URL without path or query","worker_invoker":"service-scoped roles/run.invoker","scheduler_service_agent":"roles/cloudscheduler.serviceAgent retained"} | 1 (estimate) | planned |

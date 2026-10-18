@@ -1,0 +1,8 @@
+test diag_flow_pass_cost ... DIAG first: emitted=511 elapsed_ms=40160 placements=545 xacts=1063
+DIAG replay: emitted=0 elapsed_ms=2248 placements=545 xacts=883
+DIAG next_day: emitted=24 elapsed_ms=5055 placements=569 xacts=1246
+DIAG next_day_replay: emitted=0 elapsed_ms=2384 placements=569 xacts=780
+test diag_flow_pass_cost ... DIAG first: emitted=511 elapsed_ms=17149 placements=545 xacts=1060
+DIAG replay: emitted=0 elapsed_ms=2176 placements=545 xacts=885
+DIAG next_day: emitted=24 elapsed_ms=3531 placements=569 xacts=1226
+DIAG next_day_replay: emitted=0 elapsed_ms=2161 placements=569 xacts=620
