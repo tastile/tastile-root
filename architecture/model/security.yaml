@@ -309,5 +309,9 @@ controls:
     rule: >-
       反復passでFlow backlogが収束するかを実測するため、staging常設core-worker-sweepを独立レビュー済み・exact OCI rollback証明済みの現行image (Core 3e735e6) のまま最大15分だけOpenTofuでunpauseし、終了時に同じOpenTofu経路でpausedへ戻して実状態を確認する。
       既存sa-schedulerのOIDC・既存retry設定・internal ingressを変更せず、追加IAM・schema変更・image変更・他resource変更を行わない。各passのdrain reportをCloud Loggingから回収し、in_flight_unknown=0かつfailures=0のpassを得るまでworker成功と判定しない。失敗・中断時もpausedへ戻すことを最優先する。
+  - id: ctl.staging-worker-chunked-window
+    rule: >-
+      Flow評価窓分割 (Core V1_072 cursor) の収束を確認するため、独立レビュー済み・exact OCI rollback証明済みの候補imageをmigrator→API/workerの順でstagingへ配備した後に限り、常設core-worker-sweepを最大15分だけOpenTofuでunpauseし、終了時に同じ経路でpausedへ戻して実状態を確認する。
+      V1_072はnullable列の追加のみで旧imageへのrollbackを妨げない。既存sa-schedulerのOIDC・retry設定・internal ingressを変更せず、追加IAM・他resource変更を行わない。各passの/drain HTTP status (200はfailures=0かつunknown無し) を回収し、200への収束を確認するまでworker成功と判定しない。失敗・中断時もpausedへ戻すことを最優先する。
   - id: ctl.prod-mutation-authority
     rule: production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。
