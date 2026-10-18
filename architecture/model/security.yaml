@@ -297,5 +297,9 @@ controls:
   - id: ctl.staging-worker-sampled-probe
     rule: >-
       Flow timeoutの実原因を区別するため、root50-g22-worker-sampled-probeをverified f0c image・既存worker SA/path/pool3・通常設定のまま1回だけ実行し、同時にread-only pg_stat_activityを最大90秒・200ms間隔で観測できる。query本文/引数やsecretは記録せず、query分類/hash・状態・待機時間だけを保存する。追加IAM・schema変更・恒久設定変更・自動retryは行わない。常設Schedulerはpausedを維持し、実行終了後に所有UIDを照合してJobを削除・不存在確認する。
+  - id: ctl.staging-worker-replay-probe
+    rule: >-
+      Flow replay冪等化の実効性を確認するため、独立レビュー済み・exact OCI rollback証明済みの候補imageをcore-workerへ配備した後に限り、root50-g23-worker-drain-probeを同じimage・既存worker SA/path/pool3・通常設定・deadline 55000msのまま1回だけ実行できる。
+      追加IAM・schema変更・恒久設定変更・自動retryは行わない。常設Schedulerはpausedを維持し、in_flight_unknown=0かつfailures=0のreportを得るまでworker成功と判定しない。実行終了後に所有UIDを照合してJobを削除・不存在確認する。
   - id: ctl.prod-mutation-authority
     rule: production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。
