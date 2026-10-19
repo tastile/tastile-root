@@ -1,0 +1,165 @@
+{
+  "at": "2026-10-19T00:28:42.203Z",
+  "token": {
+    "status": 200,
+    "active": "active"
+  },
+  "dns": {
+    "status": 200,
+    "records": [
+      {
+        "id": "4ffa052e4060f32cba918e8ca40cee42",
+        "name": "api.staging.app.tastile.app",
+        "type": "A",
+        "proxied": true,
+        "content": "52.194.223.15"
+      },
+      {
+        "id": "1e1d0e68695c8d277a468cbe41c67330",
+        "name": "api.tastile.app",
+        "type": "A",
+        "proxied": true,
+        "content": "52.194.61.218"
+      },
+      {
+        "id": "d6d1275f6c8bc0915ebc2fed76c3d336",
+        "name": "app.tastile.app",
+        "type": "A",
+        "proxied": true,
+        "content": "52.194.61.218"
+      },
+      {
+        "id": "ef54a0a7a786ca84aef08a674489b7a5",
+        "name": "staging.api.tastile.app",
+        "type": "A",
+        "proxied": true,
+        "content": "52.194.223.15"
+      },
+      {
+        "id": "9c1a6bb8fb7265f80db650e7e049edf3",
+        "name": "tastile.app",
+        "type": "A",
+        "proxied": true,
+        "content": "52.194.61.218"
+      },
+      {
+        "id": "72db3acf29762805886c8c2c270e988d",
+        "name": "staging-app.tastile.app",
+        "type": "AAAA",
+        "proxied": true,
+        "content": "100::"
+      },
+      {
+        "id": "56203014accd541ca2a85e45d0ca7c2e",
+        "name": "ckk7d5xd7zvmugdtawig3oqqtv7xvs56._domainkey.tastile.app",
+        "type": "CNAME",
+        "proxied": false,
+        "content": "ckk7d5xd7zvmugdtawig3oqqtv7xvs56.dkim.amazonses.com"
+      },
+      {
+        "id": "83a28719e678fbe457f0eeda56b15f3b",
+        "name": "download.tastile.app",
+        "type": "CNAME",
+        "proxied": true,
+        "content": "public.r2.dev"
+      },
+      {
+        "id": "e52d5c9d488c87806899df22ed8d2e39",
+        "name": "mgmlxs5nnpcnk22dcpccjqfkzuzvrqxm._domainkey.tastile.app",
+        "type": "CNAME",
+        "proxied": false,
+        "content": "mgmlxs5nnpcnk22dcpccjqfkzuzvrqxm.dkim.amazonses.com"
+      },
+      {
+        "id": "0eb8297d79289f9add8c654f413880c8",
+        "name": "oou5mbk25xmycwe2y7gbklqmesutfo3h._domainkey.tastile.app",
+        "type": "CNAME",
+        "proxied": false,
+        "content": "oou5mbk25xmycwe2y7gbklqmesutfo3h.dkim.amazonses.com"
+      },
+      {
+        "id": "e1701bece2cda234616af609bb230ef0",
+        "name": "staging-media.tastile.app",
+        "type": "CNAME",
+        "proxied": true,
+        "content": "public.r2.dev"
+      },
+      {
+        "id": "ffb471b178da9db3ec0995ce16e49477",
+        "name": "www.tastile.app",
+        "type": "CNAME",
+        "proxied": false,
+        "content": "cname.vercel-dns.com"
+      },
+      {
+        "id": "b846754e94f17c75760f415593379d27",
+        "name": "mail.tastile.app",
+        "type": "MX",
+        "proxied": false,
+        "content": "feedback-smtp.ap-northeast-1.amazonses.com"
+      },
+      {
+        "id": "7d6c7eac66e62b67f68e640a31e2799c",
+        "name": "_acme-challenge.staging.app.tastile.app",
+        "type": "TXT",
+        "proxied": false,
+        "content": "(txt)"
+      },
+      {
+        "id": "48c0c31c492b62b088abc38eedce1e21",
+        "name": "_acme-challenge.staging.app.tastile.app",
+        "type": "TXT",
+        "proxied": false,
+        "content": "(txt)"
+      },
+      {
+        "id": "1ebe88aac7a2bcf2232ad0158e84f419",
+        "name": "_dmarc.tastile.app",
+        "type": "TXT",
+        "proxied": false,
+        "content": "(txt)"
+      },
+      {
+        "id": "b43bc29d5e2d53af13196ce02af558c1",
+        "name": "mail.tastile.app",
+        "type": "TXT",
+        "proxied": false,
+        "content": "(txt)"
+      },
+      {
+        "id": "dea29d3c3b49cd2d89a53128fb2a8f94",
+        "name": "tastile.app",
+        "type": "TXT",
+        "proxied": false,
+        "content": "(txt)"
+      },
+      {
+        "id": "f04e55d91a230993146929357bd8a69e",
+        "name": "staging.app.tastile.app",
+        "type": "AAAA",
+        "proxied": true,
+        "content": "100::"
+      }
+    ]
+  },
+  "routes": {
+    "status": 200,
+    "list": [
+      {
+        "id": "c5eae5435e7948ed9306d1aa04d97486",
+        "pattern": "staging-app.tastile.app/*",
+        "script": "tastile-edge-staging"
+      }
+    ]
+  },
+  "scripts": {
+    "status": 200,
+    "ids": [
+      "my-web-2026",
+      "tastile-edge-staging",
+      "tastile-web-preview",
+      "tastile-web-staging",
+      "yusuke-kim-router"
+    ]
+  }
+}
