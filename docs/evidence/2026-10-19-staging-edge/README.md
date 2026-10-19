@@ -34,3 +34,12 @@ control: `ctl.staging-edge-publication`。token: `cred.cloudflare-edge-deploy` (
 `rollback.ts` (workspace `.tmp/g28-cf.ts` の helper を使う) が route → DNS record → script の順に削除する。Cloud Run 側は OpenTofu で戻す。
 - `web_core_assertion=false` → `core_web_assertion=false` → `web_public=false` の順に apply する。
 - 逆順にすると、assertion 付き request が 401 になる時間ができる。
+
+## 公開 hostname での Web E2E (実ブラウザ、local 代替なし)
+Playwright Chromium を public DNS・実 TLS で `https://staging-app.tastile.app` に接続し、新規ユーザーで次の操作を行った。
+- 新規登録: `__Secure-better-auth.*` と `tastile_uid` を `staging-app.tastile.app` に設定し、console error は 0 件。
+- タスク作成 (時刻なし)、実行開始 (`tiles/{id}/start` 200、`placements/{id}/executions` 200、残り時間を表示)。
+- cookie の無い新しい context で再ログインし、実行中の状態 (残り時間・操作) が復元された。
+- 実行完了: `executions/{id}/finish` 200。
+
+Web の assertion flag は有効で、Core への呼び出しは全て検証済み assertion で 200 だった。
