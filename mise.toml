@@ -1,0 +1,4 @@
+# Workspace toolchain pins (mise). architecture:render requires D2 v0.9.0
+# (layout output differs between versions; see scripts/architecture/render.ts).
+[tools]
+d2 = "0.9.0"
