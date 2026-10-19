@@ -345,5 +345,7 @@ controls:
       Cloud Run `web` の allUsers invoker は、edge assertion の無い直接 request を Web が拒否することを確認してから付与する。
       公開 hostname を作るのは、その拒否と Core の JWT/JWKS 検証の成立を確認した後とする。
       edge assertion は低権限の shared secret で identity を表さず、正本は Infisical staging `/tastile/edge` だけとする。
+      `staging-api.tastile.app` (Worker `tastile-edge-staging` の ROUTES に Core API origin を追加、route `staging-api.tastile.app/*`、DNS `staging-api`) と Cloud Run `core-api` の allUsers invoker は、core#226 の段階的な前提条件を満たした後に限る。
+      前提条件: Web が edge assertion を送ること、Core の Web assertion 設定の readback、`TASTILE_EDGE_ASSERTION` を有効にした Core で直接 request が 403・bridge だけの request が 401 になる実測。
   - id: ctl.prod-mutation-authority
     rule: production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。

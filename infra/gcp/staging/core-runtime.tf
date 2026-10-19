@@ -33,6 +33,12 @@ variable "core_web_assertion" {
   default     = false
 }
 
+variable "core_public" {
+  description = "Grant allUsers invoker on core-api behind the Core edge assertion gate (core#226, ctl.staging-edge-publication)."
+  type        = bool
+  default     = false
+}
+
 variable "worker_sweep_paused" {
   description = "Keep scheduled work paused until actual worker startup/authentication checks succeed."
   type        = bool
@@ -190,6 +196,15 @@ resource "google_cloud_run_v2_service_iam_member" "core_api_web" {
   name     = google_cloud_run_v2_service.core["api"].name
   role     = "roles/run.invoker"
   member   = "serviceAccount:sa-web@tastile-staging.iam.gserviceaccount.com"
+}
+
+resource "google_cloud_run_v2_service_iam_member" "core_api_public" {
+  count    = var.core_public && contains(keys(local.core_services), "api") ? 1 : 0
+  project  = "tastile-staging"
+  location = "asia-northeast1"
+  name     = google_cloud_run_v2_service.core["api"].name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
 
 resource "google_cloud_run_v2_service_iam_member" "core_worker_scheduler" {
