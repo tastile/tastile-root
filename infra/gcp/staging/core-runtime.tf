@@ -27,6 +27,12 @@ variable "core_avatar_enabled" {
   default     = false
 }
 
+variable "core_web_assertion" {
+  description = "Verify Web BFF assertions against the staging Web JWKS (ctl.staging-edge-publication)."
+  type        = bool
+  default     = false
+}
+
 variable "worker_sweep_paused" {
   description = "Keep scheduled work paused until actual worker startup/authentication checks succeed."
   type        = bool
@@ -100,7 +106,12 @@ resource "google_cloud_run_v2_service" "core" {
           TASTILE_ENV                       = "staging"
           TASTILE_DATABASE__MAX_CONNECTIONS = each.value.pool
           RUST_LOG                          = "info"
-          }, each.key == "api" ? {
+          }, each.key == "api" && var.core_web_assertion ? {
+          # The JWKS is fetched from the Web origin's deterministic URL (no
+          # dependency cycle with web), which keeps only this public path ungated.
+          TASTILE_WEB_JWKS_URL         = "https://web-${data.google_project.staging.number}.asia-northeast1.run.app/api/auth/jwks"
+          TASTILE_WEB_ASSERTION_ISSUER = "https://staging-app.tastile.app"
+          } : {}, each.key == "api" ? {
           TASTILE_API_HOST               = "0.0.0.0"
           TASTILE_ALLOWED_ORIGINS        = "https://staging-app.tastile.app"
           TASTILE_FEATURE_AVATAR_ENABLED = tostring(var.core_avatar_enabled)

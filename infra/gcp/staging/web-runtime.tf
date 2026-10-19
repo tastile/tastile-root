@@ -16,9 +16,21 @@ variable "web_identity_id" {
   nullable    = true
 }
 
+variable "web_public" {
+  description = "Grant allUsers invoker; the Web edge assertion gate then rejects direct origin requests (ctl.staging-edge-publication)."
+  type        = bool
+  default     = false
+}
+
+variable "web_core_assertion" {
+  description = "Send Better Auth assertions to Core. Enable only after Core verifies them (core_web_assertion)."
+  type        = bool
+  default     = false
+}
+
 locals {
-  # ctl.staging-web-runtime-bootstrap: invoker stays IAM-only (no allUsers) until
-  # the edge router and edge assertion are verified.
+  # ctl.staging-web-runtime-bootstrap / ctl.staging-edge-publication: invoker is
+  # IAM-only unless web_public, which relies on the Web edge assertion gate.
   web_enabled = var.web_runtime_image != null && var.web_identity_id != null && contains(keys(local.core_services), "api")
 }
 
@@ -64,7 +76,9 @@ resource "google_cloud_run_v2_service" "web" {
           NEXT_PUBLIC_APP_URL   = "https://staging-app.tastile.app"
           NEXT_PUBLIC_APEX_HOST = "staging.tastile.app"
           NEXT_PUBLIC_APP_HOST  = "staging-app.tastile.app"
-        })
+          }, var.web_core_assertion ? {
+          TASTILE_WEB_CORE_ASSERTION_ENABLED = "true"
+        } : {})
         content {
           name  = env.key
           value = env.value
@@ -77,6 +91,15 @@ resource "google_cloud_run_v2_service" "web" {
     }
   }
   depends_on = [google_artifact_registry_repository_iam_member.staging_core_image_reader, google_project_iam_member.sql_client]
+}
+
+resource "google_cloud_run_v2_service_iam_member" "web_public" {
+  count    = local.web_enabled && var.web_public ? 1 : 0
+  project  = "tastile-staging"
+  location = "asia-northeast1"
+  name     = google_cloud_run_v2_service.web[0].name
+  role     = "roles/run.invoker"
+  member   = "allUsers"
 }
 
 output "web_url" {

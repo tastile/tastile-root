@@ -336,5 +336,14 @@ controls:
     rule: >-
       MVP の実利用 E2E (自動配置・実行・ズレ検出は worker の sweep に依存する) の間に限り、配備済みで独立レビュー・exact OCI rollback 証明済みの Core image のまま、常設 core-worker-sweep を 1 回あたり最大 3 時間 OpenTofu で unpause し、終了時に同じ経路で paused へ戻して実状態を確認する。
       cadence 15 分で 30 分 window の 28/30 pass が 200 に収束した実測 (generation 24c) を前提とし、既存 sa-scheduler の OIDC・retry 設定・internal ingress を変更せず、追加 IAM・他 resource 変更を行わない。失敗・中断時も paused へ戻すことを最優先する。
+  - id: ctl.staging-edge-publication
+    rule: >-
+      operator 承認 (2026-10-19) に基づき、staging 専用の edge resource だけを新設する。
+      対象は Worker script `tastile-edge-staging`、zone route `staging-app.tastile.app/*`、DNS `staging-app` (proxied)。
+      既存の production DNS record・route・Worker、`tastile-web-*`・`my-web-2026` など他の script、`staging.app` / `staging.api` 等の既存 record は変更しない。
+      変更前後の Cloudflare 状態を記録し、rollback は route → DNS record → script の順に削除して戻す。
+      Cloud Run `web` の allUsers invoker は、edge assertion の無い直接 request を Web が拒否することを確認してから付与する。
+      公開 hostname を作るのは、その拒否と Core の JWT/JWKS 検証の成立を確認した後とする。
+      edge assertion は低権限の shared secret で identity を表さず、正本は Infisical staging `/tastile/edge` だけとする。
   - id: ctl.prod-mutation-authority
     rule: production data / secret / DNS の mutation は actor.operator の承認した job だけが行う。agent は staging までの authority。
