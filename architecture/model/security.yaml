@@ -78,6 +78,15 @@ credentials:
     verifier: ctr.web, ctr.core-api (production / staging middleware)
     properties: origin 直アクセス (run.app) を拒否するための低権限 shared secret。identity を表さない。四半期 rotate。
     lifecycle: planned
+  - id: cred.cloudflare-edge-deploy
+    name: Cloudflare edge deploy API token
+    holder: operator / Claude Supervisor (Infisical staging /tastile/edge CLOUDFLARE_API_TOKEN)
+    verifier: Cloudflare API
+    properties: >-
+      user API token tastile-edge-deploy (id 26c54285114763845bf20056f1be3861)。account c6ab6651a5d4d6d0d07686bbd3c3d56f の Workers Scripts Edit と、
+      zone tastile.app だけの DNS Edit / Workers Routes Edit。他 zone・R2 は拒否。zone 権限は production record にも及ぶため、
+      production DNS / route の変更は ctl.prod-mutation-authority に従う。実値の正本は Infisical のみで、GitHub Secrets や他 project に copy しない。
+    lifecycle: planned
   - id: cred.gcp-service-identity
     name: GCP service account (workload identity)
     holder: each Cloud Run service / job, Cloud Scheduler
