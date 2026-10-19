@@ -43,3 +43,11 @@ Playwright Chromium を public DNS・実 TLS で `https://staging-app.tastile.ap
 - 実行完了: `executions/{id}/finish` 200。
 
 Web の assertion flag は有効で、Core への呼び出しは全て検証済み assertion で 200 だった。
+
+## 一時的な非公開化: next@16.3.4 の critical advisory (2026-10-19)
+- 別 session (tastile-e8) の報告: next/og `ImageResponse` に critical RCE、ほかに high が 2 件 (SSRF・sharp・source-map-js)。staging Web (image `web@sha256:56ce6882…`、next 16.3.4) は `/icon` (next/og) を公開 host で 200 返していた。
+- 06:14Z ごろ、edge route だけを削除して公開を止めた (公開 host は 522)。direct origin は edge gate で 403 のまま。DNS と Worker script は残した。
+- 公開していた間の Cloud Run log: `/icon` への request は自分の確認だけで、client は全て Cloudflare edge の IP 範囲。悪用の痕跡は見つからなかった。
+- 修正 web#194 (`67329435`、next ~16.3.8、sharp >=0.35.5、source-map-js >=1.2.2) を web 171 に取り込み (`669e3b20`)、`bun audit --prod` clean と `bun run check` green を確認した。
+- image `web@sha256:34df12ff…` (revision `web-00006-jsg`) を配備し、edge route を再作成した (`5817d1a2f7cb48b1b79c30059df7f8e0`)。
+- 再公開後: 公開 `/login`・`/icon`・JWKS は 200、direct origin は 403。非公開だった時間は約 06:14–06:53Z。
