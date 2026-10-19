@@ -1,0 +1,38 @@
+{
+  "verified_at": "2026-10-19T03:56:52.866Z",
+  "id": "4ca9a4ad-5304-459f-b356-707e030d798b",
+  "status": "SUCCESS",
+  "image": "asia-northeast1-docker.pkg.dev/tastile-dev/tastile/core@sha256:b0086e4acaf63700c63cc8c499d1e14a9711867d7e664b1629f87a144abfff80",
+  "candidate_sha": "6988533eda11b87757d2fe6811ce66f3322ca4a2",
+  "baseline_sha": "9b3f8b5363af52a12ab5912318cfdabe5af8728d",
+  "source_generation": "1792381610595952",
+  "archive_sha256": "5642075d68bba5c45f958aa287f2c3fc32677d99bc4cd6d482afbac929dbdd63",
+  "recipe_sha256": "0dee8046c38880bc1947c20f4d4cfe265f6ae447fbd2c700f679e4439987c395",
+  "runner_sha256": "d81dbeb98c30fae0a9af20c36bd6498f0844148bbd0d4bcf68bda6e184a6de1a",
+  "full_duration_seconds": 587.239,
+  "baseline_archive": {
+    "enclosing_source_generation": "1792381610595952",
+    "path": "g30-image-rollback-input/baseline.tar",
+    "sha256": "cbcdd4df1895d5e3a734ee0133622e8fb2324efeb312e38540b3e6eb5f71ae04",
+    "independent_object_generation": null
+  },
+  "targets": {
+    "api": {
+      "sha256": "sha256:018cefab256b85b1d913dbdd61bc9761b113bd410917d1a363bbd16be9e2bfc0",
+      "profile": "release"
+    },
+    "worker": {
+      "sha256": "sha256:4d7b9bc0def55759843439bb9359e606e9851a838d9d079b35bb7f19e825b84e",
+      "profile": "release"
+    },
+    "migrate_run": {
+      "sha256": "sha256:b986fd30bb79efd15eb07f3e598c72ab30690f0b2c4d610558c148d25882e67a",
+      "profile": "release"
+    }
+  },
+  "actual_source_tile_smoke": true,
+  "owned_database_remaining": 0,
+  "cleanup_exit": 0,
+  "binaries_stripped": true,
+  "marker_log_sha256": "e90d3aca51214a54abd0bed179017321519bccfa06b9a641b871387b962ca6c4"
+}
