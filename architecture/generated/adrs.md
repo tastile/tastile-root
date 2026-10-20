@@ -26,3 +26,4 @@
 | `adr.root.0021` | [ADR-0021: per-commit reviewer loop を廃止する](../../docs/adr/0021-retire-per-commit-review.md) | Accepted |  | root agent tooling and commit workflow |
 | `adr.root.0022` | [ADR-0022: Infisical の開発・検証限定 RBAC 改変](../../docs/adr/0022-infisical-development-testing-overlay.md) | Accepted |  | Infisical development and staging evaluation |
 | `adr.root.0023` | [ADR-0023: 毎分 CI dispatcher を request 課金の非公開 service にする](../../docs/adr/0023-request-billed-ci-dispatcher.md) | Accepted |  | private Core CI control plane |
+| `adr.root.0024` | [ADR-0024: 有料インフラを全停止し、ローカル完結の開発へ縮退する](../../docs/adr/0024-paid-infrastructure-freeze.md) | Accepted |  | all paid infrastructure and the development premise while it is stopped |

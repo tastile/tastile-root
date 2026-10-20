@@ -28,7 +28,7 @@
       "svg": "architecture/views/deployment-staging.svg"
     },
     "architecture/views/deployment-production-current.d2": {
-      "d2_sha256": "0225e2601941ab7e0cd01703739749e70aa7df9b94d1371b96ea146b12a90803",
+      "d2_sha256": "f8a0530b4c10d678f152af79fd81fc7e7d6e49c0b595c0a265c56b0276d1ef24",
       "svg": "architecture/views/deployment-production-current.svg"
     },
     "architecture/views/contract.d2": {

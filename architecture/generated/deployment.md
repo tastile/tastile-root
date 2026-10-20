@@ -9,19 +9,19 @@
 | target env.production | 35.3 | 60.3 |
 | target env.staging | 6 | 15 |
 | **target total** | 44.8 | 90.3 |
-| current (retiring nodes, unverified) | 93 |  |
+| current (retiring nodes, unverified) | 0 |  |
 | budget (quality.yaml cost_budget.pre_launch) | 45 |  |
 
 ## Providers
 
 | id | name | role | lifecycle |
 | --- | --- | --- | --- |
-| `prov.gcp` | Google Cloud (asia-northeast1 Tokyo) | target application runtime, database, scheduler, build, logs / metrics | planned |
+| `prov.gcp` | Google Cloud (asia-northeast1 Tokyo) | target application runtime, database, scheduler, build, logs / metrics (billing unlinked 2026-10-20, ADR-0024; design only) | planned |
 | `prov.cloudflare` | Cloudflare | DNS, TLS, WAF, edge router Worker, R2 (downloads, media) | retained |
 | `prov.github` | GitHub | source, work state, PR review, public-repo CI, releases | retained |
 | `prov.google-play` | Google Play Console | Android distribution | retained |
 | `prov.resend` | Resend | transactional email (target, gated by poc.email-provider) | planned |
-| `prov.aws` | AWS (ap-northeast-1) | current runtime (retiring) | retiring → ms.m8-decommission |
+| `prov.aws` | AWS (ap-northeast-1) | former runtime; all resources deleted 2026-10-20 without data retention (ADR-0024). Only repository references remain to retire. | retiring → ms.m8-decommission |
 | `prov.infisical` | Infisical (self-hosted, user-operated) | canonical secret control plane for development, CI/CD and runtime | retained |
 
 ## Nodes
@@ -43,8 +43,4 @@
 | `node.staging.edge` | env.staging | prov.cloudflare | same Worker `tastile-edge` with staging routes | ctr.edge, cmp.edge.router | {"routes":["staging.tastile.app","staging-app.tastile.app","staging-api.tastile.app"]} | 0 (verified) | planned |
 | `node.staging.run` | env.staging | prov.gcp | Cloud Run `core-api`, `core-worker`, `web`, job `core-migrate` (project tastile-staging) | ctr.core-api, ctr.core-worker, ctr.core-migrate, ctr.web | {"min_instances":0,"api_max_instances":2,"worker_max_instances":1,"api_db_pool_max":5,"worker_db_pool_max":3,"migrator_db_pool_max":2,"bootstrap_command":"/app/infisical-bootstrap.sh","process_arguments":"/app/api or /app/worker http or /app/migrate_run","image":"shared registry digest only","diagnostic_api_access":"IAM authenticated operator and sa-web until edge binding is verified","sweep_interval":"1 min while staging active","worker_ingress":"internal","worker_caller":"same-project sa-scheduler","worker_audience":"canonical service URL without path or query","worker_invoker":"service-scoped roles/run.invoker","scheduler_service_agent":"roles/cloudscheduler.serviceAgent retained"} | 1 (estimate) | planned |
 | `node.staging.db` | env.staging | prov.gcp | Cloud SQL for PostgreSQL 17 Enterprise `tastile-staging-pg` (db-f1-micro, stopped when idle) | ctr.domain-db, ctr.auth-db | {"storage":"10 GB SSD with auto-increase","backups":"daily with 7 retained","pitr":"enabled with 7 days logs","connectivity":"Cloud SQL connector only and no authorized networks","deletion_protection":"enabled"} | 5–14 (estimate) storage ≈ $2.2 + ~25% running time (unmeasured). Operator-controlled database_active starts/stops staging after callers/connections stop. Continuous use is estimated at $14/month like the matching production tier; running-time/cost must be observed. | planned |
-| `node.current.prod.ec2` | env.production | prov.aws | EC2 foundation instance (t3.small default) running tastile-api.service / tastile-worker.service via systemd + tastile-infisical-run; web via systemd + nginx | ctr.core-api, ctr.core-worker, ctr.web |  | 24 (unverified) t3.small Tokyo on-demand ≈ $0.0272/h + EBS + public IPv4 $3.65; billing not accessible from this workspace | retiring |
-| `node.current.prod.rds` | env.production | prov.aws | RDS PostgreSQL db.t4g.micro (20 GB, 7-day backups) in private subnets | ctr.domain-db, ctr.auth-db |  | 21 (unverified) | retiring |
-| `node.current.staging.aws` | env.staging | prov.aws | tastile-staging-foundation (EC2 + staging RDS) | ctr.core-api, ctr.core-worker, ctr.domain-db |  | 45 (unverified) | retiring |
-| `node.current.staging.worker` | env.staging | prov.cloudflare | Worker tastile-web-staging / tastile-web-preview (OpenNext + Hyperdrive to staging RDS) | ctr.web |  | 0 (verified) | retiring |
-| `node.current.prod.aws-misc` | env.production | prov.aws | S3 + CloudFront (avatar), SES (sandbox), Secrets Manager, SSM, transfer bucket, legacy IdP user pool, ECR | ctr.media |  | 3 (unverified) | retiring |
+| `node.current.staging.worker` | env.staging | prov.cloudflare | Worker tastile-web-staging / tastile-web-preview (OpenNext + Hyperdrive to the staging RDS deleted 2026-10-20; no reachable backend, ADR-0024) | ctr.web |  | 0 (verified) | retiring |

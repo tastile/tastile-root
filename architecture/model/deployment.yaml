@@ -3,13 +3,15 @@
 # Prices: USD, list price, accessed 2026-09-29 (see architecture/evidence/2026-09-29-platform-evaluation.md).
 # `cost_basis: verified` = computed from an official price page; `estimate` = derived with stated assumptions;
 # `unverified` = could not be checked against a bill.
+# 2026-10-20 paid-infrastructure freeze (ADR-0024): AWS resources were deleted, GCP projects have no billing account.
+# GCP/Resend nodes below remain the target design only; nothing in them is running or billable until a resumption ADR.
 schema: tastile.architecture/deployment@1
-as_of: 2026-10-06
+as_of: 2026-10-20
 
 providers:
   - id: prov.gcp
     name: Google Cloud (asia-northeast1 Tokyo)
-    role: target application runtime, database, scheduler, build, logs / metrics
+    role: target application runtime, database, scheduler, build, logs / metrics (billing unlinked 2026-10-20, ADR-0024; design only)
     decision: adr.root.0014
     lifecycle: planned
   - id: prov.cloudflare
@@ -32,7 +34,8 @@ providers:
     lifecycle: planned
   - id: prov.aws
     name: AWS (ap-northeast-1)
-    role: current runtime (retiring)
+    role: former runtime; all resources deleted 2026-10-20 without data retention (ADR-0024). Only repository references remain to retire.
+    decision: adr.root.0024
     lifecycle: retiring
     retire_by: ms.m8-decommission
   - id: prov.infisical
@@ -179,43 +182,11 @@ nodes:
     lifecycle: planned
 
   # ============================================================ current (retiring) — for cutover planning
-  - id: node.current.prod.ec2
-    env: env.production
-    provider: prov.aws
-    service: EC2 foundation instance (t3.small default) running tastile-api.service / tastile-worker.service via systemd + tastile-infisical-run; web via systemd + nginx
-    hosts: [ctr.core-api, ctr.core-worker, ctr.web]
-    cost_usd_month: {value: 24, basis: unverified, assumption: "t3.small Tokyo on-demand ≈ $0.0272/h + EBS + public IPv4 $3.65; billing not accessible from this workspace"}
-    lifecycle: retiring
-    retire_by: ms.m8-decommission
-  - id: node.current.prod.rds
-    env: env.production
-    provider: prov.aws
-    service: RDS PostgreSQL db.t4g.micro (20 GB, 7-day backups) in private subnets
-    hosts: [ctr.domain-db, ctr.auth-db]
-    cost_usd_month: {value: 21, basis: unverified}
-    lifecycle: retiring
-    retire_by: ms.m8-decommission
-  - id: node.current.staging.aws
-    env: env.staging
-    provider: prov.aws
-    service: tastile-staging-foundation (EC2 + staging RDS)
-    hosts: [ctr.core-api, ctr.core-worker, ctr.domain-db]
-    cost_usd_month: {value: 45, basis: unverified}
-    lifecycle: retiring
-    retire_by: ms.m8-decommission
   - id: node.current.staging.worker
     env: env.staging
     provider: prov.cloudflare
-    service: Worker tastile-web-staging / tastile-web-preview (OpenNext + Hyperdrive to staging RDS)
+    service: Worker tastile-web-staging / tastile-web-preview (OpenNext + Hyperdrive to the staging RDS deleted 2026-10-20; no reachable backend, ADR-0024)
     hosts: [ctr.web]
     cost_usd_month: {value: 0, basis: verified}
     lifecycle: retiring
     retire_by: ms.m4-web-staging
-  - id: node.current.prod.aws-misc
-    env: env.production
-    provider: prov.aws
-    service: S3 + CloudFront (avatar), SES (sandbox), Secrets Manager, SSM, transfer bucket, legacy IdP user pool, ECR
-    hosts: [ctr.media]
-    cost_usd_month: {value: 3, basis: unverified}
-    lifecycle: retiring
-    retire_by: ms.m8-decommission

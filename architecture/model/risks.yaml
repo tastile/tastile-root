@@ -1,9 +1,22 @@
 # Risks, unverified assumptions and open questions (system level). Canonical for: fd.system-risks.
 # Domain-level open questions are owned by tastile-core; they are listed here only as pointers (owner: repo.core).
 schema: tastile.architecture/risks@1
-as_of: 2026-10-06
+as_of: 2026-10-20
 
 risks:
+  - id: risk.paid-infra-freeze
+    title: Paid infrastructure freeze leaves no staging / production and may lose GCP resources
+    likelihood: high
+    impact: high
+    evidence: >-
+      2026-10-20 に operator の資金制約で AWS を全削除し、GCP 3 project の billing を unlink した (ADR-0024)。
+      billing のない GCP project の Cloud SQL・Artifact Registry・GCS (OpenTofu state bucket を含む) は provider 側で失われうる。
+      state は operator host の .tmp/gcp-tofu-state-backup-2026-10-20/ にだけ退避してある。
+    mitigation: >-
+      env.local の実 PostgreSQL 17 と実 browser / device で検証を続ける。再開時は既存 resource が残っている前提にせず、
+      IaC から再構築する。退避した state は再開 ADR まで削除しない。staging / production の実証を要する PoC と milestone は
+      ms.pause-paid-infra で gate する。
+    status: accepted
   - id: risk.ci-budget
     title: Private CI minutes stop Core delivery
     likelihood: high

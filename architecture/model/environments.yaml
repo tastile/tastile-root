@@ -3,7 +3,7 @@
 # covers them on the Free plan (evidence: tastile-web docs/cloudflare-staging.md — nested
 # `staging.api.tastile.app` edge TLS failed).
 schema: tastile.architecture/environments@1
-as_of: 2026-09-29
+as_of: 2026-10-20
 
 isolation_rules:
   - id: iso.no-shared-state
@@ -29,6 +29,9 @@ environments:
       dev project から一時取得する。dotenv fallback は作らない。
     hostnames: {web: "http://localhost:3000", api: "http://127.0.0.1:31400"}
     lifecycle: retained
+    notes: >-
+      ADR-0024 (2026-10-20〜) の凍結中は、これが唯一の実行環境になる。staging / production の代わりに、ここで実 PostgreSQL 17・
+      実 browser・実 device を使って検証する。課金が発生する cloud resource は起動しない。
   - id: env.ci
     name: ci
     purpose: PR / release branch の自動検査。
@@ -37,6 +40,9 @@ environments:
     secrets: 原則なし。publish job のみ workload identity で必要最小限を取得する。
     hostnames: {}
     lifecycle: retained
+    notes: >-
+      ADR-0024 の凍結中は無料枠だけを使う。private Core の Cloud Build 経路は停止しており、GitHub Actions の有料 minutes も
+      使わない。release 判断には env.local で実行した実 PostgreSQL full gate の証跡を使う。
   - id: env.staging
     name: staging
     purpose: release candidate の実 browser / 実 device / 実 DB 検証、migration と restore の演習。
@@ -51,8 +57,9 @@ environments:
     lifecycle: planned
     current:
       note: >-
-        AWS staging stack (tastile-staging-foundation: EC2 + staging RDS) と Cloudflare Worker `tastile-web-staging`
-        (staging.app.tastile.app → api.staging.app.tastile.app)。target 移行後に retire。
+        2026-10-20 から存在しない (ADR-0024 paid-infrastructure freeze)。AWS staging stack と staging RDS は削除済み、
+        GCP tastile-staging は billing 未リンク。Cloudflare Worker `tastile-web-staging` / `tastile-edge-staging` と DNS は
+        残っているが backend はない。凍結中の実環境検証は env.local の実 PostgreSQL 17 と実 browser / device で代替する。
   - id: env.production
     name: production
     purpose: 実 user への提供。
@@ -69,8 +76,9 @@ environments:
     lifecycle: retained
     current:
       note: >-
-        AWS ap-northeast-1: EC2 (api / worker / web / nginx を systemd で稼働) + RDS PostgreSQL + SSM + S3 / CloudFront
-        (avatar) + SES。Cloudflare proxied DNS。download.tastile.app は R2。
+        2026-10-20 から稼働していない (ADR-0024)。旧 AWS ap-northeast-1 runtime (EC2 + RDS + S3 / CloudFront + Cognito 等) は
+        data 保持なしで削除済み、GCP tastile-prod は billing 未リンク。beta に実 user はいなかった。
+        残るのは Cloudflare DNS と download.tastile.app (R2) だけ。
   - id: env.preview
     name: preview
     purpose: (retiring) Cloudflare Worker `tastile-web-preview`。

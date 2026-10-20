@@ -44,4 +44,4 @@
 | `ext.google-play` | external_system | Google Play |  |  |  | retained | Android 配布。 |
 | `ext.scheduler` | external_system | Cloud Scheduler / Cloud Tasks |  |  |  | planned | worker drain を定期起動・targeted wake する trigger。state は持たない (ADR-0017)。 |
 | `ext.infisical` | external_system | Infisical (self-hosted) |  |  |  | retained | development / CI/CD / runtime の Tastile-managed secret value を保持する唯一の canonical secret control plane (ADR-0015)。 |
-| `ext.aws` | external_system | AWS (ap-northeast-1) |  |  |  | retiring → ms.m8-decommission | current runtime (EC2 + systemd、RDS、SSM、S3、CloudFront、SES、Secrets Manager、Cognito 残骸)。 target では使用しない (ADR-0014)。 |
+| `ext.aws` | external_system | AWS (ap-northeast-1) |  |  |  | retiring → ms.m8-decommission | 旧 current runtime (EC2 + systemd、RDS、SSM、S3、CloudFront、SES、Secrets Manager、Cognito)。 2026-10-20 に全 resource を data 保持なしで削除した (ADR-0024)。target では使用しない (ADR-0014)。 残りは repository 内の参照の撤去だけ。 |
