@@ -10,7 +10,7 @@
 | 3 | `qg.convergence` | Every device converges to the same Effective state | Web / Android / Desktop / CLI の同時利用。push は hint、Sync + Read が正。 |
 | 4 | `qg.security` | Owner isolation and credential hygiene | 他 owner の data の存在すら漏らさない。secret は repository / log に出さない。 |
 | 5 | `qg.operability` | One person can operate, deploy and recover the whole system | 運用者は 1 名。2026-09 に deploy / secret / CI の手作業境界で繰り返し停止した (evidence)。 |
-| 6 | `qg.cost` | Fixed cost stays small until revenue exists | 無料 credit 消滅。CI budget は $2 cap を上げない方針。 |
+| 6 | `qg.cost` | Fixed cost stays small until revenue exists | 無料 credit 消滅。CI budget は $2 cap を上げない方針。2026-10-20 から operator の資金制約により有料 infra を全停止し (ADR-0024)、凍結中の実費 target は Tastile 単独で $0 とする (Cloudflare の共有契約と domain 登録は除く)。 |
 | 7 | `qg.evolvability` | Provider exit stays cheap | OCI image + vanilla PostgreSQL + 標準 protocol に留め、特定 provider 専用機能を core 契約に入れない。 |
 
 ## SLOs (production, rolling 28 days)
@@ -33,7 +33,7 @@
 | `kpi.deploy-lead-time` | qg.operability | release merge to production traffic 100% (same artifact digest as staging) | ≤ 30 min | core production deploy workflow median ≈ 45 min when it succeeded (evidence github-ops) |
 | `kpi.deploy-success-rate` | qg.operability | successful deploy runs / all non-cancelled deploy runs, per repository, 28 days | ≥ 90% | core prod 3/12, core staging 6/29, web deploy 0/11, android release 4/34, desktop release 6/22 (to 2026-09-29) |
 | `kpi.rollback-time` | qg.operability | decision to previous revision serving 100% traffic | ≤ 5 min | 2026-09-27 web initial deploy caused ≈ 72 s outage before rollback |
-| `kpi.private-ci-spend` | qg.cost | GitHub Actions paid usage for private repositories per month | $0 (Core heavy CI on Cloud Build free tier) | Sept 2026: $2.00 hit the hard cap on 2026-09-26; all tastile-core runs blocked afterwards |
+| `kpi.private-ci-spend` | qg.cost | GitHub Actions paid usage for private repositories per month | $0 (Core heavy CI on Cloud Build free tier) | Sept 2026: $2.00 hit the hard cap on 2026-09-26; all tastile-core runs blocked afterwards. From 2026-10-20 Cloud Build path is also stopped (ADR-0024); local real-PG gate evidence is used instead |
 | `kpi.ci-real-db` | qg.data-integrity | share of Core DB-dependent tests that actually ran against PostgreSQL in the last release candidate | 100% (no silent skip) | 2026-09-29 local run on vanilla PG17: 3 failing tests (owner_profile_authz ×2, scope_enforcement ×1) on the release line, undetected because CI was budget-blocked |
 | `kpi.restore-drill` | qg.data-integrity | restore drills passed in the last 3 months | 3/3 | 0 (R04 restore drill never completed) |
 | `kpi.secret-stores` | qg.security | number of editable secret stores per environment | 1 | > 1 (Infisical + legacy GitHub Secrets + AWS Secrets Manager / SSM + Worker secrets) |
@@ -41,4 +41,4 @@
 
 ## Cost budget
 
-Target pre-launch: **$45/month** (staging + production infrastructure (excludes domain registration, developer tools, app store fees)。 Cloud Buildは通常PR40回×中央値にrelease rollback回数×実所要時間とimage buildを加算する。gate分離を費用削減の実証とみなさない。 Infisical正規licenseの正式見積は未取得 (risk.infisical-license)。現node数値にはこの未見積費用が含まれず、 数値の小計だけでlicense込み総額の予算適合を主張しない。). Current model estimate: **$44.8** expected, **$90.3** upper bound. Alerts: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly
+Target pre-launch: **$45/month** (staging + production infrastructure (excludes domain registration, developer tools, app store fees)。 Cloud Buildは通常PR40回×中央値にrelease rollback回数×実所要時間とimage buildを加算する。gate分離を費用削減の実証とみなさない。 Infisical正規licenseの正式見積は未取得 (risk.infisical-license)。現node数値にはこの未見積費用が含まれず、 数値の小計だけでlicense込み総額の予算適合を主張しない。). Current model estimate: **$44.8** expected, **$90.3** upper bound. Alerts: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly. During the ADR-0024 freeze the actual target is $0 and any non-zero Tastile charge is an incident for the operator

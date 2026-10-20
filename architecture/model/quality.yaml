@@ -3,7 +3,7 @@
 # Product outcome KPIs are canonical in tastile-core docs/product/product.yaml (fd.product-kpi).
 # status: unmeasured = no measurement pipeline yet; measured = baseline recorded in `baseline`.
 schema: tastile.architecture/quality@1
-as_of: 2026-09-29
+as_of: 2026-10-20
 
 quality_goals:
   # Ordered: when two goals conflict, the earlier one wins.
@@ -30,7 +30,9 @@ quality_goals:
   - id: qg.cost
     rank: 6
     name: Fixed cost stays small until revenue exists
-    rationale: 無料 credit 消滅。CI budget は $2 cap を上げない方針。
+    rationale: >-
+      無料 credit 消滅。CI budget は $2 cap を上げない方針。2026-10-20 から operator の資金制約により有料 infra を全停止し
+      (ADR-0024)、凍結中の実費 target は Tastile 単独で $0 とする (Cloudflare の共有契約と domain 登録は除く)。
   - id: qg.evolvability
     rank: 7
     name: Provider exit stays cheap
@@ -103,7 +105,7 @@ engineering_kpis:
     goal: qg.cost
     definition: GitHub Actions paid usage for private repositories per month
     target: "$0 (Core heavy CI on Cloud Build free tier)"
-    baseline: "Sept 2026: $2.00 hit the hard cap on 2026-09-26; all tastile-core runs blocked afterwards"
+    baseline: "Sept 2026: $2.00 hit the hard cap on 2026-09-26; all tastile-core runs blocked afterwards. From 2026-10-20 Cloud Build path is also stopped (ADR-0024); local real-PG gate evidence is used instead"
   - id: kpi.ci-real-db
     goal: qg.data-integrity
     definition: share of Core DB-dependent tests that actually ran against PostgreSQL in the last release candidate
@@ -135,4 +137,4 @@ cost_budget:
     数値の小計だけでlicense込み総額の予算適合を主張しない。
   target: {pre_launch: 45, post_launch_per_active_user: 0.05}
   estimate_from: deployment.yaml nodes with env in [env.staging, env.production, env.ci] and lifecycle != retiring
-  alert: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly
+  alert: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly. During the ADR-0024 freeze the actual target is $0 and any non-zero Tastile charge is an incident for the operator

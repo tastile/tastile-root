@@ -345,7 +345,8 @@ elements:
     kind: external_system
     name: AWS (ap-northeast-1)
     description: >-
-      current runtime (EC2 + systemd、RDS、SSM、S3、CloudFront、SES、Secrets Manager、Cognito 残骸)。
-      target では使用しない (ADR-0014)。
+      旧 current runtime (EC2 + systemd、RDS、SSM、S3、CloudFront、SES、Secrets Manager、Cognito)。
+      2026-10-20 に全 resource を data 保持なしで削除した (ADR-0024)。target では使用しない (ADR-0014)。
+      残りは repository 内の参照の撤去だけ。
     lifecycle: retiring
     retire_by: ms.m8-decommission

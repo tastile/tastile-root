@@ -3,10 +3,24 @@
 # Sequence follows the 2026-09-28 intent (raw corpus): freeze behaviour → migrate infra → finish secrets on the
 # target runtime → staging verification → production cutover → soak → public announcement.
 # `authority: operator` marks steps that need actor.operator (billing, production mutation, public release).
+# 2026-10-20: paid-infrastructure freeze (ADR-0024). ms.pause-paid-infra gates every milestone that needs a billed
+# environment (m2〜m7). Local-only work inside them (provider-neutral code, local real-PG gates) may continue.
 schema: tastile.architecture/roadmap@1
-as_of: 2026-09-29
+as_of: 2026-10-20
 
 milestones:
+  - id: ms.pause-paid-infra
+    title: Paid infrastructure frozen; local-only development
+    authority: operator
+    work:
+      - 2026-10-20 AWS all resources deleted without data retention; GCP tastile-dev / staging / prod billing unlinked (ADR-0024)
+      - develop and verify on env.local only (real PostgreSQL 17, real browser / device); ci uses free tiers only
+      - no billing link, tofu apply, Cloud Run / Cloud SQL / Cloud Build start, AWS resource or paid plan by agents; escalate to operator
+    exit_criteria:
+      - operator records a resumption root ADR with a funded monthly fixed-cost ceiling reflected in quality.yaml cost_budget
+      - tofu plan against surviving resources / backed-up state reviewed before any apply
+    tracking: [tastile/tastile-root#102]
+    status: in_progress
   - id: ms.m0-sot
     title: Architecture SoT established
     repos: [repo.root, repo.core]
@@ -25,7 +39,7 @@ milestones:
     status: done
   - id: ms.m2-foundation
     title: Target platform foundation
-    depends_on: [ms.m0-sot]
+    depends_on: [ms.m0-sot, ms.pause-paid-infra]
     authority: operator
     work:
       - GCP billing account, projects tastile-dev / tastile-staging / tastile-prod, budget alerts (cost_budget)
@@ -40,7 +54,7 @@ milestones:
     status: in_progress
   - id: ms.m3-core-staging
     title: Core on Cloud Run staging
-    depends_on: [ms.m1-freeze]
+    depends_on: [ms.m1-freeze, ms.pause-paid-infra]
     work:
       - staging配備に必要なproject/API/service identity/registry/IaCとInfisical境界を実確認する。ms.m2-foundation全体の性能PoC完了は着手条件にしない
       - OCI image with api / worker / migrate entrypoints; stripped binary; no AWS SDK default-chain probing (f.imds-startup)
@@ -84,13 +98,12 @@ milestones:
     tracking: [tastile/tastile-android#65, tastile/tastile-desktop#44, tastile/tastile-cli#5]
     status: planned
   - id: ms.m6-cutover
-    title: Production cutover AWS → GCP
+    title: Production launch on GCP (AWS source deleted 2026-10-20)
     depends_on: [ms.m5-clients, ms.m1-freeze]
     authority: operator
     work:
-      - rehearsal ×2 on staging (pg_dump / restore from an RDS snapshot copy with synthetic data)
-      - announced maintenance window ≤ 30 min; RDS → Cloud SQL logical dump / restore; DNS / edge switch
-      - AWS services stopped (not deleted) for 7 days as rollback path
+      - AWS runtime and RDS no longer exist (ADR-0024); there is no data migration or AWS rollback path, production starts from an empty Cloud SQL
+      - fresh production deploy behind the edge router; DNS / edge switch
     exit_criteria:
       - production /v1/ready, auth e2e and client smoke pass on GCP
       - journal entries in docs/journal/production for every external mutation
@@ -108,8 +121,8 @@ milestones:
     depends_on: [ms.m7-soak]
     authority: operator
     work:
-      - delete AWS stacks (foundation, staging-foundation), SES identities, S3 / CloudFront, IAM roles, SSM parameters
-      - final encrypted snapshot export of RDS to GCS, then delete RDS
+      - "done early 2026-10-20 (ADR-0024): AWS stacks, RDS (no export, beta had no users), EC2, S3 / CloudFront, ECR, Cognito deleted; Secrets Manager scheduled for deletion"
+      - verify remaining AWS IAM users / roles, SES identities and SSM parameters are gone or free
       - retire AWS-specific Infisical auth bindings / obsolete secret replicas while retaining Infisical as the canonical secret control plane
       - remove core deploy/aws, deploy/systemd, docs/production AWS runbooks (history stays in git)
     exit_criteria:
