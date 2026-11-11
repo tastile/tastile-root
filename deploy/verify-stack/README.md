@@ -89,7 +89,7 @@ docker compose up --build -d # 緊急再構成（volume があれば復元を検
 | DB 名 / credential | `tastile_verify` / `tastile`+`tastile-verify-only` | 運用 credential |
 | volume | `tastile-verify-pgdata`（専用） | 運用 volume・cloud 上 volume |
 | API port | 127.0.0.1:31400 | 運用公開 port |
-| network | `tastile-verify-stack_default` | 運用 network |
+| network | `verify-stack_default`（compose project 名の既定。`-p` を付けると `<project>_default` に変動。いずれも検証専用） | 運用 network |
 | 通知経路 | `TASTILE_DELIVERY_PROVIDER=fake`（外部送信なし） | 運用通知先 |
 | 認証 | 検証用 bridge secret（起動毎にランダム生成を推奨） | 運用 bridge secret / Cognito |
 | データ | 合成 fixture / シードのみ | 運用実データ |
