@@ -1,0 +1,76 @@
+# Verification stack for #105 (local-first practicalization).
+# Independent, non-production environment: dedicated DB, port, volume and
+# credentials. Never reuse operational data, secrets, or ports.
+#
+# Prereqs: side-by-side checkouts of tastile-core and (optionally)
+# tastile-web as siblings of the tastile-root worktree (or override
+# TASTILE_CORE_DIR / TASTILE_WEB_DIR).
+#
+# Bring up:      docker compose up --build -d
+# Tear down:     docker compose down -v   (also wipes the test DB)
+# Health:        curl http://127.0.0.1:31400/v1/health
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: tastile-verify-db
+    environment:
+      POSTGRES_USER: ${TASTILE_VERIFY_PG_USER:-tastile}
+      POSTGRES_PASSWORD: ${TASTILE_VERIFY_PG_PASSWORD:-tastile-verify-only}
+      POSTGRES_DB: ${TASTILE_VERIFY_PG_DB:-tastile_verify}
+      # Verification role is local-only; intentionally weak password.
+    volumes:
+      - tastile-verify-pgdata:/var/lib/postgresql/data
+    ports:
+      # Non-standard host port: never collides with an operational 5432.
+      - "127.0.0.1:${TASTILE_VERIFY_PG_PORT:-55432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ${TASTILE_CORE_DIR:-../../../tastile-core}
+      dockerfile: .wslc/Containerfile.v1
+    image: tastile-core-verify:${TASTILE_CORE_TAG:-local}
+    container_name: tastile-verify-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TASTILE_DATABASE_URL: postgres://${TASTILE_VERIFY_PG_USER:-tastile}:${TASTILE_VERIFY_PG_PASSWORD:-tastile-verify-only}@db:5432/${TASTILE_VERIFY_PG_DB:-tastile_verify}
+      DATABASE_URL: postgres://${TASTILE_VERIFY_PG_USER:-tastile}:${TASTILE_VERIFY_PG_PASSWORD:-tastile-verify-only}@db:5432/${TASTILE_VERIFY_PG_DB:-tastile_verify}
+      TASTILE_API_HOST: 0.0.0.0
+      TASTILE_API_PORT: "31400"
+      TASTILE_ENV: development
+      TASTILE_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      TASTILE_WEB_BRIDGE_SECRET: ${TASTILE_WEB_BRIDGE_SECRET:?set TASTILE_WEB_BRIDGE_SECRET (any random string, verification use only)}
+      TASTILE_DELIVERY_PROVIDER: fake
+      TASTILE_MAX_REQUEST_BODY_BYTES: "2097152"
+      TASTILE_REQUEST_TIMEOUT_SECONDS: "30"
+      AWS_EC2_METADATA_DISABLED: "true"
+    ports:
+      - "127.0.0.1:${TASTILE_API_PORT:-31400}:31400"
+    restart: unless-stopped
+
+  worker:
+    image: tastile-core-verify:${TASTILE_CORE_TAG:-local}
+    container_name: tastile-verify-worker
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      TASTILE_DATABASE_URL: postgres://${TASTILE_VERIFY_PG_USER:-tastile}:${TASTILE_VERIFY_PG_PASSWORD:-tastile-verify-only}@db:5432/${TASTILE_VERIFY_PG_DB:-tastile_verify}
+      DATABASE_URL: postgres://${TASTILE_VERIFY_PG_USER:-tastile}:${TASTILE_VERIFY_PG_PASSWORD:-tastile-verify-only}@db:5432/${TASTILE_VERIFY_PG_DB:-tastile_verify}
+      TASTILE_ENV: development
+      TASTILE_DELIVERY_PROVIDER: fake
+      AWS_EC2_METADATA_DISABLED: "true"
+    command: ["/app/worker"]
+    restart: unless-stopped
+
+volumes:
+  tastile-verify-pgdata:
+    name: tastile-verify-pgdata
