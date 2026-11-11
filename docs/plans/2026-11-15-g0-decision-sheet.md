@@ -3,21 +3,32 @@
 対象: tastile/tastile-root#105 / G0「運用境界と実行可能なベースラインを確定」
 本シートは判定の材料である。結論を緩めず、go を出すための解消項目を隠さない。
 
+> **2026-11-11 更新:** T01 の追加調査で旧 origin の所在が確定した。
+> 確認した範囲（Cloudflare DNS / tunnel / Worker route、TCP 到達性、Infisical ホスト、
+> Windows/WSL 端末、Tailscale 端末、端末上の配置）には**稼働中の運用スタックが見当たらない**。
+> 「所在不明」ではないが、未確認領域（追補 §7）が残るため「存在しない」とも断定しない。
+> 判断項目が性質変更になったため、§解消項目 1 と §判定 を書き換えた。
+> 詳細証拠は
+> [`2026-11-11-t01-operational-stack-located.md`](./2026-11-11-t01-operational-stack-located.md)。
+
 ---
 
-## 判定材料（固定値）
+## 判定材料（固定値、2026-11-11 実測）
 
 | 項目 | 値 |
 | --- | --- |
-| tastile-core 固定 SHA | 修正確定: `e5a02f0decffa0455ecd391ad2a364047b2a94bd`（branch `251`、PR #256）。現行 `main` `c37b49f` は CI 赤のまま（根本原因は ledger §4 同じ） |
-| tastile-web 固定 SHA | 検証実測 SHA: `3e7842e0fcc493f3f713c6195a77852e2843efa4`（branch `203`、#204 PR head, #200 修正を含む）。`release-1-1-0` HEAD `7db3be160b452eb30db8f5099ceb90d1f9866b6a` は bridge 修正を含まないため検証値には使えない。`main` の `bun.lock` は next 16.3.4（#200 の脆弱版）。依存修正済みなのは `release-1-1-0` 側（web#205、base 未マージ） |
-| tastile-android 固定 SHA | `8bef645246ead1c9720165f74867943f328fb945`（`main`） |
-| tastile-root 固定 SHA | `9a40e814854ef45001c8586975050a24c0033f95`（`main`）。#105 作業ブランチ `105` で台帳/verify-stack を提出済み |
-| 運用境界の文書化 | 完了（T01 read-only 台帳: `2026-11-11-local-first-t01-readonly-ledger.md`） |
-| 検証環境 | 隔離実測済み（台帳 §5）。Core CI 回帰はローカル Colima + 新規 PostgreSQL 17 で 935 passed / 0 failed を確認。CI (`c18284d`・`e5a02f0`) 両 commit で success（2026-11-11）。fresh build の api/worker image を compose で実起動し `/v1/health` = 200、`v1_migration` = 63 を確認。api 再起動・`pg_dump`/restore も検証済み |
-| G1 前提（実測） | Web サインイン → bridge 経由で `tastile_api_token` 発行 → `/api/proxy/v1/tiles` 200 が実 Chromium で確認できた。Web 側 `tastile_api_token` の `expires_at` 欠落で動作していなかった（web#203 で修正、#204 で提出）。検証に用いた Web SHA は `3e7842e0fcc493f3f713c6195a77852e2843efa4`（branch `203`、base は `8b0dd805acb9b4fc03cd2a72b80386dd9dfd59fa` = web#200 修正を含む `200-clean` を merge したもの。提出済みの PR #204 head） |
-| Web 脆弱依存 | `release-1-1-0` には 2026-10-14 Critical RCE 系の修正が入っていない。web#205（next 16.4.2 / better-auth 1.7.7 / zod 4.6.6 / sharp / undici / glob / body-parser / qs の非対象範囲）を提出、CI green。`main` には未反映のまま（#200） |
-| G1 起動コマンド | `cd deploy/verify-stack && docker compose -f compose.yaml up --build -d`（Compose の `-f` 明示かカレントを `deploy/verify-stack` に限定する）→ `curl http://127.0.0.1:31400/v1/health` |
+| tastile-core | `main` = `8e14178cf1ad`（CI success 2026-11-11T07:42Z）。#256 は merge 済み。CI 赤は解消 |
+| tastile-core（進行中） | PR #259（core#257: profile PATCH の Idempotency-Key 必須化）。CI green を確認して merge 対象 |
+| tastile-root | `main` = `2d8a2af2fbba`（#106 merge 済み、Root quality gate success） |
+| tastile-web | `main` = `5212e995f2ad`。**`bun.lock` は next 16.3.4 / better-auth 1.7.3 のまま**（#200 未反映） |
+| tastile-web（修正済み） | `release-1-1-0` = `a782a2ff3a66`。next 16.4.2 / better-auth 1.7.7 / zod 4.6.6（#205 #204 反映済み、CI success） |
+| tastile-android | `main` = `8bef645246ea` |
+| tastile-openapi | `main` = `8461ffa34594` |
+| 運用スタック | **確認した範囲に稼働スタックなし**。旧 origin は AWS `52.194.61.218`（本番）/ `52.194.223.15`（staging）で 22/443 閉塞・Cloudflare 522。`TASTILE_DATABASE_URL` の RDS エンドポイントは NXDOMAIN。R2 / AWS 現況 / 旧 origin バックアップ / 端末ローカル DB は未確認（追補 §7） |
+| 運用境界の文書化 | 完了（台帳 + 追補。運用VMを変更対象外とする境界は不変） |
+| 検証環境 | 隔離実測済み。`tastile-verify-{db,api,worker}` 稼働、`/v1/health` 200、`v1_migration` 63、api 再起動後も 63、`pg_dump`/restore 一致 |
+| G1 前提（実測） | Web sign-up → bridge → `tastile_api_token` 発行 → `/api/proxy/v1/tiles` 200 を実 Chromium で確認済み（Web `3e7842e0`）。**`main` ではなく `release-1-1-0` 系の SHA**であることに注意 |
+| G1 起動コマンド | `cd deploy/verify-stack && docker compose -f compose.yaml up --build -d` → `curl http://127.0.0.1:31400/v1/health` |
 
 ---
 
@@ -25,31 +36,46 @@
 
 | G0 ACCEPT の条件 | 結果 | 証拠 |
 | --- | --- | --- |
-| 運用VMの正本保護が文書化されている | **未充足**。作業環境から運用スタックを観測できなかった（DNS/522、端末の containers/ports/SSH 不達）。正本の所在と参照手段が判定材料として不足 | 台帳 §4 |
+| 運用VMの正本保護が文書化されている | **未充足（性質変更）**。確認した範囲に稼働スタックが見当たらず、保護を証明できない。ACCEPT は「正本を保護できている」ことを要求しており、これは充足ではない | 追補 §0 / §3 / §4 |
 | 検証環境の隔離が文書化されている | 充足 | 台帳 §5 |
-| 固定SHA・起動依存の課金禁止が遵守されている | 遵守。無償 Colima/OSS のみ使用。AWS/GCP 再開なし | 台帳 §5 / #102 |
-| 権限境界が文書化されている | 充足（検証環境は loopback のみ）。運用側の境界は未確認 | 台帳 §1 / §7 |
-| 判定資料が用意されている | 充足（本シート + 台帳 + PR #256/#106） | |
-| 未確認事項が隠れていない | 充足（本シートの「解消項目」と台帳 §6） | |
+| 固定SHA・起動依存の課金禁止が遵守されている | 遵守。無償 Colima / OSS のみ。AWS / GCP の再開なし | 台帳 §5、#102 |
+| 権限境界が文書化されている | 充足（検証環境は loopback のみ） | 台帳 §1 / §7 |
+| 判定資料が用意されている | 充足 | 本シート + 台帳 + 追補 + #259 |
+| 未確認事項が隠れていない | 充足 | 追補 §7 |
 
 ---
 
 ## 解消項目（go を出すための残件）
 
-1. **運用スタックの所在と read-only 参照経路の提示**（正本保護の前提）。提示があれば台帳に追記し再判定する。提示がなければ G0 は no-go。
-   - 関連して、運用実データの抽出時は権限・匿名化・保持期間の確定が前提（台帳 §6-1）。
-2. **Core PR #256（= `e5a02f0`）の review と merge 承認**。`main` CI 赤のため、G0 の「固定SHA・起動依存」証拠は merge 後の `main` SHA で取り直す。
-3. **Web 脆弱依存の本番反映は別判定**。PR #173（release-1-1-0）の merge と release approval が必要。
-4. Web `T200` は解消済み以外に **外部認証依存が残る**（Better Auth / Cognito 切替、実メール送受信は運用判断）と明記する。
+1. **#105 のスコープ判断（本人）。** 確認した範囲に稼働スタックが見当たらないため、#105 の「実予定を正本とする shadow 試用」は現状のままでは成立しない。次のいずれかの決定が必要。
+   - **A. 運用スタックを再建**する（旧 origin 復旧 or 新規構築）。再建後に「正本保護」を再判定する。
+   - **B. 正本なきまま進める**（T14/T15 を合成 fixture のみに限定し、G5 ACCEPT を書き換える）。
+   - **C. G0〜G4 のみ進める**（実データ比較を前提から外し、実用性の証明が合成データ止まりであることを明示して受容）。
+   本シートは A/B/C を選ばない。**これは計画のスコープ変更であり、実装側の判断ではない。**
+   各案を選んだ場合に G0 の go 条件へ追加される前提は次のとおり。
+   - **A を選ぶ場合**: 再建された正本の所在・稼働確認、read-only 参照経路、保護の実測（権限境界・書込経路の遮断）が揃ってから go。
+     再建そのものは G0 の前提作業であり、再建後の再判定を経る。
+   - **B / C を選ぶ場合**: #105 の G5 ACCEPT（実データでの shadow 試用）を書き換え、
+     合成 fixture での比較計画と「実用性の証明範囲」を明記した版の承認が go 条件。
+     実データ抽出の未決（台帳 §6-1）は引き続き未決のまま残す。
+2. **Core PR #259 の merge**（core#257）。CI green・レビュー後に統合。`main` の CI は既に回復済み。Core #260（#258）も同様。
+3. **Web の脆弱依存**は `release-1-1-0` で解消済み、`main` は未反映。本番反映は PR #173 の release 承認（別判定）。
+4. Web の外部認証依存（Better Auth、実メール送受信）は運用判断として残る。
 
 ---
 
 ## 判定
 
 - **現状: No-go。** 未確定の運用境界がある以上、#105 の規則に従って go にはできない。
-- go にできる最小条件: (1) 運用スタックの所在と read-only 参照手段の提示、(2) Core #256 merge 承認と `main` CI green、(3) #106 merge、(4) 本シートに対する本人合意。
-- go になった場合、次期スケジュールの影響: T04（verify-stack 実起動）以降を 11/15 19:00 以降に直列で着手する。T14/T15 は read-only 経路なしには進めない。
-- go にならない場合: G0 を no-go と記録し、11/22 の次回判定枠（#105 の週次レビュー）で再判定する。T04〜T13 の検証環境内準備は並行して継続してよい。T14/T15 と、実データ抽出、7 日 shadow 試用は開始しない。
+  以前との差は「所在が分からない」から「確認した範囲に正本が見当たらない」への変化であり、
+  **G0 を PASS に近づけるものではない。**
+- go にできる最小条件:
+  1. 解消項目 1 の A/B/C の決定（本人）と、選んだ案の前提条件の充足
+  2. Core #259（および #260）の merge
+  3. 本シートに対する本人合意
+- go にならない場合: G0 を no-go と記録し、11/22 の次回判定枠で再判定する。
+  **T04〜T13（検証環境内の実装・検証）は並行して継続してよい**（本作業でも進行中）。
+  T14/T15、実データ抽出、7 日 shadow 試用は開始しない。
 
 ---
 
@@ -57,14 +83,14 @@
 
 | ブロッカー | 種別 | 解消の所在 |
 | --- | --- | --- |
-| 運用スタックの所在未確定 | 判断事項（本人または運用VMの管理者） | #105 / 本シート §解消項目 1 |
-| Core PR #256 未マージ（`main` CI 赤） | 人による merge 承認 | PR #256（review 完了後、既存規則に従う） |
-| Web 脆弱依存の release 未承認 | リリース承認 | PR #173（release-1-1-0） |
+| 運用スタックの所在は確定したが稼働実体を確認できない → #105 の前提不成立 | **判断事項（本人）** | #105 / 追補 §5 |
+| Core PR #259 未マージ | merge 承認 | PR #259 |
+| Web 脆弱依存の release 未承認 | リリース承認 | PR #173（`release-1-1-0`） |
 
 ---
 
 ## 11/22 週次レビューへの持ち越し
 
-- G0 の判定結果と、未確定の運用境界に対する解消期限。
-- Core #256 のレビュー状況・CI 結果。
-- Web 側の release 承認可否。本番再デプロイは本計画に含まれず、#200 は別判定。
+- 解消項目 1 の決定（A/B/C）と、それに伴う #105 のスコープ・G5 ACCEPT の書き換え。
+- Core #259 のレビュー・CI 結果。
+- Web 側の release 承認可否。本番再デプロイは本計画に含まれない。
