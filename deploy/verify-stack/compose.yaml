@@ -46,7 +46,10 @@ services:
       TASTILE_API_HOST: 0.0.0.0
       TASTILE_API_PORT: "31400"
       TASTILE_ENV: development
-      TASTILE_ALLOWED_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      # The browser talks to Core directly on localhost, so Core must allow
+      # the web origin. Overridable so the stack still works when :3000 is
+      # taken and the dev server has to run on another port.
+      TASTILE_ALLOWED_ORIGINS: ${TASTILE_ALLOWED_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
       TASTILE_WEB_BRIDGE_SECRET: ${TASTILE_WEB_BRIDGE_SECRET:?set TASTILE_WEB_BRIDGE_SECRET (any random string, verification use only)}
       TASTILE_DELIVERY_PROVIDER: fake
       TASTILE_MAX_REQUEST_BODY_BYTES: "2097152"
