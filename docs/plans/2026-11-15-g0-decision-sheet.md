@@ -15,7 +15,8 @@
 | tastile-root 固定 SHA | `9a40e814854ef45001c8586975050a24c0033f95`（`main`）。#105 作業ブランチ `105` で台帳/verify-stack を提出済み |
 | 運用境界の文書化 | 完了（T01 read-only 台帳: `2026-11-11-local-first-t01-readonly-ledger.md`） |
 | 検証環境 | 隔離実測済み（台帳 §5）。Core CI 回帰はローカル Colima + 新規 PostgreSQL 17 で 935 passed / 0 failed を確認。CI (`c18284d`・`e5a02f0`) 両 commit で success（2026-11-11）。fresh build の api/worker image を compose で実起動し `/v1/health` = 200、`v1_migration` = 63 を確認。api 再起動・`pg_dump`/restore も検証済み |
-| G1 前提 | Web サインイン → `tastile_api_token` 発行 → `/api/proxy/v1/tiles` 200 が実 Chromium で確認できたが、Web `release-1-1-0` の bridge 経路は `expires_at` 欠落で動作していなかった（web#203 で修正、#204 で提出） |
+| G1 前提 | Web サインイン → `tastile_api_token` 発行 → `/api/proxy/v1/tiles` 200 が実 Chromium で確認できたが、Web `release-1-1-0` の bridge 経路は `expires_at` 欠落で動作していなかった（web#203 で修正、#204 で提出、CI green） |
+| Web 脆弱依存 | `release-1-1-0` には 2026-10-14 Critical RCE 系の修正が入っていない。web#205（next 16.4.2 / better-auth 1.7.7 / zod 4.6.6 / sharp / undici / glob / body-parser / qs の非対象範囲）を提出、CI green。`main` には未反映のまま（#200） |
 | G1 起動コマンド | `deploy/verify-stack/compose.yaml`（`TASTILE_WEB_BRIDGE_SECRET=<ランダム> docker compose up --build -d` → `curl http://127.0.0.1:31400/v1/health`） |
 
 ---
