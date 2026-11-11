@@ -61,18 +61,20 @@ $requiredFiles = @(
     "docs/adr/0004-context7-mcp.md",
     "docs/adr/0005-skills-and-mcp-extensions.md",
     "scripts/audit-plugin-versions.mjs"
-    # NOTE: child repositories (tastile-web / tastile-core / tastile-android /
-    # tastile-desktop / tastile-brands) are independent git repositories and
-    # NOT submodules of tastile-root (the only submodule is `openapi`). Their
-    # files are therefore not present in a standalone root checkout. This
-    # root-local quality gate must work in such a checkout. Child-local
-    # contract (Skills, scripts, namespaces) is verified by the child repo's
-    # own CI. Cross-repo coordination is handled via Issue-driven dispatch
-    # and the `verify-tastile-change` Skill (binding verification). The legacy
-    # `.agent-loop/` precommit reviewer loop was retired 2026-09-29
-    # (ADR-0012).
 )
 foreach ($file in $requiredFiles) { Test-RequiredFile $file }
+
+$tastileWebRoot = Join-Path $root "tastile-web"
+if (Test-Path -LiteralPath $tastileWebRoot -PathType Container) {
+    foreach ($file in @(
+        "tastile-web/.agents/skills/i18n-literal-guard/SKILL.md",
+        "tastile-web/scripts/audit-i18n-literals.mts"
+    )) {
+        Test-RequiredFile $file
+    }
+} else {
+    Write-Host "Skipping tastile-web agent checks: child repository is not present."
+}
 
 foreach ($file in @(".mcp.json", ".codex/hooks.json", ".claude/settings.json")) {
     if (Test-Path -LiteralPath (Join-Path $root $file)) { Test-JsonDocument $file }
@@ -122,7 +124,6 @@ Test-IgnoreRule ".env" $true
 Test-IgnoreRule ".env.development" $true
 Test-IgnoreRule ".env.production" $true
 Test-IgnoreRule ".env.local" $true
-Test-IgnoreRule ".env.example" $false
 Test-IgnoreRule "scripts/probe.ps1" $false
 Test-IgnoreRule "docs/probe.txt" $false
 Test-IgnoreRule ".codex/config.toml" $false

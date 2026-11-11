@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/quality.json",
+  "title": "Tastile quality goals, SLOs, KPIs, cost budget",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "as_of", "quality_goals", "slos", "engineering_kpis", "cost_budget"],
+  "properties": {
+    "schema": { "const": "tastile.architecture/quality@1" },
+    "as_of": { "$ref": "common.json#/$defs/asOf" },
+    "quality_goals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "rank", "name", "rationale"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^qg\\." },
+          "rank": { "type": "integer", "minimum": 1 },
+          "name": { "$ref": "common.json#/$defs/text" },
+          "rationale": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    },
+    "slos": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "goal", "sli", "target", "status"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^slo\\." },
+          "goal": { "$ref": "common.json#/$defs/ref" },
+          "sli": { "$ref": "common.json#/$defs/text" },
+          "target": { "type": "object", "minProperties": 1 },
+          "baseline": { "$ref": "common.json#/$defs/text" },
+          "note": { "$ref": "common.json#/$defs/text" },
+          "status": { "enum": ["unmeasured", "measured-locally", "measured"] }
+        }
+      }
+    },
+    "engineering_kpis": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "goal", "definition", "target", "baseline"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^kpi\\." },
+          "goal": { "$ref": "common.json#/$defs/ref" },
+          "definition": { "$ref": "common.json#/$defs/text" },
+          "target": { "$ref": "common.json#/$defs/text" },
+          "baseline": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    },
+    "cost_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["currency", "period", "scope", "target", "estimate_from", "alert"],
+      "properties": {
+        "currency": { "const": "USD" },
+        "period": { "const": "month" },
+        "scope": { "$ref": "common.json#/$defs/text" },
+        "target": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pre_launch"],
+          "properties": { "pre_launch": { "type": "number" }, "post_launch_per_active_user": { "type": "number" } }
+        },
+        "estimate_from": { "$ref": "common.json#/$defs/text" },
+        "alert": { "$ref": "common.json#/$defs/text" }
+      }
+    }
+  }
+}

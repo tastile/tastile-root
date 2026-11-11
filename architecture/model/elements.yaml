@@ -1,0 +1,352 @@
+# Tastile system elements (C4: person / software system / container / component / external system).
+# Canonical for: fd.system-architecture (see sot-registry.yaml).
+# lifecycle: retained = exists now and stays in target / planned = target only, not built yet /
+#            retiring = exists now, removed by the roadmap milestone in `retire_by`.
+schema: tastile.architecture/elements@1
+as_of: 2026-09-29
+
+elements:
+  # ---------------------------------------------------------------- people
+  - id: actor.user
+    kind: person
+    name: User
+    description: >-
+      自分の生活・仕事の意図と制約を Tastile に渡し、提示された「今やること」を実行する個人。
+      初期ターゲットは勤務時間ではなく集中量が成果に直結するフリーランサー (product 定義は core 正本)。
+    lifecycle: retained
+  - id: actor.operator
+    kind: person
+    name: Operator
+    description: >-
+      開発・運用・リリース判断を行う人間 (現状 1 名)。production mutation、課金開始、公開判断の authority を持つ。
+    lifecycle: retained
+  - id: actor.dev-agent
+    kind: person
+    name: Development agent
+    description: >-
+      Claude Code / Codex / OpenCode 等の開発 agent。repository と GitHub を通じてのみ作業し、
+      production mutation の authority を持たない (docs/agent-orchestration.md §4)。
+    lifecycle: retained
+  - id: actor.api-client
+    kind: person
+    name: Automation client
+    description: >-
+      ユーザー本人が発行した scoped API token で公開 API を使う自動化 (CLI script、AI assistant 等)。
+      人間と同じ Command / Read API のみを使い、専用 backdoor を持たない。
+    lifecycle: retained
+
+  # ------------------------------------------------------- software system
+  - id: sys.tastile
+    kind: software_system
+    name: Tastile
+    description: >-
+      生活上の意図・要求・制約を受け取り、分単位の実行可能な時間構造へ解決し、実行と崩れた後の再配置までを
+      制御する execution-control service。意味の正本は tastile-core docs/product と v1/ にある。
+    lifecycle: retained
+
+  # ------------------------------------------------------------ containers
+  - id: ctr.core-api
+    kind: container
+    parent: sys.tastile
+    name: Core API
+    technology: Rust / axum / SQLx (crates-v1/api)
+    repository: repo.core
+    description: >-
+      唯一の business / domain logic 実行点。Command API (書き込み唯一の入口)、Read Model、Sync API、
+      API token 管理、owner boundary の強制を担う。stateless HTTP process。
+    lifecycle: retained
+  - id: ctr.core-worker
+    kind: container
+    parent: sys.tastile
+    name: Core Worker
+    technology: Rust (crates-v1/worker)
+    repository: repo.core
+    description: >-
+      Work Item / Outbox を lease 付きで drain し、Materialization、SourceTile horizon fill、Execution due、
+      Decision 評価、Delivery、Prompt を処理する。target では外部 scheduler に起動される stateless drain
+      (ADR-0017)。process の起動・停止は domain semantics に影響しない。
+    lifecycle: retained
+  - id: ctr.core-migrate
+    kind: container
+    parent: sys.tastile
+    name: Core Migration Job
+    technology: Rust one-shot job (crates-v1/storage migrations)
+    repository: repo.core
+    description: >-
+      schema migration を deploy ごとに 1 回だけ DDL 権限の role で実行する one-shot job。
+      現状は api / worker の起動時に DDL 権限で実行されている (retiring behaviour, ADR-0017)。
+    lifecycle: planned
+  - id: ctr.domain-db
+    kind: data_store
+    parent: sys.tastile
+    name: Domain database
+    technology: PostgreSQL 17 (database `tastile`)
+    repository: repo.core
+    description: >-
+      Tastile の唯一の system of record。owner / subject、Tile、SourceTile、Placement、Execution、ChangeSet、
+      Work Item、API token hash、Delivery endpoint (暗号化) 等を保持する。schema 正本は core migrations。
+    lifecycle: retained
+  - id: ctr.web
+    kind: container
+    parent: sys.tastile
+    name: Web application
+    technology: Next.js 16 / React 19 / TypeScript / Bun (standalone server)
+    repository: repo.web
+    description: >-
+      公開サイト (LP・料金・法務)、ブラウザ用 dashboard (thin client)、BFF、アカウント認証 (Better Auth)、
+      native client 接続認可、課金 (Stripe) の web 面を持つ。domain logic を持たない。
+    lifecycle: retained
+  - id: ctr.auth-db
+    kind: data_store
+    parent: sys.tastile
+    name: Auth database
+    technology: PostgreSQL 17 (database `tastile_auth`, least-privilege role)
+    repository: repo.web
+    description: >-
+      Better Auth の user / account / session / verification / two-factor を保持する。domain table への権限はない。
+      domain-db と同一 instance の別 database (ADR-0014)。
+    lifecycle: retained
+  - id: ctr.edge
+    kind: container
+    parent: sys.tastile
+    name: Edge
+    technology: Cloudflare DNS / TLS / WAF / Workers
+    repository: repo.root
+    description: >-
+      公開 hostname の DNS・TLS 終端・WAF・rate limit・cache と、Cloud Run origin への routing を担う。
+      edge 設定の宣言的正本は root architecture/model/deployment.yaml の hostname 定義。
+    lifecycle: retained
+  - id: ctr.downloads
+    kind: data_store
+    parent: sys.tastile
+    name: Download distribution
+    technology: Cloudflare R2 bucket + custom domain download.tastile.app
+    repository: repo.desktop
+    description: >-
+      desktop installer 等の immutable versioned object と短 cache の channel manifest を配信する。
+    lifecycle: retained
+  - id: ctr.media
+    kind: data_store
+    parent: sys.tastile
+    name: User media storage
+    technology: Cloudflare R2 (S3 API) + custom domain media.tastile.app
+    repository: repo.core
+    description: >-
+      avatar 等の user upload。current は AWS S3 + CloudFront (avatar_s3.rs)。target は R2 (ADR-0014)。
+    lifecycle: planned
+  - id: ctr.android
+    kind: container
+    parent: sys.tastile
+    name: Android app
+    technology: Kotlin / Jetpack Compose
+    repository: repo.android
+    description: >-
+      Android thin client。入力・表示・OS 通知 (exact alarm)・プラットフォーム統合のみを持ち、
+      何をいつ通知するかは Core の read model に従う。
+    lifecycle: retained
+  - id: ctr.desktop
+    kind: container
+    parent: sys.tastile
+    name: Windows desktop app
+    technology: C# / WinUI 3 / .NET
+    repository: repo.desktop
+    description: >-
+      Windows thin client。tray、toast、介入 window 等の OS 統合を持つ。domain policy を持たない。
+    lifecycle: retained
+  - id: ctr.cli
+    kind: container
+    parent: sys.tastile
+    name: CLI / TUI
+    technology: Rust / clap / ratatui
+    repository: repo.cli
+    description: >-
+      公開 API だけを使う公式 command-line / TUI client。Core internal crate に依存しない。
+    lifecycle: retained
+  - id: ctr.ios
+    kind: container
+    parent: sys.tastile
+    name: iOS / macOS apps
+    technology: Swift / SwiftUI (未着手)
+    repository: repo.ios
+    description: 将来の Apple platform thin client。repository は空の placeholder。
+    lifecycle: planned
+
+  # ------------------------------------------------------------ components
+  - id: cmp.core.http
+    kind: component
+    parent: ctr.core-api
+    name: HTTP surface
+    technology: axum router (api/src/lib.rs, handlers/)
+    repository: repo.core
+    description: /v1 Command / Read / Sync / token endpoint と rate limit・CORS・body 上限。
+    lifecycle: retained
+  - id: cmp.core.auth
+    kind: component
+    parent: ctr.core-api
+    name: AuthContext
+    technology: api/src/handlers/common.rs, scope.rs
+    repository: repo.core
+    description: >-
+      credential を検証し owner / actor / scope を確定する唯一の場所。target の credential は
+      (a) core API token (opaque, hash 保存, scope 付き) と (b) web BFF の Better Auth JWT (JWKS 検証)。
+      web bridge secret + user header 経路は retiring (ADR-0016)。
+    lifecycle: retained
+  - id: cmp.core.domain
+    kind: component
+    parent: ctr.core-api
+    name: Domain model
+    technology: crates-v1/domain (pure Rust)
+    repository: repo.core
+    description: v1 仕様 (Tile / SourceTile / Placement / Execution / ChangeSet / Resolution / Decision ...) の実装。
+    lifecycle: retained
+  - id: cmp.core.storage
+    kind: component
+    parent: ctr.core-api
+    name: Storage
+    technology: crates-v1/storage (SQLx repositories, embedded migrations)
+    repository: repo.core
+    description: PostgreSQL repository と migration 定義。worker / migrate job と共有される crate。
+    lifecycle: retained
+  - id: cmp.core.worker-drain
+    kind: component
+    parent: ctr.core-worker
+    name: Drain loop
+    technology: worker/src/main.rs + *_tick.rs
+    repository: repo.core
+    description: >-
+      outbox drain、source horizon fill、execution due、decision、delivery、prompt の各 tick。
+      FOR UPDATE SKIP LOCKED と lease で多重起動に安全。
+    lifecycle: retained
+  - id: cmp.web.site
+    kind: component
+    parent: ctr.web
+    name: Public site
+    technology: src/app (/, /pricing, /privacy, /terms, /tokushoho, /download, /docs)
+    repository: repo.web
+    description: LP、料金、法務、download 導線、API docs。edge cache 可能な公開面。
+    lifecycle: retained
+  - id: cmp.web.dashboard
+    kind: component
+    parent: ctr.web
+    name: Dashboard UI
+    technology: src/app/dashboard, src/features, src/widgets
+    repository: repo.web
+    description: ブラウザ thin client。表示と入力のみ。Effective 値を自前で再計算しない。
+    lifecycle: retained
+  - id: cmp.web.bff
+    kind: component
+    parent: ctr.web
+    name: BFF proxy
+    technology: src/app/api/proxy/[...path]
+    repository: repo.web
+    description: >-
+      browser session を Core credential に変換して Core API へ中継する。Core origin は server-side config
+      だけから解決し、browser に localhost 等の内部 origin を露出しない。
+    lifecycle: retained
+  - id: cmp.web.auth
+    kind: component
+    parent: ctr.web
+    name: Account authentication (Better Auth)
+    technology: better-auth (email+password, Google, Apple, email OTP, TOTP, bearer, jwt)
+    repository: repo.web
+    description: >-
+      Tastile の identity provider。account lifecycle を所有し、target では Core 向け短命 JWT を署名し
+      JWKS を公開する (ADR-0016)。
+    lifecycle: retained
+  - id: cmp.web.connect
+    kind: component
+    parent: ctr.web
+    name: Native client authorization
+    technology: /cli/authorize + /api/cli/token (current), /connect/* (target)
+    repository: repo.web
+    description: >-
+      Android / Desktop / CLI が system browser で sign-in し、Authorization Code + PKCE で Core API token を
+      得る共通 flow。current の /api/mobile/api-token (session bearer 直 mint) は retiring。
+    lifecycle: retained
+  - id: cmp.web.billing
+    kind: component
+    parent: ctr.web
+    name: Billing
+    technology: Stripe Checkout / Portal / Webhook (src/app/api/stripe, lib/billing)
+    repository: repo.web
+    description: 課金 UI と Stripe webhook 受信。課金による entitlement の意味は core product 定義に従う (未確定, oq.billing-model)。
+    lifecycle: retained
+  - id: cmp.edge.router
+    kind: component
+    parent: ctr.edge
+    name: Edge router Worker
+    technology: Cloudflare Worker
+    repository: repo.root
+    description: >-
+      app / api hostname の request を Cloud Run の run.app origin へ転送し、origin 直アクセス防止用の
+      edge assertion header を付与する (ADR-0014)。
+    lifecycle: planned
+
+  # ------------------------------------------------------ external systems
+  - id: ext.google-identity
+    kind: external_system
+    name: Google Identity
+    description: Google sign-in (web OAuth、Android Credential Manager ID token)。
+    lifecycle: retained
+  - id: ext.apple-identity
+    kind: external_system
+    name: Sign in with Apple
+    description: Apple sign-in (web OAuth)。
+    lifecycle: retained
+  - id: ext.stripe
+    kind: external_system
+    name: Stripe
+    description: 決済・subscription。
+    lifecycle: retained
+  - id: ext.email
+    kind: external_system
+    name: Transactional email provider
+    description: >-
+      認証 (verification / OTP / reset) と Delivery email の送信。target は Resend (poc.email-provider で確定)。
+      AWS SES は production access が不承認のため retiring。
+    lifecycle: retained
+  - id: ext.fcm
+    kind: external_system
+    name: Firebase Cloud Messaging
+    description: Android push (wake-up hint)。target は Core worker が FCM HTTP v1 を service account で直接呼ぶ。
+    lifecycle: planned
+  - id: ext.webpush
+    kind: external_system
+    name: Web Push services
+    description: browser push (VAPID)。wake-up hint のみ。
+    lifecycle: planned
+  - id: ext.google-calendar
+    kind: external_system
+    name: External calendars
+    description: >-
+      Google Calendar 等。Tastile の SoT にはしない補助入力 / 相互運用先 (product 定義)。v1 では未実装の integration。
+    lifecycle: planned
+  - id: ext.github
+    kind: external_system
+    name: GitHub
+    description: source、Issue / Project (work state 正本)、PR review、Actions (public repo CI)、Releases。
+    lifecycle: retained
+  - id: ext.google-play
+    kind: external_system
+    name: Google Play
+    description: Android 配布。
+    lifecycle: retained
+  - id: ext.scheduler
+    kind: external_system
+    name: Cloud Scheduler / Cloud Tasks
+    description: worker drain を定期起動・targeted wake する trigger。state は持たない (ADR-0017)。
+    lifecycle: planned
+  - id: ext.infisical
+    kind: external_system
+    name: Infisical (self-hosted)
+    description: current secret store。target では GCP Secret Manager に置換し retire (ADR-0015)。
+    lifecycle: retiring
+    retire_by: ms.m8-decommission
+  - id: ext.aws
+    kind: external_system
+    name: AWS (ap-northeast-1)
+    description: >-
+      current runtime (EC2 + systemd、RDS、SSM、S3、CloudFront、SES、Secrets Manager、Cognito 残骸)。
+      target では使用しない (ADR-0014)。
+    lifecycle: retiring
+    retire_by: ms.m8-decommission

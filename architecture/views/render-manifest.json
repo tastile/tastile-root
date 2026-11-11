@@ -1,0 +1,39 @@
+{
+  "generator": "scripts/architecture/render.ts",
+  "d2": "v0.9.0",
+  "layout": "elk",
+  "views": {
+    "architecture/views/context.d2": {
+      "d2_sha256": "4e51fb96391699bd4f4eefeedee23ccf956b4beb1ca0ef801e31492dd126b37c",
+      "svg": "architecture/views/context.svg"
+    },
+    "architecture/views/containers.d2": {
+      "d2_sha256": "525dab521df2a8930ecf8852e1922f2dce2efd30b44027960c152220f4670706",
+      "svg": "architecture/views/containers.svg"
+    },
+    "architecture/views/components.d2": {
+      "d2_sha256": "e915af6ae914c07427ff9b9bdc37036b169c7b56eb0a8653b897d3353d2c94cf",
+      "svg": "architecture/views/components.svg"
+    },
+    "architecture/views/trust-zones.d2": {
+      "d2_sha256": "bc3fcf11718431886aef526dc2dbb3faa490a20227a6e9ab9565fde1e089f5c8",
+      "svg": "architecture/views/trust-zones.svg"
+    },
+    "architecture/views/deployment-production.d2": {
+      "d2_sha256": "820abaabdaa55fba9f414f7c7ea2e46fb5a6ae592661c8a6889f79306141b40f",
+      "svg": "architecture/views/deployment-production.svg"
+    },
+    "architecture/views/deployment-staging.d2": {
+      "d2_sha256": "dbb8aa040ef25cab545bfabc869f1b39c68df198539921428e23cf782029bc88",
+      "svg": "architecture/views/deployment-staging.svg"
+    },
+    "architecture/views/deployment-production-current.d2": {
+      "d2_sha256": "0225e2601941ab7e0cd01703739749e70aa7df9b94d1371b96ea146b12a90803",
+      "svg": "architecture/views/deployment-production-current.svg"
+    },
+    "architecture/views/contract.d2": {
+      "d2_sha256": "0bca83c42da3eee22c62f33344b404992112acbd53c2568da103c85e856b30cc",
+      "svg": "architecture/views/contract.svg"
+    }
+  }
+}

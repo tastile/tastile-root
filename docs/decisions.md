@@ -1,4 +1,23 @@
-# Decisions
+# Decisions (frozen log)
+
+> **2026-09-29 で凍結した履歴 log (ADR-0013)。** 新しい判断は `docs/adr/NNNN-*.md` (≥ 0013 は YAML front matter 付き) に書く。
+> 以下の entry は当時の判断の記録であり、現在の状態は `architecture/` と各 ADR が正本。
+>
+> - 2026-09-23 Infisical: target runtime については ADR-0015 で superseded。
+> - 2026-08-22 Better Auth: identity provider としての決定は有効。BFF → Core の bridge secret 契約 (決定 3) は ADR-0016 で
+>   JWT assertion に置換予定。auth DB を「同一 private RDS」に置く点 (決定 2) は ADR-0014 で Cloud SQL の別 database に読み替える。
+>   メール送信を SES で行う点 (決定 5) は ADR-0018 で Resend に置換。
+> - 2026-06-19 zero-warning sweep: 当時の snapshot。
+
+## 2026-09-23 — Infisical を workspace secret SoT に採用 (ADR-0012)
+
+Tastile 全 repository の secret 正本をユーザー管理のセルフホスト Infisical に統一する。公開ホスト名は汎用ドメインとし、Tastile の文字列を含めない。同一環境の local / CI /
+production は同じ project / environment / service path を参照する。開発者は Infisical CLI
+対話認証、GitHub Actions は OIDC machine identity、EC2 は AWS IAM machine identity で認証する。
+`.env*`、SOPS ciphertext、GitHub Actions の長期 secret、AWS Parameter Store / Secrets Manager
+のアプリ secret copy を撤去し、Cloudflare / Android / desktop 配信等に必要な値は Infisical
+から各 runtime へ同期する。詳細と cutover 条件は
+`docs/adr/0012-infisical-secrets-source-of-truth.md`。
 
 ## 2026-08-22 — Cognito → BetterAuth 認証置き換え
 

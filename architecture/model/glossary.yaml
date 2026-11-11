@@ -1,0 +1,182 @@
+# System / operations ubiquitous language.
+# Canonical for: fd.system-language.
+# - `definition` entries are canonical here.
+# - `domain_ref` entries are pointers: the term is defined by tastile-core (fd.domain-language /
+#   fd.product-definition). They MUST NOT carry a definition here (validator enforces).
+# - `disambiguation` records collisions between domain and system words.
+schema: tastile.architecture/glossary@1
+as_of: 2026-09-29
+
+terms:
+  # ------------------------------------------------ pointers to the meaning layer (core)
+  - {id: term.tile, term: Tile, domain_ref: "core:v1/00-glossary.md#tile"}
+  - {id: term.source-tile, term: SourceTile, domain_ref: "core:v1/00-glossary.md#sourcetile--occurrence--placementtile"}
+  - {id: term.placement, term: Placement, domain_ref: "core:v1/00-glossary.md#placement"}
+  - {id: term.execution, term: Execution, domain_ref: "core:v1/00-glossary.md#execution"}
+  - {id: term.window, term: Window, domain_ref: "core:v1/00-glossary.md#window"}
+  - {id: term.changeset, term: ChangeSet, domain_ref: "core:v1/00-glossary.md#changeset"}
+  - {id: term.effective, term: Effective, domain_ref: "core:v1/00-glossary.md#effective-placement--execution"}
+  - {id: term.decision-session, term: Session (Decision), domain_ref: "core:v1/00-glossary.md#session"}
+  - {id: term.delivery, term: Delivery, domain_ref: "core:v1/00-glossary.md#delivery"}
+  - {id: term.work-item, term: Work Item, domain_ref: "core:v1/00-glossary.md#work-item"}
+  - {id: term.command, term: Command / Envelope, domain_ref: "core:v1/00-glossary.md#command--envelope"}
+  - {id: term.owner, term: Owner, domain_ref: "core:v1/00-glossary.md#owner"}
+  - {id: term.prompt, term: Prompt, domain_ref: "core:v1/14-read-model-and-endpoint.md"}
+  - {id: term.framework-for-life, term: 生活のフレームワーク, domain_ref: "core:docs/product/README.md#生活のフレームワーク"}
+  - {id: term.execution-control, term: Execution control, domain_ref: "core:docs/product/README.md#tastile-とは"}
+
+  # ------------------------------------------------ architecture / SoT
+  - id: term.sot
+    term: Source of Truth (SoT) / canonical
+    definition: ある fact domain について編集可能な唯一の場所。sot-registry.yaml が割り当てる。
+  - id: term.fact-domain
+    term: Fact domain
+    definition: 一つの canonical location を持つ事実の種類 (例 fd.deployment-topology)。
+  - id: term.derived
+    term: Derived artifact
+    definition: canonical から generator で生成され、手編集しない成果物 (D2 view、catalog、openapi.yaml)。
+  - id: term.pointer
+    term: Pointer
+    definition: 事実を再記述せず canonical location へ誘導する link。要約を書く場合は derived と明記する。
+  - id: term.evidence
+    term: Evidence
+    definition: 日付付きの観測記録 (PoC 結果、run 結果、履歴 corpus)。authority ではなく判断根拠。
+  - id: term.live-state
+    term: Live state
+    definition: provider / GitHub が保持する現在状態 (deploy 済み revision、請求額、Issue status)。repository は snapshot のみ持つ。
+  - id: term.meaning-layer
+    term: Meaning layer
+    definition: product・domain・API contract・DB schema の意味。tastile-core が所有する。
+  - id: term.mechanism-layer
+    term: Mechanism layer
+    definition: repository・container・通信・deploy・security・運用の構造。tastile-root architecture/ が所有する。
+
+  # ------------------------------------------------ runtime structure
+  - id: term.thin-client
+    term: Thin client
+    definition: >-
+      表示・入力・OS 統合 (通知、認証 UI、file、tray) だけを持ち、Effective 値・スケジュール・通知時刻などの
+      business 判断を Core の Read Model から受け取る client。local cache は表示用で正本ではない。
+  - id: term.bff
+    term: BFF (Backend for Frontend)
+    definition: Web の server 側で account session を Core credential に変換し Core へ中継する層。domain logic を持たない。
+  - id: term.edge
+    term: Edge
+    definition: Cloudflare 上の DNS / TLS / WAF / cache / router。user からの全公開 hostname の入口。
+  - id: term.origin
+    term: Origin
+    definition: edge の背後で request を処理する Cloud Run service (web / core-api)。
+  - id: term.edge-assertion
+    term: Edge assertion
+    definition: edge router が origin へ付与する検証用 header。origin は production でこれの無い request を拒否する。identity を表さない。
+  - id: term.drain-cycle
+    term: Drain cycle
+    definition: >-
+      Worker が起動されてから、期限到来した Work Item / Outbox を lease 付きで処理し終える 1 回分。
+      コード上の `*_tick` 関数はこの cycle の構成要素 (v7 の Tick 語彙とは無関係)。
+  - id: term.sweep
+    term: Sweep
+    definition: 外部 scheduler による定期 (1 分) の drain 起動。wake が失われても sweep が回収する。
+  - id: term.wake
+    term: Wake
+    definition: 特定時刻 (available_at) に向けた targeted drain 起動 hint。state を持たず、失われても正しさに影響しない。
+  - id: term.wakeup-push
+    term: Wake-up push
+    definition: FCM / Web Push で client に再取得を促す hint。push 内容は state の正本ではない。
+  - id: term.core-api-token
+    term: Core API token
+    definition: Core が発行する opaque・scope 付き・hash 保存の bearer credential。native client と自動化が使う。
+  - id: term.account-session
+    term: Account session
+    definition: Better Auth が管理する sign-in session (cookie / bearer)。Core の credential ではない。
+  - id: term.web-core-jwt
+    term: Web-to-Core assertion (JWT)
+    definition: Better Auth が署名する短命 (≤ 5 分) JWT。aud=tastile-core。BFF → Core の唯一の user 表明手段 (target)。
+  - id: term.connect-flow
+    term: Connect flow
+    definition: native client が system browser で sign-in し Authorization Code + PKCE で Core API token を得る共通 flow。
+  - id: term.secret-store
+    term: Secret store
+    definition: secret 実値の唯一の編集可能 store (target は GCP Secret Manager)。
+  - id: term.workload-identity
+    term: Workload identity
+    definition: 長期 key を持たず、実行基盤 (Cloud Run service account、GitHub OIDC → WIF) の identity で認証すること。
+  - id: term.trust-zone
+    term: Trust zone
+    definition: 同じ信頼前提を共有する実行場所の集合 (security.yaml)。zone をまたぐ関係は必ず認証される。
+
+  # ------------------------------------------------ environments & delivery
+  - id: term.environment
+    term: Environment
+    definition: local / ci / staging / production のいずれか。environment 間で data・secret・identity・DB を共有しない。
+  - id: term.artifact
+    term: Artifact
+    definition: build 一回で作られ digest で識別される immutable 成果物 (OCI image、AAB、installer)。environment 間で再 build しない。
+  - id: term.promotion
+    term: Promotion
+    definition: staging で検証済みの同一 artifact digest を production に deploy すること。
+  - id: term.revision
+    term: Revision
+    definition: Cloud Run 上の immutable な service 版。traffic 割当で切替・rollback する。
+  - id: term.release
+    term: Release
+    definition: repository ごとの SemVer 版の確定 (release branch → main merge → tag)。deploy とは別の行為。
+  - id: term.deploy
+    term: Deploy
+    definition: artifact を environment に配置し traffic を向けること。
+  - id: term.cutover
+    term: Cutover
+    definition: current platform から target platform へ production traffic と data を移す一回限りの作業。
+  - id: term.soak
+    term: Soak
+    definition: cutover 後、SLO evidence を貯めて一般公開判断に使う観察期間。
+  - id: term.gate
+    term: Gate
+    definition: 変更を先へ進める条件となる検査。結果は PASS / FAIL / BLOCKED (外部前提不足, exit 2)。BLOCKED は PASS ではない。
+  - id: term.poc
+    term: PoC
+    definition: 仮説を machine-checkable な success criteria で検証する小実験。結果は evidence として保存する。
+
+  # ------------------------------------------------ quality
+  - id: term.sli
+    term: SLI
+    definition: service の良さを測る比率または分布 (quality.yaml で測定点を定義)。
+  - id: term.slo
+    term: SLO
+    definition: SLI の目標値と window。未計測の SLO は status=unmeasured と明記する。
+  - id: term.error-budget
+    term: Error budget
+    definition: 1 - SLO。消費が速い場合は feature より信頼性作業を優先する。
+  - id: term.kpi
+    term: KPI
+    definition: 開発・運用・product の成果を測る指標。product KPI は core、engineering KPI は root が所有。
+
+disambiguation:
+  - words: [session]
+    rule: >-
+      単独の "session" は使わない。domain の Decision 統合単位は "Session (Decision)"、sign-in は "account session"。
+  - words: [delivery, deliver]
+    rule: >-
+      "Delivery" は domain 語 (Session を端末へ届ける手段)。software を環境へ出す行為は "deploy" / "release"。
+  - words: [prompt]
+    rule: >-
+      "Prompt" は domain 語 (observed fact の通知 / ack)。AI への入力は "LLM prompt" と書く。
+  - words: [blocked, BLOCKED]
+    rule: >-
+      Effective の state=BLOCKED (domain) と gate 結果 BLOCKED (exit 2) を区別し、文脈語を付ける
+      ("Effective BLOCKED" / "gate BLOCKED")。
+  - words: [tick]
+    rule: >-
+      v7 の TickOutput / TickResult 系は禁止。worker の処理単位は "drain cycle"。
+  - words: [owner, subject]
+    rule: >-
+      domain 上は Owner。runtime 表の正本は v1_subject (core v1/15 §1-1)。両者の統合は oq.owner-model。
+
+forbidden_terms:
+  # Scanned in canonical root prose (architecture/docs/**, AGENTS.md, README.md, CLAUDE.md, docs/HARNESS.md).
+  - {pattern: "TickOutput|TickResult|Arbiter|Materializer|v7_tiles|6軸", reason: "v7 語彙 (core v1/00-glossary.md 対比表)", replacement: "v1 語彙"}
+  - {pattern: "Vercel", reason: "廃止済み hosting", replacement: "deployment.yaml の target"}
+  - {pattern: "beta\\.tastile\\.app", reason: "廃止 hostname", replacement: "environments.yaml の hostname"}
+  - {pattern: "SOPS", reason: "ADR-0012 で撤去済み", replacement: "fd.secret-values"}
+  - {pattern: "Cognito", reason: "ADR 2026-08-22 で Better Auth に置換済み", replacement: "Better Auth (cmp.web.auth)"}
+  - {pattern: "CORE_POLICY\\.md|tastile_docs_bundle", reason: "存在しない旧参照", replacement: "core v1/ / docs/product"}

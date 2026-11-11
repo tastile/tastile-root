@@ -1,0 +1,134 @@
+# Quality goals, SLI / SLO, engineering KPIs and cost budget.
+# Canonical for: fd.slo, fd.engineering-kpi, fd.cost-budget.
+# Product outcome KPIs are canonical in tastile-core docs/product/product.yaml (fd.product-kpi).
+# status: unmeasured = no measurement pipeline yet; measured = baseline recorded in `baseline`.
+schema: tastile.architecture/quality@1
+as_of: 2026-09-29
+
+quality_goals:
+  # Ordered: when two goals conflict, the earlier one wins.
+  - id: qg.data-integrity
+    rank: 1
+    name: Schedule and execution data are never silently lost or corrupted
+    rationale: 生活時間の記録と計画は user の信頼の根本。現在状態は durable fact から再構成できること (core v1)。
+  - id: qg.timeliness
+    rank: 2
+    name: Execution control happens on time
+    rationale: 「目覚ましのような強制力」を全 task に働かせることが product の差別化 (core product 定義)。
+  - id: qg.convergence
+    rank: 3
+    name: Every device converges to the same Effective state
+    rationale: Web / Android / Desktop / CLI の同時利用。push は hint、Sync + Read が正。
+  - id: qg.security
+    rank: 4
+    name: Owner isolation and credential hygiene
+    rationale: 他 owner の data の存在すら漏らさない。secret は repository / log に出さない。
+  - id: qg.operability
+    rank: 5
+    name: One person can operate, deploy and recover the whole system
+    rationale: 運用者は 1 名。2026-09 に deploy / secret / CI の手作業境界で繰り返し停止した (evidence)。
+  - id: qg.cost
+    rank: 6
+    name: Fixed cost stays small until revenue exists
+    rationale: 無料 credit 消滅。CI budget は $2 cap を上げない方針。
+  - id: qg.evolvability
+    rank: 7
+    name: Provider exit stays cheap
+    rationale: OCI image + vanilla PostgreSQL + 標準 protocol に留め、特定 provider 専用機能を core 契約に入れない。
+
+slos:
+  # Window: rolling 28 days, production only. "pre-launch" targets apply until ms.m9-public-announcement.
+  - id: slo.api-availability
+    goal: qg.convergence
+    sli: "good = Core /v1/* responses with status < 500 (excluding 429) / all Core /v1/* responses, measured from Cloud Run request logs"
+    target: {pre_launch: "99.5%", post_launch: "99.9%"}
+    note: post_launch target は SLA 付き DB tier (risk.db-tier) を前提とする。
+    status: unmeasured
+  - id: slo.web-availability
+    goal: qg.convergence
+    sli: "good = app.tastile.app document / API route responses < 500 / all, measured from Cloud Run request logs"
+    target: {pre_launch: "99.5%", post_launch: "99.9%"}
+    status: unmeasured
+  - id: slo.api-read-latency
+    goal: qg.timeliness
+    sli: "server-side latency of GET /v1/* measured at Cloud Run (excludes edge)"
+    target: {p95_ms: 300, p99_ms: 1000}
+    baseline: "local PoC 2026-09-29 (vanilla PG17, no network): /v1/sync p95 9 ms, /v1/prompts/pending p95 12 ms, /v1/active-tile p95 16 ms; /v1/tiles p95 374 ms under concurrent compile load — re-measure (poc.cloud-run-core)"
+    status: measured-locally
+  - id: slo.api-command-latency
+    goal: qg.timeliness
+    sli: "server-side latency of POST/PATCH/DELETE /v1/* measured at Cloud Run"
+    target: {p95_ms: 500, p99_ms: 1500}
+    status: unmeasured
+  - id: slo.work-lag
+    goal: qg.timeliness
+    sli: "completed_at - available_at for Work Item / Outbox rows (SQL over ds.work-queue)"
+    target: {p95_s: 60, p99_s: 120}
+    note: 初期構成は 1 分 sweep。targeted wake は実測で SLO 未達の場合だけ追加する。current EC2 worker は 5 秒 loop。
+    status: unmeasured
+  - id: slo.sync-convergence
+    goal: qg.convergence
+    sli: "time from command commit to the change being visible via /v1/sync on another device (synthetic probe in staging)"
+    target: {p95_s: 60}
+    status: unmeasured
+  - id: slo.auth-success
+    goal: qg.security
+    sli: "non-5xx ratio of /api/auth/* (sign-in, sign-up, OTP, social callback)"
+    target: {ratio: "99.5%"}
+    note: 2026-09-22 production で sign-up HTTP 500 / Google sign-in 不可の incident。
+    status: unmeasured
+  - id: slo.data-durability
+    goal: qg.data-integrity
+    sli: "monthly restore drill: restored instance passes /v1/ready and row-count parity for ds.domain + ds.identity"
+    target: {rpo: 5m, rto: 60m, drill_pass: "every month"}
+    status: unmeasured
+
+engineering_kpis:
+  - id: kpi.deploy-lead-time
+    goal: qg.operability
+    definition: release merge to production traffic 100% (same artifact digest as staging)
+    target: "≤ 30 min"
+    baseline: "core production deploy workflow median ≈ 45 min when it succeeded (evidence github-ops)"
+  - id: kpi.deploy-success-rate
+    goal: qg.operability
+    definition: successful deploy runs / all non-cancelled deploy runs, per repository, 28 days
+    target: "≥ 90%"
+    baseline: "core prod 3/12, core staging 6/29, web deploy 0/11, android release 4/34, desktop release 6/22 (to 2026-09-29)"
+  - id: kpi.rollback-time
+    goal: qg.operability
+    definition: decision to previous revision serving 100% traffic
+    target: "≤ 5 min"
+    baseline: "2026-09-27 web initial deploy caused ≈ 72 s outage before rollback"
+  - id: kpi.private-ci-spend
+    goal: qg.cost
+    definition: GitHub Actions paid usage for private repositories per month
+    target: "$0 (Core heavy CI on Cloud Build free tier)"
+    baseline: "Sept 2026: $2.00 hit the hard cap on 2026-09-26; all tastile-core runs blocked afterwards"
+  - id: kpi.ci-real-db
+    goal: qg.data-integrity
+    definition: share of Core DB-dependent tests that actually ran against PostgreSQL in the last release candidate
+    target: "100% (no silent skip)"
+    baseline: "2026-09-29 local run on vanilla PG17: 3 failing tests (owner_profile_authz ×2, scope_enforcement ×1) on the release line, undetected because CI was budget-blocked"
+  - id: kpi.restore-drill
+    goal: qg.data-integrity
+    definition: restore drills passed in the last 3 months
+    target: "3/3"
+    baseline: "0 (R04 restore drill never completed)"
+  - id: kpi.secret-stores
+    goal: qg.security
+    definition: number of editable secret stores per environment
+    target: "1"
+    baseline: "> 1 (Infisical + legacy GitHub Secrets + AWS Secrets Manager / SSM + Worker secrets)"
+  - id: kpi.canonical-conflicts
+    goal: qg.evolvability
+    definition: validator findings of duplicated / stale canonical claims across repositories
+    target: "0 blocking, trending to 0 advisory"
+    baseline: "2026-09-29: 35 (initial architecture:audit) → 4 (after root#48 remediation); see architecture/evidence/2026-09-29-sot-audit.md"
+
+cost_budget:
+  currency: USD
+  period: month
+  scope: staging + production infrastructure (excludes domain registration, developer tools, app store fees)
+  target: {pre_launch: 45, post_launch_per_active_user: 0.05}
+  estimate_from: deployment.yaml nodes with env in [env.staging, env.production, env.ci] and lifecycle != retiring
+  alert: GCP budget alerts at 50% / 90% / 100% of target; Cloudflare and Resend usage reviewed monthly

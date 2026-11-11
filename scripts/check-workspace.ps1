@@ -1,6 +1,6 @@
 param(
-    [ValidateSet("core", "web", "android", "desktop", "brands")]
-    [string[]]$Repository = @("core", "web", "android", "desktop", "brands"),
+    [ValidateSet("root", "core", "web", "android", "desktop", "brands")]
+    [string[]]$Repository = @("root", "core", "web", "android", "desktop", "brands"),
     [ValidateSet("fast", "full")]
     [string]$Profile = "fast",
     [ValidateRange(1, 5)]
@@ -44,6 +44,10 @@ function Get-Steps {
             return @(New-Step $Name "tastile-desktop" "pwsh" $arguments)
         }
         "brands" { return @(New-Step $Name "tastile-brands" "bun" @("run", "verify")) }
+        "root" {
+            # Architecture SoT gate (ADR-0013). Always fast: schema + references + boundaries + freshness only.
+            return @(New-Step $Name "." "bun" @("run", "architecture:validate"))
+        }
     }
 }
 

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/repositories.json",
+  "title": "Tastile repositories",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "as_of", "repositories"],
+  "properties": {
+    "schema": { "const": "tastile.architecture/repositories@1" },
+    "as_of": { "$ref": "common.json#/$defs/asOf" },
+    "repositories": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "github", "local_path", "visibility", "role", "entrypoint", "owns", "versioning"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^repo\\." },
+          "github": { "type": "string", "pattern": "^tastile/[a-z0-9-]+$" },
+          "local_path": { "type": ["string", "null"] },
+          "visibility": { "enum": ["public", "private"] },
+          "role": { "$ref": "common.json#/$defs/text" },
+          "entrypoint": { "type": ["string", "null"] },
+          "owns": { "$ref": "common.json#/$defs/refList" },
+          "versioning": { "$ref": "common.json#/$defs/text" },
+          "artifact": { "$ref": "common.json#/$defs/text" },
+          "ci": { "$ref": "common.json#/$defs/text" },
+          "gate": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    }
+  }
+}

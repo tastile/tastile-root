@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/common.json",
+  "title": "Tastile architecture model — shared definitions",
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z]+(\\.[a-z0-9][a-z0-9-]*)+$",
+      "description": "Globally unique model identifier: <prefix>.<name>[.<name>] in lowercase kebab-case."
+    },
+    "ref": { "$ref": "#/$defs/id" },
+    "refList": { "type": "array", "items": { "$ref": "#/$defs/id" }, "uniqueItems": true },
+    "lifecycle": {
+      "enum": ["retained", "planned", "retiring"],
+      "description": "retained = exists now and stays; planned = target only; retiring = exists now, removed by retire_by."
+    },
+    "asOf": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" },
+    "text": { "type": "string", "minLength": 1 },
+    "currentDeviation": {
+      "type": "object",
+      "description": "How the current implementation deviates from the target described by the enclosing object.",
+      "additionalProperties": false,
+      "properties": {
+        "credential": { "$ref": "#/$defs/id" },
+        "note": { "$ref": "#/$defs/text" }
+      }
+    }
+  }
+}

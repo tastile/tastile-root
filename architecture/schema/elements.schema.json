@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/elements.json",
+  "title": "Tastile system elements",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "as_of", "elements"],
+  "properties": {
+    "schema": { "const": "tastile.architecture/elements@1" },
+    "as_of": { "$ref": "common.json#/$defs/asOf" },
+    "elements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "name", "description", "lifecycle"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id" },
+          "kind": { "enum": ["person", "software_system", "container", "data_store", "component", "external_system"] },
+          "parent": { "$ref": "common.json#/$defs/ref" },
+          "name": { "$ref": "common.json#/$defs/text" },
+          "technology": { "$ref": "common.json#/$defs/text" },
+          "repository": { "$ref": "common.json#/$defs/ref" },
+          "description": { "$ref": "common.json#/$defs/text" },
+          "lifecycle": { "$ref": "common.json#/$defs/lifecycle" },
+          "retire_by": { "$ref": "common.json#/$defs/ref" }
+        },
+        "allOf": [
+          { "if": { "properties": { "kind": { "const": "person" } } }, "then": { "properties": { "id": { "pattern": "^actor\\." } } } },
+          { "if": { "properties": { "kind": { "const": "software_system" } } }, "then": { "properties": { "id": { "pattern": "^sys\\." } } } },
+          { "if": { "properties": { "kind": { "enum": ["container", "data_store"] } } }, "then": { "required": ["parent", "repository", "technology"], "properties": { "id": { "pattern": "^ctr\\." } } } },
+          { "if": { "properties": { "kind": { "const": "component" } } }, "then": { "required": ["parent", "repository"], "properties": { "id": { "pattern": "^cmp\\." } } } },
+          { "if": { "properties": { "kind": { "const": "external_system" } } }, "then": { "properties": { "id": { "pattern": "^ext\\." } } } },
+          { "if": { "properties": { "lifecycle": { "const": "retiring" } } }, "then": { "required": ["retire_by"] } }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/data.json",
+  "title": "Tastile data stores and lifecycle",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "as_of", "residency", "stores", "datasets"],
+  "properties": {
+    "schema": { "const": "tastile.architecture/data@1" },
+    "as_of": { "$ref": "common.json#/$defs/asOf" },
+    "residency": { "$ref": "common.json#/$defs/text" },
+    "stores": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "element", "engine", "backup", "objectives"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^store\\." },
+          "element": { "oneOf": [{ "$ref": "common.json#/$defs/ref" }, { "type": "null" }] },
+          "engine": { "$ref": "common.json#/$defs/text" },
+          "portability": { "$ref": "common.json#/$defs/text" },
+          "backup": { "oneOf": [{ "type": "object" }, { "type": "string" }] },
+          "objectives": { "type": "object" },
+          "restore_drill": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    },
+    "datasets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "store", "classes", "owner_repo", "description", "retention"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^ds\\." },
+          "store": { "oneOf": [{ "$ref": "common.json#/$defs/ref" }, { "type": "null" }] },
+          "classes": { "$ref": "common.json#/$defs/refList" },
+          "owner_repo": { "$ref": "common.json#/$defs/ref" },
+          "description": { "$ref": "common.json#/$defs/text" },
+          "retention": { "$ref": "common.json#/$defs/text" }
+        }
+      }
+    }
+  }
+}

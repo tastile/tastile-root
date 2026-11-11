@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tastile.app/schema/architecture/deployment.json",
+  "title": "Tastile deployment topology",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "as_of", "providers", "nodes"],
+  "properties": {
+    "schema": { "const": "tastile.architecture/deployment@1" },
+    "as_of": { "$ref": "common.json#/$defs/asOf" },
+    "providers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "role", "lifecycle"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^prov\\." },
+          "name": { "$ref": "common.json#/$defs/text" },
+          "role": { "$ref": "common.json#/$defs/text" },
+          "decision": { "$ref": "common.json#/$defs/ref" },
+          "lifecycle": { "$ref": "common.json#/$defs/lifecycle" },
+          "retire_by": { "$ref": "common.json#/$defs/ref" }
+        }
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "env", "provider", "service", "hosts", "cost_usd_month", "lifecycle"],
+        "properties": {
+          "id": { "$ref": "common.json#/$defs/id", "pattern": "^node\\." },
+          "env": { "$ref": "common.json#/$defs/ref" },
+          "provider": { "$ref": "common.json#/$defs/ref" },
+          "service": { "$ref": "common.json#/$defs/text" },
+          "hosts": { "$ref": "common.json#/$defs/refList" },
+          "config": { "type": "object" },
+          "identity": { "$ref": "common.json#/$defs/ref" },
+          "cost_usd_month": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["value", "basis"],
+            "properties": {
+              "value": { "type": "number", "minimum": 0 },
+              "max": { "type": "number", "minimum": 0 },
+              "basis": { "enum": ["verified", "estimate", "unverified"] },
+              "assumption": { "$ref": "common.json#/$defs/text" }
+            }
+          },
+          "lifecycle": { "$ref": "common.json#/$defs/lifecycle" },
+          "retire_by": { "$ref": "common.json#/$defs/ref" }
+        }
+      }
+    }
+  }
+}
