@@ -109,27 +109,48 @@ Android 側の `TASTILE_CORE_URL` が Infisical secret 由来で、Windows 側�
 | 項目 | 値 |
 | --- | --- |
 | ランタイム | Colima（macOS, aarch64, 4 CPU / 8 GiB）, Docker 29.8.2 |
-| DB | コンテナ `tastile-verify-pg`、`postgres:17-alpine`、host port **55432**（後述の公開範囲を参照） |
-| DB 名 | `tastile`（テスト実行用）、`tastile_iso`（CI 失敗の隔離再現用） |
-| API / worker | ローカル cargo ビルド。コンテナ化は T04 |
-| migration | `storage::migrations::run` が接続時に自動適用（この DB で 63 件適用済みを `v1_migration` で確認） |
-| CI 再現 | `owner_profile_authz` の 401 と空振り write 検査を同一 DB 上で再現し、修正後に全通過を確認 |
+| DB（CI 再現用。使い捨て） | コンテナ `tastile-verify-pg`、`postgres:17-alpine`、host port **55432**（前述 p.公開は 0.0.0.0） |
+| DB（fresh-checkout 検証） | `tastile-verify-db` + `tastile-verify-api` + `tastile-verify-worker`（いずれも `127.0.0.1` に bind、`postgres:16-alpine`） |
+| DB 名 | `tastile`（テスト実行用）、`tastile_iso`（CI 失敗の隔離再現用）、`tastile_auth`（better-auth 検証用） |
+| API / worker | ローカル cargo ビルド・Docker イメージ両方動作確認済み |
+| migration | `storage::migrations::run` が接続時に自動適用。`v1_migration` 63 件適用を確認。API 再起動で 63 件維持を確認。`pg_dump` → 別 DB restore で 63 件一致を確認 |
+| CI 再現 | `owner_profile_authz` の 401 と空振り write 検査を同一 DB 上で再現し、修正後に全通過を確認（fresh-checkout では monitoring を含む） |
+| fresh checkout 再現 | `git clone tastile-root (branch 105)` + `git clone tastile-core (branch 251)` → `docker compose up --build -d` で `health` = 200、worker 実起動、migration 63、api 再起動・`pg_dump` restore まで通過を確認 |
 
-隔離の根拠:
+### 隔離の根拠
 
-- DB は専用コンテナ・専用 volume・**非標準 port 55432** に閉じている。運用の 5432 と衝突しない。**ただし loopback 境界は未確認**: 台帳作成時点の run（`tastile-verify-pg`）は `-p 55432:5432` を指定しており、host 0.0.0.0 相当で公開されていた。Colima の port forwarding は外部インターフェースへ公開し得たため、credential が `tastile` / `tastile`（検証既定値）である検証 DB が他端末から到達し得た可能性を否定できない。`TASTILE_ROLLBACK_ADMIN_URL` は Cloudflare 522 と到達不能であった本番サービスと同じ host を指していたわけではない（検証 DB のみを指す）。**今後の再現は `127.0.0.1:55432:5432` に限定する。本台帳のコマンドも loopback バインドに統一する。**
-- credential は検証専用（`tastile` / `tastile`、ローカルのみ）。運用 secrets を参照していない。
+- DB は専用コンテナ・専用 volume・**非標準 port 55432** に閉じている。運用の 5432 と衝突しない。
+- credential は検証専用（`tastile` / `tastile`、または compose 既定）。運用 secrets を参照していない。
 - 既存の `ujp-data` / `procon-goal-*` 等の Docker host ボリュームは本作業では一切操作していない。
 - 環境変数は `TASTILE_DATABASE_URL` / `DATABASE_URL` / `TASTILE_ROLLBACK_ADMIN_URL` の 3 つのみを明示設定した。AWS credential、通知 provider、bridge secret は未設定。
+- `docker compose ps`：db=`healthy`、api/worker=`running`（fresh-checkout 実測）。
 
-再現手順:
+### 既に退避済みの loopback 境界リスク
+
+台帳作成時の `tastile-verify-pg` は `docker run -p 55432:5432`（0.0.0.0 公開相当）であった可能性がある。今後の再現コマンドはすべて `127.0.0.1:55432:5432` に統一し、`deploy/verify-stack/compose.yaml` が `127.0.0.1:${port}:5432` を直接指定していることを確認した。fresh-checkout 経路は compose が既定でこのバインドを行う。
+
+### 再現手順（fresh-checkout、推奨）
+
+```bash
+cd <workspace>   # tastile-root と tastile-core を同階層に clone する
+git clone --branch 105 https://github.com/tastile/tastile-root
+git clone --branch 251  https://github.com/tastile/tastile-core
+
+cd tastile-root/deploy/verify-stack
+export TASTILE_WEB_BRIDGE_SECRET="$(openssl rand -hex 24)"
+export TASTILE_CORE_TAG=e5a02f0   # または fresh clone の SHA を明示
+docker compose up --build -d
+curl -s http://127.0.0.1:31400/v1/health   # → {"status":"ok","database":"reachable",...}
+docker exec tastile-verify-db psql -U tastile -d tastile_verify -t -c 'SELECT count(*) FROM v1_migration;'
+```
+
+### 再現手順（単体 DB、任意）
 
 ```bash
 colima start --cpu 4 --memory 8 --disk 60
 docker run -d --name tastile-verify-pg \
   -e POSTGRES_USER=tastile -e POSTGRES_PASSWORD=tastile -e POSTGRES_DB=tastile \
   -p 127.0.0.1:55432:5432 postgres:17-alpine
-
 export TASTILE_DATABASE_URL='postgres://tastile:tastile@127.0.0.1:55432/tastile'
 export DATABASE_URL="$TASTILE_DATABASE_URL"
 cargo test --manifest-path crates-v1/Cargo.toml --workspace --jobs 1 -- --test-threads=1
