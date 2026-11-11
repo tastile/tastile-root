@@ -57,7 +57,7 @@ tastile-core の `main` CI は 2026-09-27 以降赤のまま。原因は 2 件�
 | `owner_profile_authz` 2 件 fail | profile GET が 401。write 側 scope 検査は fixture 不正で空振りしていた |
 | `tastile.write` トークンが書き込み不可 | 認証層の旧規則（`scopes == "all"` 必須）が write を 403 で落としていた |
 
-修正は PR #256（Draft、branch `251`）で提出した。ローカル実測で 934 passed / 0 failed（Colima + PostgreSQL 17、新規 DB）。CI 回復は PR マージ後に確認する。
+修正は PR #256（branch `251`、現在は ready for review）で提出した。ローカル実測で 935 passed / 0 failed（Colima + PostgreSQL 17、新規 DB）。CI は `c18284d` と `e5a02f0` の両 commit で success。
 
 未マージの主な PR:
 
@@ -66,7 +66,7 @@ tastile-core の `main` CI は 2026-09-27 以降赤のまま。原因は 2 件�
 | core#229（core#228 reflow） | MERGEABLE / CLEAN | quality success |
 | core#227（core#226 edge assertion） | MERGEABLE / UNSTABLE | quality failure |
 | core#222（core#217 Flow 増分評価） | MERGEABLE / CLEAN | quality success |
-| core#256（本計画） | Draft | 新規 |
+| core#256（本計画） | ready for review、CI green | success |
 
 web 未マージ: #199 (mobile token, Draft)、#196 (drift prompts, Draft)、#198 (/api/me)、#185 (Better Auth assertion, Draft)。いずれも PR 上の check は success。android 未マージ: #89 (docs archive, Draft)、dependabot 群、#72 (release-0-7-0)。
 

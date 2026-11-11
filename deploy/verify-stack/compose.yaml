@@ -68,7 +68,7 @@ services:
       TASTILE_ENV: development
       TASTILE_DELIVERY_PROVIDER: fake
       AWS_EC2_METADATA_DISABLED: "true"
-    command: ["worker"]
+    command: ["/app/worker"]
     restart: unless-stopped
 
 volumes:
