@@ -66,6 +66,29 @@ bun run next dev
 
 Sign-up → `/api/auth/bridge`（`tastile_api_token` 取得）→ `/dashboard/timeline/month` に到達。proxy 経由の `/api/proxy/v1/*` が `TASTILE_WEB_BRIDGE_SECRET` と `x-tastile-web-session-user` を用いた Bridge 認証で Core に到達する。
 
+## 並行インスタンス（複数の検証スタックを同時に起ける）
+
+1 タスク 1 スタックで隔離する場合は、**prefix・compose project 名・host port の 3 つをすべて**既定値から変える。1 つでも既定のままだと既存インスタンスと衝突する（`container_name` と volume name は compose project 名で自動的に分散しないため、`-p` だけでは足りない）。
+
+```bash
+TASTILE_VERIFY_PREFIX=tastile-verify-b \
+TASTILE_API_PORT=31410 \
+TASTILE_VERIFY_PG_PORT=55433 \
+TASTILE_WEB_BRIDGE_SECRET="$(openssl rand -hex 24)" \
+docker compose -p tastile-verify-b up --build -d
+```
+
+| 変数 | 効果 |
+| --- | --- |
+| `TASTILE_VERIFY_PREFIX` | container 名（`<prefix>-db/api/worker`）と DB volume 名（`<prefix>-pgdata`） |
+| `-p <project>` | compose project 名 → network `<project>_default`（volume key とは独立） |
+| `TASTILE_API_PORT` / `TASTILE_VERIFY_PG_PORT` | host 側 loopback port |
+| `TASTILE_WEB_BRIDGE_SECRET` | インスタンス専用の検証 secret（既定は必須） |
+
+- Web dev server は `PORT` を変える（例: 3002）。
+- Better Auth 初期化は `TASTILE_PG_CONTAINER=<prefix>-db bash bootstrap-web-auth.sh`。
+- 各インスタンスは専用 DB・volume・port・secret を持ち、互いに、また運用とも接続しない。証跡には起動コマンドと prefix を記録する。
+
 ## 停止・復元
 
 ```bash

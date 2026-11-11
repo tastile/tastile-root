@@ -1,6 +1,8 @@
 # Verification stack for #105 (local-first practicalization).
 # Independent, non-production environment: dedicated DB, port, volume and
 # credentials. Never reuse operational data, secrets, or ports.
+# Parallel instances: set TASTILE_VERIFY_PREFIX + a distinct compose project
+# (-p) + distinct host ports; see README "並行インスタンス".
 #
 # Prereqs: side-by-side checkouts of tastile-core and (optionally)
 # tastile-web as siblings of the tastile-root worktree (or override
@@ -13,7 +15,7 @@
 services:
   db:
     image: postgres:16-alpine
-    container_name: tastile-verify-db
+    container_name: ${TASTILE_VERIFY_PREFIX:-tastile-verify}-db
     environment:
       POSTGRES_USER: ${TASTILE_VERIFY_PG_USER:-tastile}
       POSTGRES_PASSWORD: ${TASTILE_VERIFY_PG_PASSWORD:-tastile-verify-only}
@@ -36,7 +38,7 @@ services:
       context: ${TASTILE_CORE_DIR:-../../../tastile-core}
       dockerfile: .wslc/Containerfile.v1
     image: tastile-core-verify:${TASTILE_CORE_TAG:-local}
-    container_name: tastile-verify-api
+    container_name: ${TASTILE_VERIFY_PREFIX:-tastile-verify}-api
     depends_on:
       db:
         condition: service_healthy
@@ -64,7 +66,7 @@ services:
 
   worker:
     image: tastile-core-verify:${TASTILE_CORE_TAG:-local}
-    container_name: tastile-verify-worker
+    container_name: ${TASTILE_VERIFY_PREFIX:-tastile-verify}-worker
     depends_on:
       api:
         condition: service_started
@@ -81,4 +83,4 @@ services:
 
 volumes:
   tastile-verify-pgdata:
-    name: tastile-verify-pgdata
+    name: ${TASTILE_VERIFY_PREFIX:-tastile-verify}-pgdata
