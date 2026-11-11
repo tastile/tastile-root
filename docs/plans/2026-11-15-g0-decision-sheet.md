@@ -10,7 +10,7 @@
 | 項目 | 値 |
 | --- | --- |
 | tastile-core 固定 SHA | 修正確定: `e5a02f0decffa0455ecd391ad2a364047b2a94bd`（branch `251`、PR #256）。現行 `main` `c37b49f` は CI 赤のまま（根本原因は ledger §4 同じ） |
-| tastile-web 固定 SHA | 検証実測 SHA: `3e7842e0fcc493f3f713c6195a77852e2843efa4`（branch `203`、#204 PR head。#200 修正を含む）。`release-1-1-0` HEAD `7db3be160b452eb30db8f5099ceb90d1f9866b6a` は bridge 修正を含まないため検証値には使えない。`main` の `bun.lock` は next 16.3.4（#200 の脆弱版）。依存修正済みなのは `release-1-1-0` 側（web#205、base 未マージ） |
+| tastile-web 固定 SHA | 検証実測 SHA: `3e7842e0fcc493f3f713c6195a77852e2843efa4`（branch `203`、#204 PR head, #200 修正を含む）。`release-1-1-0` HEAD `7db3be160b452eb30db8f5099ceb90d1f9866b6a` は bridge 修正を含まないため検証値には使えない。`main` の `bun.lock` は next 16.3.4（#200 の脆弱版）。依存修正済みなのは `release-1-1-0` 側（web#205、base 未マージ） |
 | tastile-android 固定 SHA | `8bef645246ead1c9720165f74867943f328fb945`（`main`） |
 | tastile-root 固定 SHA | `9a40e814854ef45001c8586975050a24c0033f95`（`main`）。#105 作業ブランチ `105` で台帳/verify-stack を提出済み |
 | 運用境界の文書化 | 完了（T01 read-only 台帳: `2026-11-11-local-first-t01-readonly-ledger.md`） |

@@ -87,8 +87,13 @@ web 未マージ: #199 (mobile token, Draft)、#196 (drift prompts, Draft)、#19
 | 内部の共有ホスト（名前と IP は非公開） | SSH が拒否またはタイムアウト（Permission denied / timeout） |
 | 内部の online Tailscale peer | 22 / 80 / 443 / 3000 / 5432 / 31400 すべて閉塞 |
 | 本機の LaunchAgent / brew services / `/opt` | Tastile 関連の常駐なし |
+| **Android 側設定の手がかり（Muse = Android 端末）** | Android リポジトリ上、接続先は `BuildConfig.TASTILE_CORE_URL`（Infisical `/devices` 由来）。環境キーは `TASTILE_CORE_URL` / `WEB_BASE_URL` / `TASTILE_WEB_BRIDGE_SECRET` である |
+| **Windows 側のヒント（known_hosts / ssh config）** | `id_ed25519_tastile_infisical_hetzner` が「hetzner:tastile-infisical」とコメントされ、別途 VM 実行が示唆される。Tailscale/ssh 登録先に `x220-158-20-47.static.xvps.ne.jp`（= `xserver`、現在未達）が存在する。Infernal / 患者機接続情報は配置にあっても実データへ到達できていない |
+| **公開 DNS（Cloudflare）の実態** | `api.tastile.app` の A/AAAA は無しまたは 522。`app.tastile.app` / `tastile.app` も同様 |
 
 解釈: 運用スタックは、少なくとも本環境からは**正本として参照できない**。存在しないとは断定しない。別端末・別ネットワーク・停止中のいずれかであり、本環境からは判別できない。
+
+Android 側の `TASTILE_CORE_URL` が Infisical secret 由来で、Windows 側の `id_ed25519_tastile_infisical_hetzner` 配置と整合するため、「運用スタックは hetzner 系の Hetzner VPS（Hetzner Cloud）に self-hosted Infisical + 常時デプロイで動作する」説は**未確認の仮説**である。当確認者は Hetzner アカウント／パスワード／Access Token を保持しておらず、この仮説の真偽は本作業の範囲では判定できない。
 
 この事実が持つ意味:
 
