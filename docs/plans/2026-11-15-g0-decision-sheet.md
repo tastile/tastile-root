@@ -13,20 +13,23 @@
 
 ---
 
-## 判定材料（固定値、2026-11-11 実測）
+## 判定材料（固定値、2026-11-12 更新）
 
 | 項目 | 値 |
 | --- | --- |
-| tastile-core | `main` = `8e14178cf1ad`（CI success 2026-11-11T07:42Z）。#256 は merge 済み。CI 赤は解消 |
-| tastile-core（進行中） | PR #259（core#257: profile PATCH の Idempotency-Key 必須化）。CI green を確認して merge 対象 |
-| tastile-root | `main` = `2d8a2af2fbba`（#106 merge 済み、Root quality gate success） |
+| tastile-core | `main` = `df14c4fbcb29`（#256 → #260 統合済み）。**ただし 2026-11-11T15:11Z 以降、runner の apt DNS 故障で quality が全滅**（下記「CI 障害」行）。直前の green は `8e14178c`（07:42Z） |
+| tastile-core（CI 障害） | 全 quality run が `Install PostgreSQL client for rollback compatibility test` で `Temporary failure resolving security.ubuntu.com` 失敗。**コード起因ではなく runner 側**。`main` 自体も赤（run 43047397047）。回復 PR: **#261**（5 回リトライ + backoff）。回復までは #259 / #227 / #229 の CI 判定がつかない |
+| tastile-core（統合済み） | **#260 merge**（`df14c4f`、core#258: dead `read_owner` / legacy `authenticate` 削除）。fmt / clippy / api 全テスト 257 件を独立検証してから統合 |
+| tastile-core（進行中） | **PR #259**（core#257: profile PATCH の Idempotency-Key 必須化）。2 commit目 `504860a` で idempotency 記録を write トランザクション内へ移動（並行 8 発で 409 になっていた欠陥を修正）。`owner_profile_authz` 11/11 Green、並行テスト 10/10、api 全 suite Green を独立検証済み。**CI の apt 障害解除後に green 確認して merge** |
+| tastile-root | `main` = `f63da590b701`（#106 台帳 / #107 運用スタック所在 / #108 隔離マトリクス network 名修正 を統合済み） |
 | tastile-web | `main` = `5212e995f2ad`。**`bun.lock` は next 16.3.4 / better-auth 1.7.3 のまま**（#200 未反映） |
 | tastile-web（修正済み） | `release-1-1-0` = `a782a2ff3a66`。next 16.4.2 / better-auth 1.7.7 / zod 4.6.6（#205 #204 反映済み、CI success） |
 | tastile-android | `main` = `8bef645246ea` |
 | tastile-openapi | `main` = `8461ffa34594` |
 | 運用スタック | **確認した範囲に稼働スタックなし**。旧 origin は AWS `52.194.61.218`（本番）/ `52.194.223.15`（staging）で 22/443 閉塞・Cloudflare 522。`TASTILE_DATABASE_URL` の RDS エンドポイントは NXDOMAIN。R2 / AWS 現況 / 旧 origin バックアップ / 端末ローカル DB は未確認（追補 §7） |
 | 運用境界の文書化 | 完了（台帳 + 追補。運用VMを変更対象外とする境界は不変） |
-| 検証環境 | 隔離実測済み。`tastile-verify-{db,api,worker}` 稼働、`/v1/health` 200、`v1_migration` 63、api 再起動後も 63、`pg_dump`/restore 一致 |
+| 検証環境 | 隔離実測済み。`tastile-verify-{db,api,worker}` 稼働、`/v1/health` 200（`database:reachable`, `version:1.0.2`）、`/v1/ready` 200、`v1_migration` 63。**2026-11-12 追加**: `docker restart tastile-verify-api` 後も health 200 / migration 63 / `v1_tile` 145,813 行が不変（volume 永続化と再起動を同一検証で確認）。運用先への書込経路 0 は #104「T02 追記」§6 で静的走査 + コンテナ env + established 接続の3系統で実測 |
+| G0 タスク進捗 | **T01 / T02 / T04 完了**（#105 のチェックボックスに証拠付きで記録）。T03 は「CI 赤の原因分類と回復経路」が本シート更新時点で apt DNS 障害の対応（#261）待ち |
 | G1 前提（実測） | Web sign-up → bridge → `tastile_api_token` 発行 → `/api/proxy/v1/tiles` 200 を実 Chromium で確認済み（Web `3e7842e0`）。**`main` ではなく `release-1-1-0` 系の SHA**であることに注意 |
 | G1 起動コマンド | `cd deploy/verify-stack && docker compose -f compose.yaml up --build -d` → `curl http://127.0.0.1:31400/v1/health` |
 
@@ -58,7 +61,7 @@
    - **B / C を選ぶ場合**: #105 の G5 ACCEPT（実データでの shadow 試用）を書き換え、
      合成 fixture での比較計画と「実用性の証明範囲」を明記した版の承認が go 条件。
      実データ抽出の未決（台帳 §6-1）は引き続き未決のまま残す。
-2. **Core PR #259 の merge**（core#257）。CI green・レビュー後に統合。`main` の CI は既に回復済み。Core #260（#258）も同様。
+2. **Core PR #259 の merge**（core#257）。**#260 は統合済み**（`df14c4f`）。#259 は独立検証（`owner_profile_authz` 11/11 Green、並行 8 発リプレイ 10/10、api 全 suite Green、fmt/clippy clean）まで完了しており、**runner の apt DNS 障害（#261）が解消して green を確認したら統合する**。
 3. **Web の脆弱依存**は `release-1-1-0` で解消済み、`main` は未反映。本番反映は PR #173 の release 承認（別判定）。
 4. Web の外部認証依存（Better Auth、実メール送受信）は運用判断として残る。
 
@@ -71,7 +74,7 @@
   **G0 を PASS に近づけるものではない。**
 - go にできる最小条件:
   1. 解消項目 1 の A/B/C の決定（本人）と、選んだ案の前提条件の充足
-  2. Core #259（および #260）の merge
+  2. Core #259 の merge（#260 は完了。前提として #261 による CI 回復）
   3. 本シートに対する本人合意
 - go にならない場合: G0 を no-go と記録し、11/22 の次回判定枠で再判定する。
   **T04〜T13（検証環境内の実装・検証）は並行して継続してよい**（本作業でも進行中）。
@@ -84,7 +87,8 @@
 | ブロッカー | 種別 | 解消の所在 |
 | --- | --- | --- |
 | 運用スタックの所在は確定したが稼働実体を確認できない → #105 の前提不成立 | **判断事項（本人）** | #105 / 追補 §5 |
-| Core PR #259 未マージ | merge 承認 | PR #259 |
+| **Core CI 全滅（runner の apt DNS 障害、2026-11-11T15:11Z〜）**。`main` を含む全 quality run が `Install PostgreSQL client` で失敗し、#259 / #227 / #229 の判定がつかない | **インフラ（回復 PR 提出済み）** | PR **#261**（apt 5 回リトライ + backoff）。回復後は該当 PR を再実行 |
+| Core PR #259 未マージ（独立検証は完了、CI 回復待ち） | merge 承認 | PR #259 |
 | Web 脆弱依存の release 未承認 | リリース承認 | PR #173（`release-1-1-0`） |
 
 ---
@@ -92,5 +96,5 @@
 ## 11/22 週次レビューへの持ち越し
 
 - 解消項目 1 の決定（A/B/C）と、それに伴う #105 のスコープ・G5 ACCEPT の書き換え。
-- Core #259 のレビュー・CI 結果。
+- Core #259 のレビュー・CI 結果、および #261（CI apt 回復）の成否と、その先で再実行する PR 群。
 - Web 側の release 承認可否。本番再デプロイは本計画に含まれない。
