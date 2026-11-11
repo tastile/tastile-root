@@ -29,9 +29,42 @@ docker compose up --build -d
 
 # 健全性確認（migration は初回起動時に自動適用される）
 curl -s http://127.0.0.1:31400/v1/health
-docker compose ps
+docker compose ps          # db = healthy、api/worker = running
 docker compose logs --tail=50 api worker
 ```
+
+### Web 検証のための認証ストア（Better Auth）の初期化
+
+Web サインイン・セッション復元をローカルのみで検証する場合は、Core と同一の verify DB 内に `tastile_auth` データベースと Better Auth の表を作成しておく。スクリプトは冪等なので再実行してよい。
+
+```bash
+bash bootstrap-web-auth.sh
+# => `tastile_verify` ではなく `tastile_auth` が作られる。schema は better-auth-schema.sql を参照。
+```
+
+この初期化は fresh DB への確認であっても、既存の検証データを破壊しない（`tastile_verify` は対象外）。
+
+### Web を立ててブラウザ検証する（ローカルのみ）
+
+```bash
+cd <workspace>/tastile-web
+bun install --frozen-lockfile
+TASTILE_ENV=development \
+NEXT_PUBLIC_APP_URL=http://localhost:3000 \
+NEXT_PUBLIC_APP_HOST=localhost \
+NEXT_PUBLIC_APEX_HOST=apex.tastile.local \
+CLOUD_API_BASE=http://localhost:31400 \
+NEXT_PUBLIC_TASTILE_CORE_URL=http://localhost:31400 \
+NEXT_PUBLIC_DAEMON_BASE_URL=http://localhost:31400 \
+TASTILE_USE_RUST_CORE=1 \
+TASTILE_RUST_API_URL=http://127.0.0.1:31400 \
+TASTILE_WEB_BRIDGE_SECRET="$(cat /path/to/verify-bridge-secret.txt)" \
+TASTILE_AUTH_DATABASE_URL=postgres://tastile:tastile-verify-only@127.0.0.1:55432/tastile_auth \
+PORT=3000 \
+bun run next dev
+```
+
+Sign-up → `/api/auth/bridge`（`tastile_api_token` 取得）→ `/dashboard/timeline/month` に到達。proxy 経由の `/api/proxy/v1/*` が `TASTILE_WEB_BRIDGE_SECRET` と `x-tastile-web-session-user` を用いた Bridge 認証で Core に到達する。
 
 ## 停止・復元
 
