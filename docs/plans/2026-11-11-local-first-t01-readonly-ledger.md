@@ -84,9 +84,8 @@ web 未マージ: #199 (mobile token, Draft)、#196 (drift prompts, Draft)、#19
 | 到達可能な端末上のコンテナ | Windows host・WSL・本機のいずれにも稼働コンテナ 0 件 |
 | Windows host の `wslc` | イメージ 3 件（`tastile-core-schema-g4` / `rust` / `postgres`）と開発用 volume のみ。運用 DB volume は無い |
 | 到達可能な端末の listen port | 5432 / 31400 / 3000 のいずれも閉塞 |
-| secrets host（`rebuildup-secrets-host`） | Tailscale 経由で 22 番に到達せず（timeout） |
-| `muse`（Tailscale peer, online） | 22 / 80 / 443 / 3000 / 5432 / 31400 すべて閉塞 |
-| `device-mac`（Tailscale peer, online） | SSH が `Permission denied (publickey)` |
+| 内部の共有ホスト（名前と IP は非公開） | SSH が拒否またはタイムアウト（Permission denied / timeout） |
+| 内部の online Tailscale peer | 22 / 80 / 443 / 3000 / 5432 / 31400 すべて閉塞 |
 | 本機の LaunchAgent / brew services / `/opt` | Tastile 関連の常駐なし |
 
 解釈: 運用スタックは、少なくとも本環境からは**正本として参照できない**。存在しないとは断定しない。別端末・別ネットワーク・停止中のいずれかであり、本環境からは判別できない。
