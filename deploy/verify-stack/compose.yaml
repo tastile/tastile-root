@@ -46,6 +46,9 @@ services:
       TASTILE_API_HOST: 0.0.0.0
       TASTILE_API_PORT: "31400"
       TASTILE_ENV: development
+      # release-1-1-0 の storage::pool は未設定を拒否する（main は既定値で動く）。
+      # 両系統で同じ compose を使えるよう明示的に与える。
+      TASTILE_DATABASE__MAX_CONNECTIONS: ${TASTILE_DATABASE__MAX_CONNECTIONS:-10}
       # The browser talks to Core directly on localhost, so Core must allow
       # the web origin. Overridable so the stack still works when :3000 is
       # taken and the dev server has to run on another port.
@@ -69,6 +72,8 @@ services:
       TASTILE_DATABASE_URL: postgres://${TASTILE_VERIFY_PG_USER:-tastile}:${TASTILE_VERIFY_PG_PASSWORD:-tastile-verify-only}@db:5432/${TASTILE_VERIFY_PG_DB:-tastile_verify}
       DATABASE_URL: postgres://${TASTILE_VERIFY_PG_USER:-tastile}:${TASTILE_VERIFY_PG_PASSWORD:-tastile-verify-only}@db:5432/${TASTILE_VERIFY_PG_DB:-tastile_verify}
       TASTILE_ENV: development
+      # api と同様。release-1-1-0 の storage::pool は未設定を拒否する。
+      TASTILE_DATABASE__MAX_CONNECTIONS: ${TASTILE_DATABASE__MAX_CONNECTIONS:-10}
       TASTILE_DELIVERY_PROVIDER: fake
       AWS_EC2_METADATA_DISABLED: "true"
     command: ["/app/worker"]
