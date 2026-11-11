@@ -33,7 +33,7 @@ services:
 
   api:
     build:
-      context: ${TASTILE_CORE_DIR:-../tastile-core}
+      context: ${TASTILE_CORE_DIR:-../../../tastile-core}
       dockerfile: .wslc/Containerfile.v1
     image: tastile-core-verify:${TASTILE_CORE_TAG:-local}
     container_name: tastile-verify-api

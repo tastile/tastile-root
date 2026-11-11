@@ -12,7 +12,7 @@
     tastile-web/       # (任意) Web 検証用
   ```
 - Docker と Docker Compose v2（`docker compose version`）
-- 開発 API の branch 切替は `TASTILE_CORE_DIR` / `TASTILE_CORE_TAG` で行う。デフォルトは `../tastile-core` を `.wslc/Containerfile.v1` から build する。
+- 開発 API の branch 切替は `TASTILE_CORE_DIR` / `TASTILE_CORE_TAG` で行う。デフォルトは Compose ファイルから見て **`../../../tastile-core`**（`tastile-root/deploy/verify-stack/` から workspace 兄弟）を `.wslc/Containerfile.v1` から build する。
 
 ## 起動（fresh checkout 手順）
 
@@ -72,7 +72,7 @@ docker compose up --build -d # 緊急再構成（volume があれば復元を検
 
 ## 検証チェックリスト
 
-- [ ] `docker compose ps` で db/api/worker が healthy
+- [ ] `docker compose ps` で db が `healthy`、api/worker が `running` であることを確認
 - [ ] migration 適用を `docker compose logs api` と `v1_migration` 件数で確認
 - [ ] API 再起動後も DB の行が保持される（volume 永続性）
 - [ ] `docker compose down -v && up --build -d` で再構成できる

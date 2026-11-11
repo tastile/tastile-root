@@ -10,14 +10,14 @@
 | 項目 | 値 |
 | --- | --- |
 | tastile-core 固定 SHA | 修正確定: `e5a02f0decffa0455ecd391ad2a364047b2a94bd`（branch `251`、PR #256）。現行 `main` `c37b49f` は CI 赤のまま（根本原因は ledger §4 同じ） |
-| tastile-web 固定 SHA | `7db3be160b452eb30db8f5099ceb90d1f9866b6a`（`release-1-1-0`）。`main` の `bun.lock` は next 16.3.4（#200 の脆弱版）。依存修正済みなのは release 側（#195, PR #173 未マージ） |
+| tastile-web 固定 SHA | 検証実測 SHA: `3e7842e0fcc493f3f713c6195a77852e2843efa4`（branch `203`、#204 PR head。#200 修正を含む）。`release-1-1-0` HEAD `7db3be160b452eb30db8f5099ceb90d1f9866b6a` は bridge 修正を含まないため検証値には使えない。`main` の `bun.lock` は next 16.3.4（#200 の脆弱版）。依存修正済みなのは `release-1-1-0` 側（web#205、base 未マージ） |
 | tastile-android 固定 SHA | `8bef645246ead1c9720165f74867943f328fb945`（`main`） |
 | tastile-root 固定 SHA | `9a40e814854ef45001c8586975050a24c0033f95`（`main`）。#105 作業ブランチ `105` で台帳/verify-stack を提出済み |
 | 運用境界の文書化 | 完了（T01 read-only 台帳: `2026-11-11-local-first-t01-readonly-ledger.md`） |
 | 検証環境 | 隔離実測済み（台帳 §5）。Core CI 回帰はローカル Colima + 新規 PostgreSQL 17 で 935 passed / 0 failed を確認。CI (`c18284d`・`e5a02f0`) 両 commit で success（2026-11-11）。fresh build の api/worker image を compose で実起動し `/v1/health` = 200、`v1_migration` = 63 を確認。api 再起動・`pg_dump`/restore も検証済み |
-| G1 前提 | Web サインイン → `tastile_api_token` 発行 → `/api/proxy/v1/tiles` 200 が実 Chromium で確認できたが、Web `release-1-1-0` の bridge 経路は `expires_at` 欠落で動作していなかった（web#203 で修正、#204 で提出、CI green） |
+| G1 前提（実測） | Web サインイン → bridge 経由で `tastile_api_token` 発行 → `/api/proxy/v1/tiles` 200 が実 Chromium で確認できた。Web 側 `tastile_api_token` の `expires_at` 欠落で動作していなかった（web#203 で修正、#204 で提出）。検証に用いた Web SHA は `3e7842e0fcc493f3f713c6195a77852e2843efa4`（branch `203`、base は `8b0dd805acb9b4fc03cd2a72b80386dd9dfd59fa` = web#200 修正を含む `200-clean` を merge したもの。提出済みの PR #204 head） |
 | Web 脆弱依存 | `release-1-1-0` には 2026-10-14 Critical RCE 系の修正が入っていない。web#205（next 16.4.2 / better-auth 1.7.7 / zod 4.6.6 / sharp / undici / glob / body-parser / qs の非対象範囲）を提出、CI green。`main` には未反映のまま（#200） |
-| G1 起動コマンド | `deploy/verify-stack/compose.yaml`（`TASTILE_WEB_BRIDGE_SECRET=<ランダム> docker compose up --build -d` → `curl http://127.0.0.1:31400/v1/health`） |
+| G1 起動コマンド | `cd deploy/verify-stack && docker compose -f compose.yaml up --build -d`（Compose の `-f` 明示かカレントを `deploy/verify-stack` に限定する）→ `curl http://127.0.0.1:31400/v1/health` |
 
 ---
 
