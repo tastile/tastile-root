@@ -66,6 +66,53 @@ bun run next dev
 
 Sign-up → `/api/auth/bridge`（`tastile_api_token` 取得）→ `/dashboard/timeline/month` に到達。proxy 経由の `/api/proxy/v1/*` が `TASTILE_WEB_BRIDGE_SECRET` と `x-tastile-web-session-user` を用いた Bridge 認証で Core に到達する。
 
+## 並行インスタンス（複数の検証スタックを同時に起ける）
+
+1 タスク 1 スタックで隔離する場合は、**prefix・compose project 名・host port・image tag の 4 つをすべて**既定値から変える。1 つでも既定のままだと既存インスタンスと衝突する（`container_name` と volume name は compose project 名で自動的に分散しないため `-p` だけでは足りない。共通の image tag は互いに image を置き換える）。
+
+```bash
+cd <workspace>/tastile-root/deploy/verify-stack   # compose ファイルのあるディレクトリ
+
+# secret は生成してファイルに保存し、Compose と Web の両方で同じ値を使う
+openssl rand -hex 24 > /tmp/verify-b-bridge-secret.txt
+
+TASTILE_VERIFY_PREFIX=tastile-verify-b \
+TASTILE_CORE_TAG=verify-b \
+TASTILE_API_PORT=31410 \
+TASTILE_VERIFY_PG_PORT=55433 \
+TASTILE_WEB_BRIDGE_SECRET="$(cat /tmp/verify-b-bridge-secret.txt)" \
+docker compose -p tastile-verify-b up --build -d
+```
+
+| 変数 | 効果 |
+| --- | --- |
+| `TASTILE_VERIFY_PREFIX` | container 名（`<prefix>-db/api/worker`）と DB volume 名（`<prefix>-pgdata`） |
+| `-p <project>` | compose project 名 → network `<project>_default`（volume key とは独立） |
+| `TASTILE_CORE_TAG` | image 名 `tastile-core-verify:<tag>`。**インスタンスごとに一意にする**（共通 tag は一方の build が他方の image を置き換える） |
+| `TASTILE_API_PORT` / `TASTILE_VERIFY_PG_PORT` | host 側 loopback port |
+| `TASTILE_WEB_BRIDGE_SECRET` | インスタンス専用の検証 secret（既定は必須。上記のようにファイルへ保存して Web にも渡す） |
+
+Web dev server も同じインスタンスの port を指す（上の例の値）:
+
+| Web 変数 | 例 |
+| --- | --- |
+| `PORT` | `3002` |
+| `CLOUD_API_BASE` / `NEXT_PUBLIC_TASTILE_CORE_URL` / `TASTILE_RUST_API_URL` / `NEXT_PUBLIC_DAEMON_BASE_URL` | `http://localhost:31410` |
+| `TASTILE_AUTH_DATABASE_URL` | `postgres://tastile:tastile-verify-only@127.0.0.1:55433/tastile_auth` |
+| `TASTILE_WEB_BRIDGE_SECRET` | 保存した secret ファイルの値 |
+
+- Better Auth 初期化は `TASTILE_VERIFY_PREFIX=<prefix> bash bootstrap-web-auth.sh`（container を直接指定したい場合のみ `TASTILE_PG_CONTAINER` を使う）。
+- 停止は**同じ環境変数と `-p` を付けて**行う。既定値のまま `docker compose down` を実行すると既定インスタンスの container を対象にし、`-v` を付けると `tastile-verify-pgdata` まで消える:
+
+  ```bash
+  TASTILE_VERIFY_PREFIX=tastile-verify-b \
+  TASTILE_API_PORT=31410 TASTILE_VERIFY_PG_PORT=55433 \
+  TASTILE_WEB_BRIDGE_SECRET="$(cat /tmp/verify-b-bridge-secret.txt)" \
+  docker compose -p tastile-verify-b down    # -v は volume 完全削除。要件のときだけ使う
+  ```
+
+- 各インスタンスは専用 DB・volume・port・secret を持ち、互いに、また運用とも接続しない。証跡には起動コマンドと prefix を記録する。
+
 ## 停止・復元
 
 ```bash
