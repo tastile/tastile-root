@@ -71,6 +71,8 @@ Sign-up → `/api/auth/bridge`（`tastile_api_token` 取得）→ `/dashboard/ti
 1 タスク 1 スタックで隔離する場合は、**prefix・compose project 名・host port・image tag の 4 つをすべて**既定値から変える。1 つでも既定のままだと既存インスタンスと衝突する（`container_name` と volume name は compose project 名で自動的に分散しないため `-p` だけでは足りない。共通の image tag は互いに image を置き換える）。
 
 ```bash
+cd <workspace>/tastile-root/deploy/verify-stack   # compose ファイルのあるディレクトリ
+
 # secret は生成してファイルに保存し、Compose と Web の両方で同じ値を使う
 openssl rand -hex 24 > /tmp/verify-b-bridge-secret.txt
 
@@ -105,6 +107,7 @@ Web dev server も同じインスタンスの port を指す（上の例の値�
   ```bash
   TASTILE_VERIFY_PREFIX=tastile-verify-b \
   TASTILE_API_PORT=31410 TASTILE_VERIFY_PG_PORT=55433 \
+  TASTILE_WEB_BRIDGE_SECRET="$(cat /tmp/verify-b-bridge-secret.txt)" \
   docker compose -p tastile-verify-b down    # -v は volume 完全削除。要件のときだけ使う
   ```
 
