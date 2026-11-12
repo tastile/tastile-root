@@ -10,6 +10,11 @@
 > 判断項目が性質変更になったため、§解消項目 1 と §判定 を書き換えた。
 > 詳細証拠は
 > [`2026-11-11-t01-operational-stack-located.md`](./2026-11-11-t01-operational-stack-located.md)。
+>
+> **2026-11-12 追記:** 実データ/バックアップ 4 項目の確認状況、A/B/C 各案が T14/T15/G5 の
+> 証明に与える影響、web #173 の承認パッケージは
+> [`2026-11-12-g0-data-status-and-web173-approval.md`](./2026-11-12-g0-data-status-and-web173-approval.md) に整理した。
+> **判定（No-go）とブロッカー 2 件（A/B/C 判断・web #173 承認）は変更しない。**
 
 ---
 
@@ -21,9 +26,9 @@
 | tastile-core（CI 障害・解消済み） | 2026-11-11T15:11Z 以降、全 quality run が `Install PostgreSQL client` で `Temporary failure resolving security.ubuntu.com` 失敗（**runner 側の Ubuntu ミラー DNS、コード起因でない**）。`main` 自体も赤（run 43047397047）。**回復 PR #261 で解消**: ①psql は既存物を優先 → apt は DNS をプローブしてからリトライ → 検証 postgres service container の psql にフォールバック、②mold は同パターン + apt 不通時は upstream GitHub release tarball。run 43060412760 が green |
 | tastile-core（統合済み） | **#260 merge**（`df14c4f`、core#258: dead `read_owner` / legacy `authenticate` 削除）。fmt / clippy / api 全テスト 257 件を独立検証してから統合 |
 | tastile-core（統合済み） | **#259 merge**（`399190030ba2`、core#257: profile PATCH の Idempotency-Key 必須化）。2 commit目 `504860a` で idempotency 記録を write トランザクション内へ移動（並行 8 発で 409 になっていた欠陥を修正）。`owner_profile_authz` 11/11 Green、並行テスト 10/10、api 全 suite Green を独立検証のうえ、CI 回復後の run 43064987225 で green を確認して統合 |
-| tastile-root | `main` = `4a92493e3575`（#106 台帳 / #107 運用スタック所在 / #108 隔離マトリクス network 名 / #109 本シート更新 / #110 検証スタックの origin 可変化 を統合済み） |
+| tastile-root | `main` = `af135b59dcda`（#106〜#113 を統合済み。以降の直近の値は GitHub を正とする） |
 | tastile-web | `main` = `5212e995f2ad`。**`bun.lock` は next 16.3.4 / better-auth 1.7.3 のまま**（#200 未反映） |
-| tastile-web（修正済み） | `release-1-1-0` = `a782a2ff3a66`。next 16.4.2 / better-auth 1.7.7 / zod 4.6.6（#205 #204 反映済み、CI success） |
+| tastile-web（修正済み） | `release-1-1-0` = `31b27426de91`（= PR #173 head）。next 16.4.2 / better-auth 1.7.7 / zod 4.6.6（#205 #204 反映済み、CI success）。T05 実測 SHA `a782a2ff3a66` との差は evidence 2 ファイルのみで bun.lock 変更なし |
 | tastile-android | `main` = `8bef645246ea` |
 | tastile-openapi | `main` = `8461ffa34594` |
 | 運用スタック | **確認した範囲に稼働スタックなし**。旧 origin は AWS `52.194.61.218`（本番）/ `52.194.223.15`（staging）で 22/443 閉塞・Cloudflare 522。`TASTILE_DATABASE_URL` の RDS エンドポイントは NXDOMAIN。R2 / AWS 現況 / 旧 origin バックアップ / 端末ローカル DB は未確認（追補 §7） |
@@ -61,8 +66,10 @@
    - **B / C を選ぶ場合**: #105 の G5 ACCEPT（実データでの shadow 試用）を書き換え、
      合成 fixture での比較計画と「実用性の証明範囲」を明記した版の承認が go 条件。
      実データ抽出の未決（台帳 §6-1）は引き続き未決のまま残す。
+   各案が T14/T15/G5 の証明に与える影響は
+   [`2026-11-12-g0-data-status-and-web173-approval.md` §2](./2026-11-12-g0-data-status-and-web173-approval.md) に整理した。
 2. ~~**Core PR #259 の merge**~~ **完了（2026-11-12）**。#260（`df14c4f`）→ #261（CI 回復、`2b7fda5`）→ #259（`399190030ba2`）の順で統合。`main` の quality は run 43064987225 で green。
-3. **Web の脆弱依存**は `release-1-1-0` で解消済み、`main` は未反映。本番反映は PR #173 の release 承認（別判定）。
+3. **Web の脆弱依存**は `release-1-1-0` で解消済み、`main` は未反映。本番反映は PR #173 の release 承認（別判定）。承認材料（固定 SHA・CI・audit/build・E2E ポインタ・既知のギャップ）は [`2026-11-12-g0-data-status-and-web173-approval.md` §3](./2026-11-12-g0-data-status-and-web173-approval.md)。
 4. Web の外部認証依存（Better Auth、実メール送受信）は運用判断として残る。
 
 ---
