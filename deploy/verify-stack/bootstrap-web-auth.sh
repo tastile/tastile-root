@@ -5,7 +5,7 @@
 # Usage: bash bootstrap-web-auth.sh
 set -euo pipefail
 
-PG_CONTAINER="${TASTILE_PG_CONTAINER:-tastile-verify-db}"
+PG_CONTAINER="${TASTILE_PG_CONTAINER:-${TASTILE_VERIFY_PREFIX:-tastile-verify}-db}"
 PG_USER="${TASTILE_PG_USER:-tastile}"
 PG_AUTH_DB="${TASTILE_PG_AUTH_DB:-tastile_auth}"
 PG_DB_ADMIN="${TASTILE_PG_DB_ADMIN:-postgres}"

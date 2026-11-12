@@ -2,7 +2,7 @@
 # Independent, non-production environment: dedicated DB, port, volume and
 # credentials. Never reuse operational data, secrets, or ports.
 # Parallel instances: set TASTILE_VERIFY_PREFIX + a distinct compose project
-# (-p) + distinct host ports; see README "並行インスタンス".
+# (-p) + distinct host ports and TASTILE_CORE_TAG; see README "並行インスタンス".
 #
 # Prereqs: side-by-side checkouts of tastile-core and (optionally)
 # tastile-web as siblings of the tastile-root worktree (or override
