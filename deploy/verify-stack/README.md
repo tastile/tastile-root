@@ -24,6 +24,10 @@ git clone --depth 1 --branch release-1-1-0 --recurse-submodules \
           https://github.com/tastile/tastile-web                      # Web 検証する場合
 
 cd tastile-root/deploy/verify-stack
+
+# ディスク残量と Docker 資源を事前確認（build 前に必須。下記「容量管理」参照）
+bash preflight.sh
+
 export TASTILE_WEB_BRIDGE_SECRET="$(openssl rand -hex 24)"
 docker compose up --build -d
 
@@ -112,6 +116,17 @@ Web dev server も同じインスタンスの port を指す（上の例の値�
   ```
 
 - 各インスタンスは専用 DB・volume・port・secret を持ち、互いに、また運用とも接続しない。証跡には起動コマンドと prefix を記録する。
+
+## 容量管理（disk capacity）
+
+2026-11-13 に検証作業中へ host disk が満杯となり、Docker Desktop の image/volume store が消失して全スタックの再 build が必要になった。再発防止として次を守る。
+
+- **build 前に `bash preflight.sh` を実行する**。空き容量が `TASTILE_VERIFY_MIN_FREE_GIB`（既定 15 GiB）未満なら exit 1 で止まる。並行スタックを増やすときは特に必須。
+- **使い捨てスタックは証跡確定後に `down -v` で畳む**。証跡は host 上の `docs/evidence/` に保全されるため、検証 DB volume を保持し続ける必要はない。
+- **image tag は SHA / run ごとに分ける**（`TASTILE_CORE_TAG`）。旧 tag は `preflight.sh --prune-images` で、どの container からも参照されない `tastile-core-verify:*` だけを削除できる。volume・他プロジェクト・運用スタックの資源には触れない。
+- **EXITED のまま残った検証 container** は `preflight.sh --prune-stopped` で `<prefix>-*` のみ削除できる。
+- `docker system prune` / `docker volume prune` のような全体 prune は**使わない**。運用スタックや他プロジェクトのデータを巻き込み得るため。
+- 長時間キャンペーン中は `bash preflight.sh` を定期実行し、空き容量の減少傾向を確認する。
 
 ## 停止・復元
 
