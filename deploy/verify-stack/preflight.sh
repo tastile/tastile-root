@@ -19,6 +19,10 @@ set -euo pipefail
 MIN_FREE_GIB="${TASTILE_VERIFY_MIN_FREE_GIB:-15}"
 PREFIX="${TASTILE_VERIFY_PREFIX:-tastile-verify}"
 IMAGE_REPO="tastile-core-verify"
+# Docker's `name` filter and `grep -E` both treat the pattern as a regex.
+# Escape PREFIX so e.g. `verify.prod` cannot match `verifyXprod-*` and delete
+# another project's stopped containers.
+PREFIX_REGEX=$(printf '%s' "$PREFIX" | sed 's/[][\\.*^$/]/\\&/g')
 
 avail_kib=$(df -k "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)" | awk 'NR==2 {print $4}')
 avail_gib=$((avail_kib / 1024 / 1024))
@@ -36,7 +40,7 @@ fi
 docker system df || true
 echo
 echo "verify containers (${PREFIX}-*):"
-docker ps -a --format '{{.Names}}\t{{.Status}}' | grep -E "^${PREFIX}-" || echo "  (none)"
+docker ps -a --format '{{.Names}}\t{{.Status}}' | grep -E "^${PREFIX_REGEX}-" || echo "  (none)"
 echo
 echo "${IMAGE_REPO} images:"
 docker images --format '{{.Repository}}:{{.Tag}}\t{{.Size}}' | grep "^${IMAGE_REPO}:" || echo "  (none)"
@@ -51,7 +55,7 @@ fi
 for arg in "$@"; do
   case "$arg" in
     --prune-stopped)
-      stopped=$(docker ps -aq --filter "name=^${PREFIX}-" --filter status=exited)
+      stopped=$(docker ps -aq --filter "name=^${PREFIX_REGEX}-" --filter status=exited)
       if [[ -n "$stopped" ]]; then
         # shellcheck disable=SC2086
         docker rm $stopped
@@ -64,7 +68,7 @@ for arg in "$@"; do
       # images only; volumes and other repositories are untouched.
       used=$(docker ps -a --format '{{.Image}}' | sort -u)
       docker images --format '{{.Repository}}:{{.Tag}}' \
-        | grep "^${IMAGE_REPO}:" \
+        | { grep "^${IMAGE_REPO}:" || true; } \
         | while read -r tag; do
             if ! printf '%s\n' "$used" | grep -qx "$tag"; then
               docker rmi "$tag" || true
