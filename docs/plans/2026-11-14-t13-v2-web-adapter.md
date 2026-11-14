@@ -44,34 +44,77 @@ WIT `tastile:contract@0.2.0`, v1 `plan_step_occurrences` と 9/9 fixture 一致)
   (0..7) を返す CLI 契約を持ち、adapter は薄い写像層で済む
 - 失敗時 fallback を adapter 内で完結できる
 
-### adapter 契約 (案)
+### adapter 契約 (確定)
 
-- Route: `POST /api/v2/scheduler/evaluate` (仮。web 側命名規約に合わせて確定)
-- Request: `{ opt_in: true, input: {…scheduler-option の PORT=VALUE 群…} }`
+CLI 契約は core `origin/main` `39919003` の `tastile-v2 run --help` で実測確認済み:
+
+```
+tastile-v2 run [OPTIONS] <LOCK>
+  --input <PORT=VALUE>        repeatable。str=raw、その他=JSON
+  --store <DIR>               store dir (default .tastile-v2)
+  --no-cache                  memo cache bypass
+  --fuel <FUEL>               per-node fuel budget
+  --memory-mb <MEMORY_MB>     per-node memory limit (MiB)
+  --timeout-ms <TIMEOUT_MS>   per-node wall-clock limit (ms)
+```
+
+stdout は typed JSON (`status`, `root` の provides 値, `nodes` diagnostics)、
+exit code は 0 (success) または 1..8 の typed `ErrorKind`
+(Validation=1, NotFound=2, Unsupported=3, ResourceLimit=4,
+ExecutionError=5, Conflict=6, Internal=7, Undecided=8)。
+adapter はこの契約だけに依存する。
+
+- Route: `POST /api/v2/scheduler/evaluate` (web 側 `/api/...` BFF 規約に合わせる)
+- Request (Zod 検証): `{ opt_in: true, input: { step_ms, span_ms, origin?,
+  bounds_start?, bounds_end?, range_start_ms, range_end_ms } }`
+  - `option<int>` port は `null` または整数。int port は整数のみ
+  - port 名は scheduler-option の 7 入力に allowlist。未知 port・型不一致は
+    adapter が 400 で拒否し subprocess を起動しない
 - Server 処理:
-  1. `TASTILE_V2_ENABLED` (server env) と request `opt_in` の両方が true のときのみ v2 経路
-  2. `TASTILE_V2_CLI` (binary path), `TASTILE_V2_STORE` (store dir),
-     `TASTILE_V2_LOCK` (事前 compose 済み lock file) を env から解決
-  3. `tastile-v2 run <lock> --input k=v …` を timeout 付きで spawn
+  1. `TASTILE_V2_ENABLED=true` (server env) と request `opt_in` の両方が true の
+     ときのみ v2 経路。どちらか欠ければ `{ engine: "disabled" }` を返す
+     (opt-in なし要求を v2 成功と偽装しない)
+  2. env から `TASTILE_V2_CLI` (binary path), `TASTILE_V2_STORE` (store dir),
+     `TASTILE_V2_LOCK` (pre-built lock file) を解決。未設定は typed failure
+  3. `tastile-v2 run <lock> --store <store> --fuel <F> --memory-mb <M>
+     --timeout-ms <T> --input k=v …` を spawn。resource limit は **CLI option で
+     per-node に強制**し、さらに adapter 側で subprocess 全体の wall-clock
+     timeout (既定 10s、env で変更可) と concurrency 上限 (semaphore、既定 2)
+     を設ける。上限値は adapter 定数として固定し request からは変更不可
   4. stdout JSON + exit code を typed result に正規化:
-     `{ engine: "v2", ok: true, occurrences: [...], diagnostics: {...} }`
+     `{ engine: "v2", ok: true, occurrences: [...], count: n, diagnostics: {...} }`
      `{ engine: "v2", ok: false, error: { code, message } }`
-  5. 失敗時 (spawn 失敗 / timeout / 非 0 exit / JSON parse 失敗) は
-     `{ engine: "fallback", ok: false, fallback_reason: "..." }` を返す。
-     v1 経路の計算結果をここで再計算はしない (v1 default は別経路が担うため、
-     adapter は typed fallback を返すに留める)
-- opt-in なし / env 未設定の要求は `{ engine: "disabled" }` を返すか 404/403 で拒否
-  (実装時に web のエラー規約へ合わせる)
+  5. 失敗時 (env 未設定 / spawn 失敗 / timeout / kill / 非 0 exit /
+     stdout JSON parse 失敗 / provides 型不一致) は
+     `{ engine: "fallback", ok: false, fallback_reason: "<code>" }` を返す。
+     **v1 経路の計算結果をここで再計算して v2/fallback 成功と偽装しない**。
+     v1 default は別経路 (既存 API) が担う
+- 認証・認可: 既存 BFF route と同じ session 認証を要求し、未認証は既存規約の
+  401/redirect に従う。v2 評価自体は owner データを読まない pure 関数評価だが、
+  BFF 面としての認証境界は維持する
+- 運用経路なし: 本 route は verify/dev 環境専用。`TASTILE_V2_ENABLED` を
+  設定しない環境では常に disabled を返し、運用 stack の配備物・設定には
+  一切追加しない
 
 ## 変更対象 (予定)
 
 ### tastile-web
 
-- `src/app/api/v2/scheduler/evaluate/route.ts` (新規 BFF route)
-- `src/shared/api/v2/` または `src/lib/v2-adapter/` に adapter client/型
-- 検証 UI: 最小の表示面。候補は create-tile 系の schedule preview に
-  「v2 (opt-in)」トグルを足すか、検証用ページを新設するか — 実装計画の
-  第2段で web の既存 preview コンポーネントを確認して決める
+- `src/app/api/v2/scheduler/evaluate/route.ts` (新規 BFF route、session 認証は
+  既存 `/api/events/*` route と同じ規約)
+- `src/lib/v2-adapter/` に adapter 実装 (subprocess spawn, Zod schema,
+  semaphore, timeout, typed result 正規化) + Vitest
+- `fixtures/v2/scheduler-option.composition.json`: scheduler-option artifact
+  1 node の passthrough composition (artifact 登録・lock build の入力)。
+  core repo は変更しない
+- `scripts/v2-seed-store.sh`: `TASTILE_V2_CORE_DIR` の core checkout から
+  `examples/scheduler-option-producer/artifact.json` と
+  `examples/generated/scheduler-option.wasm` を読み、store へ登録 →
+  composition 登録 → `compose build` で lock を生成する verify 用 seed
+  手順 (lock/binary の version 固定は env path + commit SHA 記録で担保)
+- 検証 UI: `src/app/app/v2-scheduler/` に最小の opt-in 評価ページを新設
+  (既存 schedule preview への組込みは影響範囲が大きいため T13 では分離。
+  実ブラウザ受入はこのページで行う)
 - `.env.example` に `TASTILE_V2_*` key 名を追加 (値は書かない)
 
 ### tastile-core (最小)
@@ -105,14 +148,20 @@ WIT `tastile:contract@0.2.0`, v1 `plan_step_occurrences` と 9/9 fixture 一致)
 - `release-1-1-0` への crates-v2 取り込み判断
 - 運用 stack・実データ・外部 IdP/課金クラウドの利用
 
-## リスク / 未決事項
+## リスク / 未決事項 (解消済み)
 
-- **lock/artifact の配布**: adapter が必要とする composition lock をどこに置き、
-  どう version 固定するか (web repo 同梱 vs verify 環境 seed)。実装段階で決める
-- **binary の所在**: verify では host build の `tastile-v2` を `TASTILE_V2_CLI` で
-  指す。将来の配布形態 (container 同梱等) は T13 では決めない
-- **Web 側の表示面**: 「予定計算結果の表示」として最も自然な既存 UI を
-  web checkout で確認してから確定する (QuickCreate preview / schedule draft /
-  専用検証ページのいずれか)
-- **timeout / resource limit**: `tastile-v2 run` の `--fuel`/`--memory-mb`/
-  `--timeout` 相当を adapter で必ず設定し、暴走を防ぐ
+- **lock/artifact の配布**: composition fixture は tastile-web に commit。
+  store への artifact 登録と lock build は `scripts/v2-seed-store.sh` が
+  verify 時に行い、lock path を `TASTILE_V2_LOCK` で固定する。lock 内容は
+  artifact/wasm の digest に依存するため、seed 時の core checkout SHA を
+  証跡に記録する
+- **binary の所在**: verify では host build の `tastile-v2` を
+  `TASTILE_V2_CLI` で指す。web dev server も host 実行のため container
+  同梱は不要。将来の配布形態は T13 の対象外
+- **Web 側の表示面**: 既存 preview への組込みは v1 default 経路への影響が
+  読めないため、T13 は専用 opt-in ページ `/app/v2-scheduler/` で受入する。
+  実用 UI への統合は T13 受入後の別 ticket
+- **resource limit**: `tastile-v2 run` の `--fuel` / `--memory-mb` /
+  `--timeout-ms` (per-node) を adapter が固定値で必ず付与し、さらに
+  subprocess 全体の wall-clock timeout と concurrency semaphore を
+  adapter 側で強制する (request からは変更不可)
