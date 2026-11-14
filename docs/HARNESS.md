@@ -206,7 +206,15 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 
 ## 6. インフラ・デプロイ構成
 
-### 6-1. クラウドサーバー構成 (3 台)
+> **2026-11-14 改訂**: クラウドデプロイ運用は停止しており、再開しない
+> (local-first)。core / web の deploy workflow・deploy script・deploy runbook は
+> 各リポジトリで撤去済み (core `docs/plans/2026-11-14-retire-cloud-deploy-paths.md`、
+> web PR #218)。以下の §6-1〜6-3 は **停止中の構成の記録** であり、現在の
+> 開発・検証・利用はローカル実行 (host dev server + ローカル PostgreSQL +
+> Core daemon) を前提とする。AWS リソースの復旧・再作成は開発目標に含めない。
+> 既存のローカル運用データは保護し、未承認の移行・破壊的操作は行わない。
+
+### 6-1. クラウドサーバー構成 (3 台) ※停止中の記録
 
 | サーバー | 役割 | 詳細 |
 | --- | --- | --- |
@@ -214,7 +222,7 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 | **データベースサーバー** | PostgreSQL によるデータ永続化 | **アプリサーバーからのみアクセス可能** (セキュリティ境界) |
 | **Web 汎用サーバー** | Web アプリの公開・LP 公開・API ドキュメント公開・Desktop アプリデータの配置・認証コールバックの受け口 | 幅広い公開用途 |
 
-### 6-2. 最終デプロイ先
+### 6-2. 最終デプロイ先 ※停止中の記録 (現行はローカル実行)
 
 | リポジトリ | デプロイ先 |
 | --- | --- |
@@ -225,12 +233,12 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 | tastile-ios | Apple App Store (将来) |
 | tastile-mac | Apple App Store (将来) |
 
-### 6-3. デプロイ経路
+### 6-3. デプロイ経路 ※停止中の記録
 
-- すべてのリポジトリで **GitHub Actions** によるデプロイ経路を持つ
-- 加えて **直接デプロイも可能な経路** を維持する
-- 基本的にすべてのデプロイが **CLI で完結** する
-- Docker は使わない。**開発環境でも本番環境でも Linux バイナリが直接動く**
+- ~~すべてのリポジトリで **GitHub Actions** によるデプロイ経路を持つ~~ → 2026-11-14 に deploy workflow は全撤去。tag は release 統合の attestation のみ
+- ~~直接デプロイも可能な経路~~ → deploy script は削除済み (git history に残る)
+- ~~すべてのデプロイが **CLI で完結**~~ → 現行の build / test / 実行検証は各リポジトリの CLI (cargo / bun / scripts) でローカル完結
+- Docker は使わない。**開発環境でも本番環境でも Linux バイナリが直接動く** (ローカル実行でも同様)
 
 ### 6-4. env 管理
 
@@ -356,7 +364,7 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 | Android フロントエンドの変更 | tastile-android/README.md | tastile-android |
 | Desktop フロントエンドの変更 | tastile-desktop/CLAUDE.md | tastile-desktop |
 | ロゴ・ブランドアセットの更新 | tastile-brands/README.md | tastile-brands |
-| デプロイ・インフラの変更 | 本ドキュメント §6 + 各リポジトリの deploy/ | tastile-core, 対象リポジトリ |
+| デプロイ・インフラの変更 | 本ドキュメント §6 (deploy 経路は停止中・local-first) + 各リポジトリの CI/ | tastile-core, 対象リポジトリ |
 | 認証フローの変更 | 本ドキュメント §7 + tastile-core/v1/14 | tastile-core, 対象クライアント |
 | 新規クライアント (iOS/Mac) の追加 | 本ドキュメント §4 | 新リポジトリ作成 |
 | 課金機能の実装 | 本ドキュメント §8-3 + Stripe docs | tastile-core, tastile-web |
