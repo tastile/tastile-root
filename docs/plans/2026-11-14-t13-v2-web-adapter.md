@@ -41,7 +41,7 @@ WIT `tastile:contract@0.2.0`, v1 `plan_step_occurrences` と 9/9 fixture 一致)
 - secret・内部 runtime 詳細を browser に出さない (BFF/server-side が境界)
 - v2 runtime は capability-default-deny の pure local 評価であり、常駐化の必然性がない
 - `tastile-v2 run <lock> --input PORT=VALUE` は既に typed JSON + exit code
-  (0..7) を返す CLI 契約を持ち、adapter は薄い写像層で済む
+  (0 または typed 1..8) を返す CLI 契約を持ち、adapter は薄い写像層で済む
 - 失敗時 fallback を adapter 内で完結できる
 
 ### adapter 契約 (確定)
@@ -70,21 +70,27 @@ adapter はこの契約だけに依存する。
   - `option<int>` port は `null` または整数。int port は整数のみ
   - port 名は scheduler-option の 7 入力に allowlist。未知 port・型不一致は
     adapter が 400 で拒否し subprocess を起動しない
-- Server 処理:
-  1. `TASTILE_V2_ENABLED=true` (server env) と request `opt_in` の両方が true の
-     ときのみ v2 経路。どちらか欠ければ `{ engine: "disabled" }` を返す
-     (opt-in なし要求を v2 成功と偽装しない)
-  2. env から `TASTILE_V2_CLI` (binary path), `TASTILE_V2_STORE` (store dir),
+- Server 処理 (この順序で固定。前段の gate を通らない要求は後段の検証に
+  到達しない):
+  1. session 認証 (未認証は既存規約の 401)。JSON body の parse 失敗は 400
+  2. opt-in gate: request `opt_in !== true` なら `{ engine: "disabled" }`
+     を返す (opt-in なし要求を v2 成功と偽装しない)
+  3. enable gate: `TASTILE_V2_ENABLED=true` (server env) でなければ
+     `{ engine: "disabled" }` を返す。**この時点で disabled が確定するため、
+     opt-in 済みでも env 未設定の環境では入力内容によらず disabled**
+  4. request schema 検証 (Zod strict object。未知 port・型不一致は 400 で
+     拒否し subprocess を起動しない)
+  5. env から `TASTILE_V2_CLI` (binary path), `TASTILE_V2_STORE` (store dir),
      `TASTILE_V2_LOCK` (pre-built lock file) を解決。未設定は typed failure
-  3. `tastile-v2 run <lock> --store <store> --fuel <F> --memory-mb <M>
+  6. `tastile-v2 run <lock> --store <store> --fuel <F> --memory-mb <M>
      --timeout-ms <T> --input k=v …` を spawn。resource limit は **CLI option で
      per-node に強制**し、さらに adapter 側で subprocess 全体の wall-clock
      timeout (既定 10s、env で変更可) と concurrency 上限 (semaphore、既定 2)
      を設ける。上限値は adapter 定数として固定し request からは変更不可
-  4. stdout JSON + exit code を typed result に正規化:
+  7. stdout JSON + exit code を typed result に正規化:
      `{ engine: "v2", ok: true, occurrences: [...], count: n, diagnostics: {...} }`
      `{ engine: "v2", ok: false, error: { code, message } }`
-  5. 失敗時 (env 未設定 / spawn 失敗 / timeout / kill / 非 0 exit /
+  8. 失敗時 (env 未設定 / spawn 失敗 / timeout / kill / 非 0 exit /
      stdout JSON parse 失敗 / provides 型不一致) は
      `{ engine: "fallback", ok: false, fallback_reason: "<code>" }` を返す。
      **v1 経路の計算結果をここで再計算して v2/fallback 成功と偽装しない**。
@@ -111,10 +117,12 @@ adapter はこの契約だけに依存する。
   `examples/scheduler-option-producer/artifact.json` と
   `examples/generated/scheduler-option.wasm` を読み、store へ登録 →
   composition 登録 → `compose build` で lock を生成する verify 用 seed
-  手順 (lock/binary の version 固定は env path + commit SHA 記録で担保)
-- 検証 UI: `src/app/app/v2-scheduler/` に最小の opt-in 評価ページを新設
-  (既存 schedule preview への組込みは影響範囲が大きいため T13 では分離。
-  実ブラウザ受入はこのページで行う)
+  手順 (lock/binary の version 固定は env path + commit SHA + binary digest
+  記録で担保)
+- 検証 UI: `src/app/dashboard/v2-scheduler/` に最小の opt-in 評価ページを
+  新設 (`/app/*` は `/dashboard` へ redirect されるため dashboard 配下に置く)。
+  既存 schedule preview への組込みは影響範囲が大きいため T13 では分離。
+  実ブラウザ受入はこのページで行う
 - `.env.example` に `TASTILE_V2_*` key 名を追加 (値は書かない)
 
 ### tastile-core (最小)
@@ -134,7 +142,14 @@ adapter はこの契約だけに依存する。
 1. verify-stack (Web dev + core verify + `tastile-v2` binary) で
    opt-in 要求 → v2 typed result が Web に表示される (実ブラウザまたは
    API trace + screenshot)
-2. opt-in なしの同一画面/経路は従来どおり v1/default 動作 (リグレッションなし)
+2. opt-in なしの同一画面/経路は従来どおり v1/default 動作 (リグレッションなし)。
+   具体的には: (a) `POST /api/v2/scheduler/evaluate` に `opt_in` なしで
+   投げると `{ engine: "disabled" }` が返る、(b) 既存の予定作成 UI は
+   `/api/v2/*` を一切呼ばず v1 API のみを使う (本変更は新規ファイル追加のみで
+   既存 route/UI を変更しない)、(c) 既定経路のリグレッションがないことを
+   T08 系の実ブラウザ経路または `bun run check` で確認する。
+   **v1/default の計算結果を v2 ページ上に併記することは T13 の要件ではない**
+   (既存操作への接続は G4 ACCEPT 側の要件であり、別 Issue で扱う)
 3. `tastile-v2` 不在 / timeout / 不正入力で typed fallback が返り UI が壊れない
 4. golden vector (`examples/vectors/scheduler-option.json`) との一致を
    adapter 経路でも確認 (少なくとも代表ケース)
@@ -155,12 +170,18 @@ adapter はこの契約だけに依存する。
   verify 時に行い、lock path を `TASTILE_V2_LOCK` で固定する。lock 内容は
   artifact/wasm の digest に依存するため、seed 時の core checkout SHA を
   証跡に記録する
-- **binary の所在**: verify では host build の `tastile-v2` を
-  `TASTILE_V2_CLI` で指す。web dev server も host 実行のため container
-  同梱は不要。将来の配布形態は T13 の対象外
+- **binary の所在と同一性**: verify では記録した core revision から build
+  した `tastile-v2` を `TASTILE_V2_CLI` で指す。web dev server も host
+  実行のため container 同梱は不要。**証跡には binary の SHA-256 digest
+  (`<lock>.cli-sha256`、seed script が自動生成) と build 元の core SHA の
+  両方を記録し、env path だけで binary の同一性を主張しない**。
+  将来の配布形態は T13 の対象外
 - **Web 側の表示面**: 既存 preview への組込みは v1 default 経路への影響が
-  読めないため、T13 は専用 opt-in ページ `/app/v2-scheduler/` で受入する。
-  実用 UI への統合は T13 受入後の別 ticket
+  読めないため、T13 は専用 opt-in ページ `/dashboard/v2-scheduler/` で
+  技術実証の受入を行う。**これは v2 専用デモであり、G4 ACCEPT の
+  「Web の実操作から v2 の計算結果が表示される」は満たさない**。
+  実用 UI (既存の予定作成フロー) への接続は T13 受入後に別 Issue として
+  起票し、G4 判定材料として扱う
 - **resource limit**: `tastile-v2 run` の `--fuel` / `--memory-mb` /
   `--timeout-ms` (per-node) を adapter が固定値で必ず付与し、さらに
   subprocess 全体の wall-clock timeout と concurrency semaphore を
