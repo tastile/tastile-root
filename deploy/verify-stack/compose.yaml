@@ -8,9 +8,10 @@
 # tastile-web as siblings of the tastile-root worktree (or override
 # TASTILE_CORE_DIR / TASTILE_WEB_DIR).
 #
+# Preflight:     bash preflight.sh
 # Bring up:      docker compose up --build -d
 # Tear down:     docker compose down -v   (also wipes the test DB)
-# Health:        curl http://127.0.0.1:31400/v1/health
+# Health:        curl http://127.0.0.1:31410/v1/health
 
 services:
   db:
@@ -24,7 +25,7 @@ services:
     volumes:
       - tastile-verify-pgdata:/var/lib/postgresql/data
     ports:
-      # Non-standard host port: never collides with an operational 5432.
+      # Loopback-only host port; preflight rejects operational PostgreSQL ports.
       - "127.0.0.1:${TASTILE_VERIFY_PG_PORT:-55432}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
@@ -45,7 +46,9 @@ services:
     environment:
       TASTILE_DATABASE_URL: postgres://${TASTILE_VERIFY_PG_USER:-tastile}:${TASTILE_VERIFY_PG_PASSWORD:-tastile-verify-only}@db:5432/${TASTILE_VERIFY_PG_DB:-tastile_verify}
       DATABASE_URL: postgres://${TASTILE_VERIFY_PG_USER:-tastile}:${TASTILE_VERIFY_PG_PASSWORD:-tastile-verify-only}@db:5432/${TASTILE_VERIFY_PG_DB:-tastile_verify}
-      TASTILE_API_HOST: 0.0.0.0
+      TASTILE_API_HOST: ${TASTILE_API_HOST:-0.0.0.0}
+      # Core listens on 31400 inside the container. TASTILE_API_PORT below
+      # controls only the host-side published port.
       TASTILE_API_PORT: "31400"
       TASTILE_ENV: development
       # release-1-1-0 の storage::pool は未設定を拒否する（main は既定値で動く）。
@@ -61,7 +64,7 @@ services:
       TASTILE_REQUEST_TIMEOUT_SECONDS: "30"
       AWS_EC2_METADATA_DISABLED: "true"
     ports:
-      - "127.0.0.1:${TASTILE_API_PORT:-31400}:31400"
+      - "127.0.0.1:${TASTILE_API_PORT:-31410}:31400"
     restart: unless-stopped
 
   worker:

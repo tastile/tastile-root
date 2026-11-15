@@ -12,6 +12,7 @@
     tastile-web/       # (任意) Web 検証用
   ```
 - Docker と Docker Compose v2（`docker compose version`）
+- `jq`（preflight が解決済み Compose 設定を検査するため）
 - 開発 API の branch 切替は `TASTILE_CORE_DIR` / `TASTILE_CORE_TAG` で行う。デフォルトは Compose ファイルから見て **`../../../tastile-core`**（`tastile-root/deploy/verify-stack/` から workspace 兄弟）を `.wslc/Containerfile.v1` から build する。
 
 ## 起動（fresh checkout 手順）
@@ -25,17 +26,21 @@ git clone --depth 1 --branch release-1-1-0 --recurse-submodules \
 
 cd tastile-root/deploy/verify-stack
 
-# ディスク残量と Docker 資源を事前確認（build 前に必須。下記「容量管理」参照）
+# Compose の隔離設定とディスク残量を事前確認（build 前に必須）
 bash preflight.sh
 
 export TASTILE_WEB_BRIDGE_SECRET="$(openssl rand -hex 24)"
 docker compose up --build -d
 
 # 健全性確認（migration は初回起動時に自動適用される）
-curl -s http://127.0.0.1:31400/v1/health
+curl -s http://127.0.0.1:31410/v1/health
 docker compose ps          # db = healthy、api/worker = running
 docker compose logs --tail=50 api worker
 ```
+
+preflight は実際に解決された Compose 設定を読み取り、API host port が `31400` / `31401`、DB host port が `5432` / `5433` でないこと、両サービスが `TASTILE_DELIVERY_PROVIDER=fake` を使うこと、API / worker の DB URL が compose network の `db:5432` を指すことを確認する。API と DB の host 公開先が `127.0.0.1` であることも検証する。条件に合わなければ stack の起動前に失敗し、合格時は検証専用の attestation 行を出力する。`docker compose up` に使う環境変数や `COMPOSE_FILE` を変える場合は、同じ設定で preflight を実行する。
+
+host API port の既定値は `31410`、container 内の Core API port は `31400` のまま。`TASTILE_API_PORT` は loopback に公開する host port を、`TASTILE_API_HOST` は container 内の API bind address を指定する（既定 `0.0.0.0`）。通常の endpoint は `127.0.0.1:31410 → container:31400` となる。
 
 ### Web 検証のための認証ストア（Better Auth）の初期化
 
@@ -57,11 +62,11 @@ TASTILE_ENV=development \
 NEXT_PUBLIC_APP_URL=http://localhost:3000 \
 NEXT_PUBLIC_APP_HOST=localhost \
 NEXT_PUBLIC_APEX_HOST=apex.tastile.local \
-CLOUD_API_BASE=http://localhost:31400 \
-NEXT_PUBLIC_TASTILE_CORE_URL=http://localhost:31400 \
-NEXT_PUBLIC_DAEMON_BASE_URL=http://localhost:31400 \
+CLOUD_API_BASE=http://localhost:31410 \
+NEXT_PUBLIC_TASTILE_CORE_URL=http://localhost:31410 \
+NEXT_PUBLIC_DAEMON_BASE_URL=http://localhost:31410 \
 TASTILE_USE_RUST_CORE=1 \
-TASTILE_RUST_API_URL=http://127.0.0.1:31400 \
+TASTILE_RUST_API_URL=http://127.0.0.1:31410 \
 TASTILE_WEB_BRIDGE_SECRET="$(cat /path/to/verify-bridge-secret.txt)" \
 TASTILE_AUTH_DATABASE_URL=postgres://tastile:tastile-verify-only@127.0.0.1:55432/tastile_auth \
 PORT=3000 \
@@ -82,7 +87,13 @@ openssl rand -hex 24 > /tmp/verify-b-bridge-secret.txt
 
 TASTILE_VERIFY_PREFIX=tastile-verify-b \
 TASTILE_CORE_TAG=verify-b \
-TASTILE_API_PORT=31410 \
+TASTILE_API_PORT=31420 \
+TASTILE_VERIFY_PG_PORT=55433 \
+bash preflight.sh
+
+TASTILE_VERIFY_PREFIX=tastile-verify-b \
+TASTILE_CORE_TAG=verify-b \
+TASTILE_API_PORT=31420 \
 TASTILE_VERIFY_PG_PORT=55433 \
 TASTILE_WEB_BRIDGE_SECRET="$(cat /tmp/verify-b-bridge-secret.txt)" \
 docker compose -p tastile-verify-b up --build -d
@@ -93,7 +104,7 @@ docker compose -p tastile-verify-b up --build -d
 | `TASTILE_VERIFY_PREFIX` | container 名（`<prefix>-db/api/worker`）と DB volume 名（`<prefix>-pgdata`） |
 | `-p <project>` | compose project 名 → network `<project>_default`（volume key とは独立） |
 | `TASTILE_CORE_TAG` | image 名 `tastile-core-verify:<tag>`。**インスタンスごとに一意にする**（共通 tag は一方の build が他方の image を置き換える） |
-| `TASTILE_API_PORT` / `TASTILE_VERIFY_PG_PORT` | host 側 loopback port |
+| `TASTILE_API_PORT` / `TASTILE_VERIFY_PG_PORT` | host 側 loopback port（この例では API `31420` / DB `55433`） |
 | `TASTILE_WEB_BRIDGE_SECRET` | インスタンス専用の検証 secret（既定は必須。上記のようにファイルへ保存して Web にも渡す） |
 
 Web dev server も同じインスタンスの port を指す（上の例の値）:
@@ -101,7 +112,7 @@ Web dev server も同じインスタンスの port を指す（上の例の値�
 | Web 変数 | 例 |
 | --- | --- |
 | `PORT` | `3002` |
-| `CLOUD_API_BASE` / `NEXT_PUBLIC_TASTILE_CORE_URL` / `TASTILE_RUST_API_URL` / `NEXT_PUBLIC_DAEMON_BASE_URL` | `http://localhost:31410` |
+| `CLOUD_API_BASE` / `NEXT_PUBLIC_TASTILE_CORE_URL` / `TASTILE_RUST_API_URL` / `NEXT_PUBLIC_DAEMON_BASE_URL` | `http://localhost:31420` |
 | `TASTILE_AUTH_DATABASE_URL` | `postgres://tastile:tastile-verify-only@127.0.0.1:55433/tastile_auth` |
 | `TASTILE_WEB_BRIDGE_SECRET` | 保存した secret ファイルの値 |
 
@@ -110,7 +121,7 @@ Web dev server も同じインスタンスの port を指す（上の例の値�
 
   ```bash
   TASTILE_VERIFY_PREFIX=tastile-verify-b \
-  TASTILE_API_PORT=31410 TASTILE_VERIFY_PG_PORT=55433 \
+  TASTILE_API_PORT=31420 TASTILE_VERIFY_PG_PORT=55433 \
   TASTILE_WEB_BRIDGE_SECRET="$(cat /tmp/verify-b-bridge-secret.txt)" \
   docker compose -p tastile-verify-b down    # -v は volume 完全削除。要件のときだけ使う
   ```
@@ -147,14 +158,16 @@ docker compose up --build -d # 緊急再構成（volume があれば復元を検
 
 | 層 | 検証環境 | 禁止される共有 |
 | --- | --- | --- |
-| DB port | 127.0.0.1:55432（非標準） | 運用 5432 との共有 |
+| DB port | `127.0.0.1:55432 → container:5432`（host port は変更可能） | 運用 `5432` / `5433` との共有。preflight で拒否 |
 | DB 名 / credential | `tastile_verify` / `tastile`+`tastile-verify-only` | 運用 credential |
 | volume | `tastile-verify-pgdata`（専用） | 運用 volume・cloud 上 volume |
-| API port | 127.0.0.1:31400 | 運用公開 port |
+| API port | `127.0.0.1:31410 → container:31400`（host port は変更可能） | 運用 `31400` / `31401` との共有。preflight で拒否 |
 | network | `verify-stack_default`（compose project 名の既定。`-p` を付けると `<project>_default` に変動。いずれも検証専用） | 運用 network |
 | 通知経路 | `TASTILE_DELIVERY_PROVIDER=fake`（外部送信なし） | 運用通知先 |
 | 認証 | 検証用 bridge secret（起動毎にランダム生成を推奨） | 運用 bridge secret / Cognito |
 | データ | 合成 fixture / シードのみ | 運用実データ |
+
+運用 API と検証 stack が別 host にあることを安全性の根拠にしない。preflight は起動前に解決済み Compose 設定の port、DB URL、通知 provider、loopback binding を機械検証する。運用 host の到達性や設定には依存しない。
 
 ## 外部依存（free / paid）
 

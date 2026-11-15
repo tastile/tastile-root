@@ -36,7 +36,7 @@
 | 検証環境 | 隔離実測済み。`tastile-verify-{db,api,worker}` 稼働、`/v1/health` 200（`database:reachable`, `version:1.0.2`）、`/v1/ready` 200、`v1_migration` 63。**2026-11-12 追加**: `docker restart tastile-verify-api` 後も health 200 / migration 63 / `v1_tile` 145,813 行が不変（volume 永続化と再起動を同一検証で確認）。運用先への書込経路 0 は #104「T02 追記」§6 で静的走査 + コンテナ env + established 接続の3系統で実測 |
 | G0 タスク進捗 | **T01 / T02 / T04 完了**（#105 のチェックボックスに証拠付きで記録）。T03 は「CI 赤の原因分類と回復経路」が本シート更新時点で apt DNS 障害の対応（#261）待ち |
 | G1 前提（実測） | Web sign-up → bridge → `tastile_api_token` 発行 → `/api/proxy/v1/tiles` 200 を実 Chromium で確認済み（Web `3e7842e0`）。**`main` ではなく `release-1-1-0` 系の SHA**であることに注意 |
-| G1 起動コマンド | `cd deploy/verify-stack && docker compose -f compose.yaml up --build -d` → `curl http://127.0.0.1:31400/v1/health` |
+| G1 起動コマンド | `cd deploy/verify-stack && bash preflight.sh && docker compose -f compose.yaml up --build -d` → `curl http://127.0.0.1:31410/v1/health`。preflight は起動前に解決済み Compose 設定の port / DB URL / 通知先 / loopback binding を検査する |
 
 ---
 
