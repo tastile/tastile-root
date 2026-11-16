@@ -57,6 +57,14 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
   openapi-typescript）の drift と advisory を release 前、または bump 直前に read-only で確認する。
 - `parallel-orchestration`: worker への実装委譲、並列化、再割当、停止、成果物統合。
 - `github-delivery`: Issue の着手、Draft PR、release branch、検証証跡、明示的な完了処理。
+- `tdd` (manual invocation): `.agents/skills/tdd/SKILL.md` を直接読む。user が明示的に
+  TDD / 失敗 test / regression test を求めた時、または安価な local test target がある
+  bug fix の時だけ使う。
+
+導入済み Skill の source と content hash は `skills-lock.json` が正本。追従更新は
+`mise run skills-update`（`bunx skills update -p -y`）。project 固有 Skill
+（`cross-repo-contract-check`、`plugin-version-audit`、`verify-tastile-change`）は
+upstream 管理外なので update で上書きしない。
 
 ## 検証と commit
 
