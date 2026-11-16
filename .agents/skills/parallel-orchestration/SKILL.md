@@ -55,6 +55,25 @@ orchestration strengthはtask sizeの印象ではなくexecution profileから�
 
 execution profileは `quality-gate` のverification risk taxonomyを置換しない。orchestration/review強度とtest levelを別々に決定する。
 
+## Adaptive fan-out / fan-in
+
+fan-outはagent数ではなくadmitted progressを最適化する。まず **smallest useful fan-out**（独立して価値を出せる最小数）で開始し、各fan-in boundaryで再評価する。
+
+mode:
+
+- **independent decomposition**: Ready / stack-readyな独立nodeを並行実行する。
+- **competitive exploration**: uncertain problemへ複数のobservational candidateを独立に作らせる。多数決ではなくevidence / measurement / validationで比較する。
+- **specialist separation**: builder / reviewer / benchmark / security等を責務分離する。
+- **speculative execution**: reviewable immutable predecessor snapshotへexact pinできる場合だけ先行する。predecessor変更時はstaleとしてreconcileする。
+
+competitive mutable implementationは、各attemptが独立mutable ownership boundary、同一base/input identity、immutable result contractを持つ場合だけ許可する。満たせなければobservational explorationまたは直列implementationへ縮退する。
+
+追加spawnはReady work、uncertainty、WIP、provider/host resource、human review、CI/external wait、retry/stale率、回収costを見て判断する。idle capacityだけを理由にworkを分割しない。追加Workerのmarginal valueよりorchestration/integration bottleneckが大きい場合はfan-outを止める。
+
+短命でparent内部に閉じる観測・探索helperは、project-localでexternal routeが指定されていなければnative subagentを使用できる。独立lifecycle / mutable ownership / background continuity / provider separation / budget isolation / human attach、またはrole-specific external routeが必要ならtop-level Workerへ昇格する。起動前にroleのrouteをresolveし、実際のharness/providerがそのrouteに一致するようpreflight/permissionで保証する。Herdrを使う具体mappingと参照実装は `herdr-runtime` と `templates/agent-routing/` に従う。
+
+fan-in時はtask/attempt/base/fencing/result identityとapplicable evidenceを確認する。複数agentの同意だけをcorrectness evidenceにしない。
+
 ## Capacity / delivery-estimation coupling
 
 scheduleやroadmapを理由にWIP / spawn数 / agent数を増減する場合は、`agent-delivery-estimation` Skillを参照する。
@@ -94,7 +113,7 @@ predecessorが後から変更された場合はaffected downstream task/branch�
 5. 各nodeのinput snapshot / predecessor snapshot / output contract / recovery boundaryを決める。
 6. Supervisorがdurable taskへcurrent fencing identity（current defaultでは `execution_generation`）と実行policyを割り当ててspawnする。
 7. Readyまたはstack-readyなnodeをWIP/resource制約内でspawnする。
-8. durable ticket branchをworker/subagentが作る場合、first meaningful commitをcanonical remoteへpublishし、remote head SHA一致を確認した直後にDraft PRを作成する。published commit + Draft PRなしでactive implementationを継続しない。
+8. durable ticket branchをworker/subagentが作る場合、first meaningful commitをcanonical remoteへpublishし、remote head SHA一致を確認した直後にPRを作成する。active/incompleteならDraft、readiness条件を満たしていればReady for reviewとし、published commit + PRなしでactive implementationを継続しない。
 9. meaningful boundaryでcheckpointする。
 10. worker resultをinspectし、applicableなcurrent fencing identityとbase snapshotがcurrent expected stateに一致することを確認する。
 11. Coordinator/Supervisorだけがshared durable integration stateへ順序立てて統合する。
@@ -119,7 +138,7 @@ predecessor_issue_or_pr
 predecessor_snapshot
 immediate_pr_base
 branch_identity
-expected_draft_pr
+expected_pr_identity_and_state
 assignee_expectation
 reviewer_expectation
 label_expectation
@@ -137,11 +156,17 @@ durable workerでは上記に加えて、`recovery_boundary`、durable checkpoin
 
 dependency / durable GitHub deliveryを使わない短命taskでは該当しないfieldはnull/omittedでよい。
 
+### Requirement provenance
+
+複雑・長期・多段委譲では [canonical requirement continuity](references/requirement-continuity.md) を適用する。正本・版の参照と受入条件の照合は省略しない。
+
+`budget` にはresource / cost / timeoutに加えて、childがさらにspawnできる深さと数の上限を含める。上限のないrecursive spawn（fork bomb）やunbounded costを作らない。
+
 `filesystem_policy` / `network_policy` はSupervisorが実際にenforceする境界を表す。policy enforcementが別のruntime/provider設定で行われる場合も、spawn contractにはそのpolicy IDまたは解決済みpolicyを記録し、worker inputと実際のsandbox制約が追跡可能でなければならない。
 
 ## Durable branch contract
 
-worker/subagentへdurable branch作成権限を与える場合、その権限はremote publication + Draft PR lifecycleとセットで扱う。
+worker/subagentへdurable branch作成権限を与える場合、その権限はremote publication + PR state lifecycleとセットで扱う。
 
 canonical sequence:
 
@@ -149,13 +174,13 @@ canonical sequence:
 2. first meaningful commit
 3. canonical remoteへcommitをpublish
 4. remote branch head SHAがfirst meaningful commit SHAと一致することを確認
-5. immediate Draft PR creation
+5. immediate PR creation with state matching actual work
 6. Issue linkage / assignee / reviewer / labels / target release / stack contextを設定
 7. implementation継続
 
-GitHub上のPRはremoteでheadを解決でき、head/baseに差分がある必要があるため、branch作成・first commit・remote publication・remote head検証・Draft PR creationを1つのoperational start procedureとして扱う。
+GitHub上のPRはremoteでheadを解決でき、head/baseに差分がある必要があるため、branch作成・first commit・remote publication・remote head検証・PR creation/state設定を1つのoperational start procedureとして扱う。
 
-workerがremote publishまたはPR mutation権限を持たない場合、first meaningful commit後ただちにSupervisor/Coordinatorへcontrolを返す。Supervisor/Coordinatorがcommitをpublishし、remote head SHA一致を確認し、Draft PR作成を完了するまでそのdurable branchでの追加implementationを進めない。
+workerがremote publishまたはPR mutation権限を持たない場合、first meaningful commit後ただちにSupervisor/Coordinatorへcontrolを返す。Supervisor/Coordinatorがcommitをpublishし、remote head SHA一致を確認し、PR作成/state設定を完了するまでそのdurable branchでの追加implementationを進めない。
 
 Ephemeral immutable ref/resultはこのcontractの対象外。
 
@@ -174,13 +199,14 @@ predecessor_snapshot
 fencing_identity_or_execution_generation
 attempt_class
 result_commit_or_ref
-draft_pr_identity
+pr_identity (PR設定完了後は必須。それ以前の権限不足handoffではnull/omitted)
+pr_state (PR設定完了後は必須。それ以前の権限不足handoffではnull/omitted)
 summary
 validation_results
 known_issues
 ```
 
-durable workerでは上記に加えて、`checkpoint_sha_or_snapshot`、`status`、`completed_steps`、`next_steps`、`pending_validation`、`external_side_effects`、`artifact_refs`、`updated_at`を含むrecovery handoffを必須とする。GitHub/branch deliveryの場合はpublished remote head、Draft PR identity、Issue/branch metadataも必須とする。
+durable workerでは上記に加えて、`checkpoint_sha_or_snapshot`、`status`、`completed_steps`、`next_steps`、`pending_validation`、`external_side_effects`、`artifact_refs`、`updated_at`を含むrecovery handoffを必須とする。GitHub/branch deliveryの場合はpublished remote head、PR identityと実際のstate（Draft / Ready）、Issue/branch metadataも必須とする。
 
 applicableなcurrent fencing identity（current implementationでは `execution_generation`）と一致しないresultは自動統合しない。
 
@@ -188,24 +214,25 @@ recorded predecessor/base snapshotとcurrent expected baseが異なるresultはs
 
 ## Landing handoff boundary
 
-worker / subagent の **shared durable integration state への ordered landing**（`release-x-y-z` への merge / landing、`release-x-y-z -> main` release PR の merge、`main` への直接反映等）は **Coordinator / Supervisor だけが実行する**。
+worker / subagent の **shared durable integration state への ordered landing**（`release-x-y-z` への ticket landing、`release-x-y-z -> main` release PR merge、`main` への直接反映等）は **Coordinator / Supervisor だけが実行する**。
 
-- worker / subagent は target release trunk / `main` への merge / landing 操作を実行しない。
-- worker / subagent は Draft PR 作成・remote publication・branch head verify までを完了して、result identity + Draft PR identity + validation evidence + known issues を immutable handoff artifact として Supervisor へ返す。
-- Coordinator / Supervisor は landing 順序、再validation、target release trunk への merge / contiguous stack landing のみを実行できる。
-
-user explicit merge / land authorization を Agent / subagent が受け取った場合でも、orchestrated workflow 下では landing 操作は **Coordinator / Supervisor 経由でのみ** 実行する。worker / subagent は landing を実行せず、authorization scope を伴った immutable handoff を Supervisor へ渡す。
+- worker / subagent は target release trunk / `main` への merge / landing 操作を実行せず、PR creation/state・remote publication・branch head verify・validationまで完了したcandidateをimmutable handoffする。
+- **ticket-class** candidateはreadiness/quality gateを満たせば追加のuser merge authorizationなしでCoordinator / Supervisorがdependency順にlandingする。
+- **release-class** `release-* -> main` candidateはexplicit user authorizationが必要で、authorization scopeをhandoff artifactへ含める。
+- Coordinator / Supervisorはlanding直前にactual head/base/current SHAを再取得し、ticket/release classificationとrequired gateを再検証する。
 
 この境界を越えて worker / subagent が landing 操作を実行した場合:
 
 - 直近 landing は stale candidate として扱う。
 - 自動rollback は前提としない。integration state への影響と reconciliation 必要性を Supervisor が reassess し、必要なら new landing 候補で再実行する。
 
-単独で `release-x-y-z -> main` release PR を扱う状況ではこの限りではない。worker が release PR の merge authorization を直接 landing 操作として実行できる。
+standaloneでticket PRを扱うAgentはreadiness/quality gate通過後に自律landingできる。standaloneでrelease PRを扱うAgentはexplicit release authorizationがある場合に限り直接landingできる。
 
 ## Review handoff
 
 Reviewer inputはclean candidate snapshotへpinする。
+
+Reviewerが見るのは、requested scopeの網羅、decision precedenceとの整合、correctness / architecture consistency、regression risk、required verification levelに対するtest adequacy、validation evidenceがcurrent SHAのものか、hidden coupling、sandbox / runtimeでの再現性、target release / stack predecessorとの整合、PR metadataとIssue linkageの整合、関係する場合はrecovery / checkpointとの整合である。
 
 PR review contextには最低限:
 
@@ -225,14 +252,15 @@ parent agentが停止してもsafeなchildを自動破棄しない。
 
 recovered CoordinatorはSupervisorからchildを再発見し、running/completed/failed/orphanedをreconcileする。completed resultはimmutable snapshot/result relationship、predecessor/base identity、applicableなcurrent fencing identityを確認してから統合する。
 
-GitHub上のIssue/PR/branch metadataはdurable recovery evidenceであり、active durable ticket branchにpublished remote head + Draft PRがない状態を正常状態として扱わない。zero-diff release branchはDraft release PR invariantの例外だが、first meaningful integrated difference後はDraft release PRを必須とする。
+Recovery時のticket/PR/release整合とdrift修復は [handoff continuity](references/requirement-continuity.md#recovery-lifecycle) と `github-delivery` に従う。
 
 ## Fallback
+
+isolated sandbox同士なら同じfileを触ること自体は直列化の理由にならない。直列化やdependencyが必要なのは、same interfaceの非互換変更、same generated artifact、same external mutable resourceを扱う場合である。
 
 true isolationが使えない場合、shared mutable workspaceで並列実装しない。read-only researchの並列化または安全な直列実装へ縮退する。
 
 stacked PRを安全に維持できない場合もdependency SoTを壊さず、predecessor merge後に通常ticketとして開始する直列workflowへ縮退する。
-
 
 ## Organizational outcome checks
 
