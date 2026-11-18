@@ -50,7 +50,7 @@ Tastile は単一プロダクトではなく、独立してリリースされる
 | Core (daemon/API/engine + 同梱 CLI) | tastile-core | `crates-v1/Cargo.toml [workspace.package] version` → `CARGO_PKG_VERSION` → `/v1/version`・`/v1/health`・`--version` | 独立 SemVer |
 | Web (dashboard/PWA) | tastile-web | `package.json#version` + build 時 `NEXT_PUBLIC_APP_VERSION` | 独立 SemVer |
 | Android | tastile-android | `app/build.gradle.kts` の `versionName` / `versionCode` | 独立 SemVer (versionCode は Play 連番) |
-| Desktop (Windows/WinUI) | tastile-desktop | `src/TastileDesktop/TastileDesktop.csproj` `<Version>` | 独立 SemVer (`major.minor.patch` に正規化。`0.6.0.0` → `0.6.0` として扱う) |
+| Desktop (Windows/WinUI) | tastile-desktop | `src/TastileDesktop/TastileDesktop.csproj` `<Version>` | 独立 SemVer。csproj は .NET 慣例の 4 桁 (`0.7.0.0`) を維持し、製品 SemVer としては `0.7.0` と解釈する (tag・workflow_dispatch version は csproj 値と完全一致が必須) |
 | CLI (standalone) | tastile-cli | `Cargo.toml` workspace `version` | 独立 SemVer |
 | OpenAPI 契約 | tastile-openapi | git tag `vX.Y.Z` + `CHANGELOG.md` | 独立 SemVer (wire format の互換性で bump 判定) |
 | iOS / macOS | tastile-ios / tastile-mac | 未確立 (dormant) | 系列未開始 |
