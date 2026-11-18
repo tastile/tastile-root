@@ -342,6 +342,7 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 | 対象 | 正本の場所 |
 | --- | --- |
 | プロジェクト全体方針・全体設計 | **tastile-root/docs/HARNESS.md** (本ドキュメント) |
+| 製品別バージョン所有権・統合対象の固定 | **tastile-root/docs/releases/version-matrix.json** + [ADR-0013](adr/0013-independent-product-versioning.md) |
 | ドメインモデル・不変条件・仕様 | tastile-core/v1/*.md (16 ファイル) |
 | 実装ハーネス (バックエンド詳細) | tastile-core/HARNESS.md |
 | API 仕様 | tastile-core/v1/14-read-model-and-endpoint.md |

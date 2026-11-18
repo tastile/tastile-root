@@ -1,0 +1,162 @@
+{
+  "schema": "tastile/version-matrix/v1",
+  "updated": "2026-11-19",
+  "authority": "docs/adr/0013-independent-product-versioning.md",
+  "note": "各製品は独立した SemVer 系列を持つ。root は統合対象 (version/tag/SHA/契約pin/受入状態) を記録するだけで、共通バージョン番号も release branch も持たない。matrix は記録であり強制機構ではない。",
+  "version_axes": {
+    "product": "各 repo のリリース単位 (例: Core 2.0.0)",
+    "api_contract": "wire format の互換性版 (OpenAPI info.version / spec tag)",
+    "internal_impl": "crate/workspace 内部版 (例: crates-v2 0.1.0)。製品版に連動しない"
+  },
+  "products": [
+    {
+      "id": "core",
+      "repo": "tastile/tastile-core",
+      "display_name": "Tastile Core (daemon / API / engine / 同梱 CLI)",
+      "version_sot": "crates-v1/Cargo.toml [workspace.package] version",
+      "version_sot_value": "1.0.2",
+      "series": "semver",
+      "surfaces": [
+        "/v1/version",
+        "/v1/health",
+        "crates-v1 CLI --version",
+        "git tag vX.Y.Z"
+      ],
+      "internal_versions": {
+        "crates-v2": {
+          "version_sot": "crates-v2/Cargo.toml [workspace.package] version",
+          "version_sot_value": "0.1.0",
+          "note": "内部実装バージョン。製品バージョンに連動しない"
+        }
+      },
+      "release_branches": {
+        "v1_rc": "release-1-1-0",
+        "v2_semantics": "release-2-0-0"
+      },
+      "integration_candidate": {
+        "product_version": "2.0.0",
+        "release_branch": "release-2-0-0",
+        "base_sha": "12773d66",
+        "note": "release-1-2-0 head を起点に release-2-0-0 を作成。v1 RC (release-1-1-0 → 1.1.0) とは独立系列"
+      },
+      "contract_pins": {
+        "openapi_spec": "tastile-openapi v3.7.0 (86e4964e3c4a6bb35685b763b05bf6c806b68a42)",
+        "derivation": "crates-v1/api dump_openapi 出力。v3.7.0 は release-1-1-0 @ 1380ec30 由来"
+      },
+      "acceptance": {
+        "state": "in-progress",
+        "gates": ["root#105 G3 device", "root#105 G5 shadow", "release-1-1-0 -> main approval"]
+      }
+    },
+    {
+      "id": "web",
+      "repo": "tastile/tastile-web",
+      "display_name": "Tastile Web (dashboard / PWA / landing)",
+      "version_sot": "package.json#version + NEXT_PUBLIC_APP_VERSION (build arg)",
+      "version_sot_value": "1.0.2",
+      "series": "semver",
+      "surfaces": ["/api/version (web field)", "package.json#version", "git tag vX.Y.Z"],
+      "known_drift": "git tag は v1.0.4 まで存在するが package.json#version は 1.0.2。要追従 (別 issue)",
+      "release_branches": {"active": "release-1-1-0"},
+      "contract_pins": {
+        "openapi_spec": "tastile-openapi v3.7.0 submodule pin",
+        "consumer_evidence": "web PR #238 で型再生成 + typecheck clean"
+      },
+      "acceptance": {"state": "in-progress"}
+    },
+    {
+      "id": "android",
+      "repo": "tastile/tastile-android",
+      "display_name": "Tastile Android",
+      "version_sot": "app/build.gradle.kts versionName / versionCode",
+      "version_sot_value": "0.6.0 / 33",
+      "series": "semver",
+      "surfaces": ["versionName (user-facing)", "versionCode (Play 連番)", "git tag vX.Y.Z"],
+      "release_branches": {"active": "release-0-7-0"},
+      "contract_pins": {
+        "openapi_spec": "../../openapi/openapi.yaml (v3.7.0) → generateV1Api (Retrofit/Moshi)",
+        "consumer_evidence": "android PR #114 で pin 更新"
+      },
+      "acceptance": {"state": "in-progress", "gates": ["root#105 G3 physical device"]}
+    },
+    {
+      "id": "desktop",
+      "repo": "tastile/tastile-desktop",
+      "display_name": "Tastile Desktop (Windows / WinUI 3)",
+      "version_sot": "src/TastileDesktop/TastileDesktop.csproj <Version>",
+      "version_sot_value": "0.6.0.0",
+      "series": "semver",
+      "series_note": "csproj は 4 桁を許容するが、SemVer 対応として major.minor.patch (0.6.0) として扱う。tag は vX.Y.Z",
+      "surfaces": ["csproj Version/AssemblyVersion/FileVersion", "git tag vX.Y.Z", "release.yml workflow_dispatch"],
+      "release_branches": {"active": "release-0-7-0"},
+      "contract_pins": {"openapi_spec": "tastile-openapi submodule"},
+      "acceptance": {"state": "in-progress"}
+    },
+    {
+      "id": "cli",
+      "repo": "tastile/tastile-cli",
+      "display_name": "Tastile CLI (standalone Rust)",
+      "version_sot": "Cargo.toml workspace version",
+      "version_sot_value": "1.0.0",
+      "series": "semver",
+      "surfaces": ["tastile --version", "git tag vX.Y.Z"],
+      "release_branches": {"active": "release-1-1-0"},
+      "contract_pins": {
+        "openapi_spec": "openapi submodule v3.7.0",
+        "consumer_evidence": "cli PR #27 で drift check 20/20 + 139 tests"
+      },
+      "acceptance": {"state": "in-progress"}
+    },
+    {
+      "id": "openapi",
+      "repo": "tastile/tastile-openapi",
+      "display_name": "Tastile OpenAPI contract snapshot",
+      "version_sot": "git tag vX.Y.Z + CHANGELOG.md",
+      "version_sot_value": "v3.7.0",
+      "series": "semver",
+      "series_note": "wire format の互換性で bump。Core 製品バージョンとは独立",
+      "surfaces": ["openapi.yaml", "CHANGELOG.md", "git tag vX.Y.Z"],
+      "api_contract_version": {
+        "sot": "openapi.yaml info.version",
+        "value": "1.1.0",
+        "note": "API 契約版。spec リリース版 (v3.x) とも Core 製品版とも独立した第3の軸"
+      },
+      "derivation": {
+        "generator": "tastile-core crates-v1/api dump_openapi",
+        "latest": "release-1-1-0 @ 1380ec30 → v3.7.0 (tag 86e4964)",
+        "compat_matrix": "docs/compatibility.md (別 ticket で新設)"
+      },
+      "acceptance": {"state": "released", "known_debt": "tastile-openapi#27 Redocly lint baseline"}
+    },
+    {
+      "id": "ios",
+      "repo": "tastile/tastile-ios",
+      "display_name": "Tastile iOS",
+      "version_sot": null,
+      "version_sot_value": null,
+      "series": "unreleased",
+      "status": "dormant",
+      "note": "Package.swift stub のみ。2026-03 以降更新なし。有効化時に個別 ADR で正本を確立する"
+    },
+    {
+      "id": "macos",
+      "repo": "tastile/tastile-mac",
+      "display_name": "Tastile macOS",
+      "version_sot": null,
+      "version_sot_value": null,
+      "series": "unreleased",
+      "status": "dormant",
+      "note": "Package.swift stub のみ。2026-03 以降更新なし。有効化時に個別 ADR で正本を確立する"
+    },
+    {
+      "id": "root",
+      "repo": "tastile/tastile-root",
+      "display_name": "Tastile workspace root (shell / integration SoT)",
+      "version_sot": null,
+      "version_sot_value": null,
+      "series": "none",
+      "note": "製品バージョンを持たない。docs/releases/version-matrix.json が統合正本"
+    }
+  ],
+  "independence_invariant": "任意の一つの製品のみ更新しても、他製品の version/tag/再リリースは発生しない。契約変更時のみ openapi spec 版 → consumer pin → 本 matrix の順で連鎖する"
+}
