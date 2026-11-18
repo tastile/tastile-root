@@ -105,5 +105,3 @@ emulator `tastile-g3` (API 37) で以下を実施済み。物理デバイスの�
 - emulator での instrumented test は別途結果を記録（既知の環境起因 failure あり、RC 変更との関連は baseline 比較で切り分け済み — #105 参照）
 - verify stack が停止している場合は `tastile-root/deploy/verify-stack/README.md` の手順で再起動（`docker compose up -d` + `bootstrap-web-auth.sh` + web dev server）
 - 新規アカウントの初回 bootstrap で source tile + recurring placement が一括 materialize される（verify DB で 2 アカウントとも約 548–549 件を確認。内訳: source template 2 + anchor 1 + sleep 約 33 + break filler 約 512–513。重複・再送増殖は確認されず、owner 単位の advisory lock + binding row で冪等。詳細は root #105 の調査コメント参照）
-</content>
-</invoke><|end_message|><|message_model|><|content_thinking|>Wait — I included a trailing note about 549 investigation in section 6, good. Now commit the packet change on g3-acceptance-packet branch and push (PR #125 exists). Then do the merge commit in tc-207-merge.<|end_message|><|message_model|>exec<|content_invoke_tool_json|>{
