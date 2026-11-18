@@ -67,10 +67,31 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | 1 | アプリ起動 → ログイン画面表示 | Web ログインへの導線が出る |
 | 2 | Web (`localhost:3000`) で sign-in → アプリへ復帰 | `/api/mobile/api-token` 経由で token mint 成功（expires_at 30日・scopes `tastile.read tastile.write` が送られることを Core/DB または proxy log で確認可） |
 | 3 | タイムライン/予定の表示 | verify Core のデータが表示される（双方向 sync の read 側） |
-| 4 | アプリから source tile 作成 → Web dashboard に反映 | write 側 sync（`createSourceTile` が Core に到達） |
+| 4a | **Web→Android**: Web UI または Web session 経由で source tile を作成 → アプリで日付ページを swipe して refresh | 数秒以内にアプリのタイムラインへ新規 tile が表示される（Core→端末の read 伝播） |
+| 4b | **Android→Web**: アプリから source tile 作成 → Web dashboard / `GET /v1/source-tiles` で確認 | write が Core に到達し Web 側 read model に反映される |
 | 5 | アプリを完全終了 → 再起動（コールドスタート） | セッション/token が復元され再ログイン不要、データが再表示される |
-| 6 | token 失効シミュレーション（任意）: verify DB で token revoke → アプリ操作 | 401 → token 破棄 → 再 mint → 1 回再試行で復帰（android#93 契約） |
-| 7 | 機内モード等で offline → 復帰 | 再接続後に sync が追いつく（可能な範囲で） |
+| 6 | **明示的 sign-out → sign-in**: アプリの account menu から Sign out → 同一アカウントで再ログイン | ログイン画面へ戻り、再ログイン後に同一 owner の全データ（タイムライン・tile・未同期 queue）が復元される。別アカウントでの sign-in も owner 分離の確認になる |
+| 7 | token 失効シミュレーション（任意）: verify DB で token revoke → アプリ操作 | 401 → token 破棄 → 再 mint → 1 回再試行で復帰（android#93 契約） |
+| 8 | **実 offline**: `adb reverse --remove tcp:3000` と `adb reverse --remove tcp:31410` で Core/Web を端末から到達不能にする（機内モードだけでは `adb reverse` の USB 経路が残るため不十分）→ アプリで refresh を試行 → cache 表示と graceful な失敗を確認 → `adb reverse tcp:3000 tcp:3000` / `adb reverse tcp:31410 tcp:31410` で復帰 → 再度 refresh | offline 中はクラッシュせず cache が表示され、復帰後の refresh で最新データに追いつく。offline 中の write が queue される仕様がある場合は復帰後に二重実行なく反映されること |
+
+### 補足: emulator での既知の差分
+
+- emulator では `adb reverse tcp:3000` の転送先を host の `127.0.0.1` にする必要がある。host の port 3000 が他プロセスに占有されている場合は `adb reverse tcp:3000 tcp:<空きport>` + host 側 TCP forwarder（例: `127.0.0.1:<port>` → `[::1]:3000`）で回避する。物理デバイスでは USB 経由の `adb reverse tcp:3000 tcp:3000` が直接 verify web に届く前提でよいが、host 側の port 競合は同様に起こりうる
+- タイムラインの refresh はページ swipe / settle で発火する。起動直後の cache 表示だけでは server 側の新規データを判定できないため、Web→Android の確認では必ず swipe refresh を行う
+
+### emulator 検証結果（2026-11-18、verify stack、account `g3verify002@example.com`）
+
+emulator `tastile-g3` (API 37) で以下を実施済み。物理デバイスの受入は別途 pending であり、これらの結果は物理受入の PASS を意味しない。
+
+| # | 項目 | 結果 |
+|---|---|---|
+| 1–3 | 起動・ログイン・token mint・タイムライン表示 | PASS（dashboard に verify Core のデータ表示） |
+| 4a | Web→Android: Web proxy `POST /v1/source-tiles` で「G3 WebToAndroid Check」を作成 → アプリで day swipe refresh | PASS（`G3 WebToAndroid Check` が timeline cache に追加され UI 表示） |
+| 4b | Android→Web: アプリからの write sync | PASS（初回 smoke で source tile 作成→Core 到達を確認済み） |
+| 5 | コールドスタート | PASS（force-stop → 再起動でセッション復元・データ再表示） |
+| 6 | sign-out → 別テストアカウント sign-in | PASS（ログイン画面へ遷移、`g3verify002` で sign-in 成功・owner 分離された bootstrap データ表示。同一アカウント再ログインの data restoration は物理受入で再確認推奨） |
+| 8 | 実 offline（`adb reverse` remove → 復帰） | PASS（offline 中も cache 表示でクラッシュなし。復帰後 swipe refresh で最新データ表示を確認） |
+| 7 | token revoke → 401 recovery | **未実施**（任意項目。物理受入または後続 emulator 回で実施） |
 
 ### 証跡の記録先
 
@@ -80,6 +101,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ## 6. 未実施・前提
 
-- **物理デバイス未接続**: 現環境は emulator `tastile-g3` (API 37) のみ。実機受入は人間のデバイス操作が必須
+- **物理デバイス未接続**: 現環境は emulator `tastile-g3` (API 37) のみ。実機受入は人間のデバイス操作が必須。上記 emulator 結果は物理受入の PASS を意味しない
 - emulator での instrumented test は別途結果を記録（既知の環境起因 failure あり、RC 変更との関連は baseline 比較で切り分け済み — #105 参照）
 - verify stack が停止している場合は `tastile-root/deploy/verify-stack/README.md` の手順で再起動（`docker compose up -d` + `bootstrap-web-auth.sh` + web dev server）
+- 新規アカウントの初回 bootstrap で source tile + recurring placement が一括 materialize される（verify DB で 2 アカウントとも約 548–549 件を確認。内訳: source template 2 + anchor 1 + sleep 約 33 + break filler 約 512–513。重複・再送増殖は確認されず、owner 単位の advisory lock + binding row で冪等。詳細は root #105 の調査コメント参照）
+</content>
+</invoke><|end_message|><|message_model|><|content_thinking|>Wait — I included a trailing note about 549 investigation in section 6, good. Now commit the packet change on g3-acceptance-packet branch and push (PR #125 exists). Then do the merge commit in tc-207-merge.<|end_message|><|message_model|>exec<|content_invoke_tool_json|>{
