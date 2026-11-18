@@ -69,6 +69,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | 3 | タイムライン/予定の表示 | verify Core のデータが表示される（双方向 sync の read 側） |
 | 4a | **Web→Android**: Web UI または Web session 経由で source tile を作成 → アプリで日付ページを swipe して refresh | 数秒以内にアプリのタイムラインへ新規 tile が表示される（Core→端末の read 伝播） |
 | 4b | **Android→Web**: アプリから source tile 作成 → Web dashboard / `GET /v1/source-tiles` で確認 | write が Core に到達し Web 側 read model に反映される |
+| 4c | **初回 bootstrap との区別**: 新規アカウント sign-in 直後にタイムラインへ大量の tile（約 548–549 件: 休憩/睡眠の seed source + recurring placement + Start Point anchor）が現れるのは初回 provisioning の正常動作であり、ユーザー write ではない。双方向 sync の write 証拠としては 4a/4b で**ユーザーが明示的に作成した tile のみ**を使い、bootstrap 生成物の件数自体を sync 正常性の指標にしない | bootstrap 件数は別枠の観察項目。重複・再送による増殖がないこと（同一 owner で再 login / 再 mint 後も件数が増えないこと）を確認する |
 | 5 | アプリを完全終了 → 再起動（コールドスタート） | セッション/token が復元され再ログイン不要、データが再表示される |
 | 6 | **明示的 sign-out → sign-in**: アプリの account menu から Sign out → 同一アカウントで再ログイン | ログイン画面へ戻り、再ログイン後に同一 owner の全データ（タイムライン・tile・未同期 queue）が復元される。別アカウントでの sign-in も owner 分離の確認になる |
 | 7 | token 失効シミュレーション（任意）: verify DB で token revoke → アプリ操作 | 401 → token 破棄 → 再 mint → 1 回再試行で復帰（android#93 契約） |
