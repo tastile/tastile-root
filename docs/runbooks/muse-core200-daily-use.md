@@ -43,7 +43,12 @@ port 31400 拒否) がすべて有効なまま使える。
 - `id_ed25519` (private key): `~/.ssh/tastile-verify-muse` に mode 600 で配置
 - `credential.json`: `~/.config/tastile-muse/credential.json` に mode 600 で配置
   - 内容: `api_base_url=http://127.0.0.1:31498`、`bearer`、`expires_at`、`subject`
-- `tastile` binary: PATH の通った場所に配置 (例: `~/.local/bin/tastile`)
+- `tastile` binary: PATH の通った場所に配置 (例: `~/.local/bin/tastile`)。
+  glibc 動的リンクの Linux 向けビルドを開発側から受け取る場合は
+  `uname -m` で arch を確認し、`x86_64` なら `tastile-linux-amd64`、
+  `aarch64` なら `tastile-linux-arm64` を使う (ソースは
+  `tastile-cli` `release-1-1-0` 系、CLI コードは `582d7e1a` と同一)。
+  glibc が無い環境 (Alpine 等) ではソースからビルドする
 
 ### 2.2 tunnel の確立 (毎回)
 
