@@ -37,8 +37,8 @@
       "integration_candidate": {
         "product_version": "2.0.0",
         "release_branch": "release-2-0-0",
-        "base_sha": "aded3936",
-        "note": "release-1-2-0 head (12773d66) から release-2-0-0 を作成し core#388/PR#389-390 で 2.0.0 を確定。PR #394 で release-1-1-0 (v1 RC 全成果) を merge 統合、P1 empty-span 意味論を post-#362 v1 に整合。head aded3936 は P4 advisory lock (#392)・P1-P6 全統合・T12 scheduler-option 差分ハーネス (#396) を含む。release-1-2-0 は履歴として保持。v1 RC (release-1-1-0 → 1.1.0) とは独立系列"
+        "base_sha": "c581b189",
+        "note": "release-1-2-0 head (12773d66) から release-2-0-0 を作成し core#388/PR#389-390 で 2.0.0 を確定。PR #394 で release-1-1-0 (v1 RC 全成果) を merge 統合、P1 empty-span 意味論を post-#362 v1 に整合。head aded3936 は P4 advisory lock (#392)・P1-P6 全統合・T12 scheduler-option 差分ハーネス (#396) を含む。release-1-2-0 は履歴として保持。v1 RC (release-1-1-0 → 1.1.0) とは独立系列 その後 core#397/PR#398 (scheduler-v1-expand artifact, fe858e1) を merge 統合し head c581b189。"
       },
       "contract_pins": {
         "openapi_spec": "tastile-openapi v3.7.0 (86e4964e3c4a6bb35685b763b05bf6c806b68a42)",
@@ -75,7 +75,7 @@
       "acceptance": {
         "state": "in-progress"
       },
-      "note": "package.json#version を release-1-1-0 目標版へ整合 (web#239/PR#240)。v1.0.3/v1.0.4 tag との drift は解消"
+      "note": "package.json#version を release-1-1-0 目標版へ整合 (web#239/PR#240)。v1.0.3/v1.0.4 tag との drift は解消 web#219/PR#241 (v2 scheduler-v1-expand adapter + QuickCreate opt-in + semantic gate, 2a5621b0) を release-1-1-0 へ merge 統合 (merge 2ca47f5c)。"
     },
     {
       "id": "android",
