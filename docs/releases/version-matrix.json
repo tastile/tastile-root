@@ -37,8 +37,8 @@
       "integration_candidate": {
         "product_version": "2.0.0",
         "release_branch": "release-2-0-0",
-        "base_sha": "77704ec7",
-        "note": "release-1-2-0 head (12773d66) から release-2-0-0 を作成し core#388/PR#389-390 で 2.0.0 を確定。release-1-2-0 は履歴として保持。v1 RC (release-1-1-0 → 1.1.0) とは独立系列"
+        "base_sha": "aded3936",
+        "note": "release-1-2-0 head (12773d66) から release-2-0-0 を作成し core#388/PR#389-390 で 2.0.0 を確定。PR #394 で release-1-1-0 (v1 RC 全成果) を merge 統合、P1 empty-span 意味論を post-#362 v1 に整合。head aded3936 は P4 advisory lock (#392)・P1-P6 全統合・T12 scheduler-option 差分ハーネス (#396) を含む。release-1-2-0 は履歴として保持。v1 RC (release-1-1-0 → 1.1.0) とは独立系列"
       },
       "contract_pins": {
         "openapi_spec": "tastile-openapi v3.7.0 (86e4964e3c4a6bb35685b763b05bf6c806b68a42)",
