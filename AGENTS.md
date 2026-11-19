@@ -24,6 +24,12 @@ repository である。ルートの Git 状態だけで子リポジトリの状�
 - 開始時に対象ごとの branch、`git status --short`、既存差分を確認し、無関係な変更を
   reset、checkout、stash、revert、stage、commit しない。共有 host 上に並列実装用の
   worktree は作らない。Supervisor が隔離を保証する runtime 内でのみ使用できる。
+- `git status --short` が非空の worktree に対して `git reset --hard`、
+  `git checkout -- <path>`、`git restore`、`git clean -fd` を実行する前に、
+  既存差分を stash または commit で保全する。branch 切替が必要な場合は
+  `git switch` の拒否に従い stash → switch → pop の順で行い、`--force` 系で
+  押し通さない。破壊的操作が不可避と判断した場合は対象差分を先に提示して
+  人間の確認を取る。
 - design / specification がある変更は、最終状態の design をユーザーと確定してから
   実装する。履歴は ADR に置く。
 - source code、識別子、code comment、commit message は英語。Issue、PR、review、
