@@ -102,6 +102,7 @@ emulator `tastile-g3` (API 37) で以下を実施済み。物理デバイスの�
 
 ## 6. 未実施・前提
 
+- **APK の契約 pin 鮮度 (2026-11-20 追記)**: 記録の APK は OpenAPI pin v3.5.0 (`8a61003`) 時点の `release-0-7-0` @ `5c1e0d4` 由来。現行 contract は v3.8.1 (`49a1b449`、android PR #119 で `release-0-7-0` head `407e0b2a` に統合済み) で、生成 client の coverage は 46/46 ops。v3.5.0→v3.8.1 の差分は security schemes・summaries・`info.version` (1.1.0→1.2.0) の metadata 追加のみで、operation/schema の wire 形状に変更はない (openapi#27/#31 の semantic diff で確認済み)。したがって本 APK で実施する受入項目 (認証 token mint・timeline・source tile 双方向 sync) の契約面は互換だが、**pin 鮮度を理由に受入前の再ビルドを推奨**する。再ビルドする場合は §2 の手順で `release-0-7-0` head から `assembleDebug` し、新 SHA-256 を本表へ追記する
 - **物理デバイス未接続**: 現環境は emulator `tastile-g3` (API 37) のみ。実機受入は人間のデバイス操作が必須。上記 emulator 結果は物理受入の PASS を意味しない
 - emulator での instrumented test は別途結果を記録（既知の環境起因 failure あり、RC 変更との関連は baseline 比較で切り分け済み — #105 参照）
 - verify stack が停止している場合は `tastile-root/deploy/verify-stack/README.md` の手順で再起動（`docker compose up -d` + `bootstrap-web-auth.sh` + web dev server）
