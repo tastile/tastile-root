@@ -76,7 +76,7 @@
       "acceptance": {
         "state": "in-progress"
       },
-      "note": "package.json#version を release-1-1-0 目標版へ整合 (web#239/PR#240)。v1.0.3/v1.0.4 tag との drift は解消 web#219/PR#241 (v2 scheduler-v1-expand adapter + QuickCreate opt-in + semantic gate, 2a5621b0) を release-1-1-0 へ merge 統合 (merge 2ca47f5c)。"
+      "note": "package.json#version を release-1-1-0 目標版へ整合 (web#239/PR#240)。v1.0.3/v1.0.4 tag との drift は解消 web#219/PR#241 (v2 scheduler-v1-expand adapter + QuickCreate opt-in + semantic gate, 2a5621b0) を release-1-1-0 へ merge 統合 (merge 2ca47f5c)。web#235/PR#244 (v2 eval subprocess env allowlist・並行上限・typed fallback, afe4fc39) を merge 統合 (merge 22d0397e)。"
     },
     {
       "id": "android",
@@ -94,8 +94,8 @@
         "active": "release-0-7-0"
       },
       "contract_pins": {
-        "openapi_spec": "../../openapi/openapi.yaml (v3.7.0) → generateV1Api (Retrofit/Moshi)",
-        "consumer_evidence": "android PR #114 で pin 更新"
+        "openapi_spec": "openapi submodule v3.8.1 (49a1b449) → generateV1Api (Retrofit/Moshi)",
+        "consumer_evidence": "android PR #119 で pin v3.8.1 + 生成 client の重複 import 除去 post-process 追加、generateV1Api 46/46 ops + compileDebugKotlin + testDebugUnitTest pass、merge 407e0b2a (android#118)"
       },
       "acceptance": {
         "state": "in-progress",
@@ -142,8 +142,8 @@
         "active": "release-1-1-0"
       },
       "contract_pins": {
-        "openapi_spec": "openapi submodule v3.7.0",
-        "consumer_evidence": "cli PR #27 で drift check 20/20 + 139 tests"
+        "openapi_spec": "openapi submodule v3.8.1 (49a1b449)",
+        "consumer_evidence": "cli PR #31 で pin v3.8.1、check-openapi-drift 20/20 ops + surface 20/20 pass、merge 582d7e1a (cli#30)"
       },
       "acceptance": {
         "state": "in-progress"
