@@ -137,6 +137,10 @@ UI/UX、native platform、hardware integration等でautomationが十分でない
 
 manual verificationを暗黙の「見た感じOK」にしない。手順・期待結果・artifactを残す。
 
+UI/native変更で人間レビューが必要な場合は [visual/native review handoff](references/visual-review-handoff.md) に従う。非視覚taskへ一律適用しない。
+
+複数OSで動作する対象は [execution placement](../../organization/execution-placement.md) を適用し、実OS/deviceで検証する。WSL/Windows/macOSは互換ではない。
+
 ### Verification Executor / native environment
 
 verificationはimplementation workerと同じworkspace topologyを必須にしない。ADR-0020に従い、検証対象をimmutable candidate identityへpinし、environment identityとevidence provenanceを記録する。
@@ -462,6 +466,14 @@ budgetはworkflow設計の代替ではない。
 4.通常利用 + 合理的headroomにbudgetを設定
 5. usage spike時は「回数」ではなくrunner/job単位で再計測
 
+### 8.11 反復テストの適応的な頻度制御
+
+初期化・再整備時は既存runnerの差分実行とcacheを優先して調査する。必要であれば、**決定的な任意workerテスト**だけに履歴ベースの頻度減衰をopt-inで導入する（[実装例と適用条件](../../templates/quality/README.md)、ADR-0033）。
+
+検証入力・環境・commandの同一性が不明、または変更・失敗・履歴欠損時は実行する。延期は成功ではない。required worker / integration / CI / release / security / native / deviceのgateは減衰によって省略しない。
+
+quality profileに対象check、入力・環境の識別、最大間隔、強制実行入口、延期結果、測定・撤去条件を残す。状態はworkerごとに隔離し、他の環境へ流用しない。
+
 ## 9. Worker gate
 
 workerは担当scopeの高速feedbackを得る。
@@ -523,7 +535,7 @@ stack predecessorがreview/rebase/updateで変化した場合、affected downstr
 - upgrade/backward-compatibility
 - release-like environment smoke
 
-## 13. PR Done gate
+## 13. PR readiness gate
 
 - Issue acceptance criteriaを満たす
 - required verification levelを満たす
@@ -533,6 +545,10 @@ stack predecessorがreview/rebase/updateで変化した場合、affected downstr
 - target release trunk / immediate predecessorとのstaleness確認
 - stack update後のaffected revalidation完了
 - PR metadata / linked Issueがcurrent delivery stateと一致
+
+このreadiness gateを満たしたopen PRはDraftのまま残さず、速やかにReady for reviewへ遷移する。userからの明示的なReady化指示を待たない。PR作成時点ですでにこのgateを満たしている場合は最初からReadyとして作成し、形式的なDraft -> Ready往復を行わない。Draftはこのgate未達でimplementation/integrationがactiveな場合だけ使用する。
+
+**Readyはticket Doneではない。** ticket-class PRは`github-delivery` / ADR-0027に従ってそのままautonomous landingへ進み、target release trunk到達後のlinked Issue closeとsafe branch cleanupまで完了して初めてticket lifecycleが完遂する。release-classだけはReady後にexplicit release authorization gateで停止する。
 
 ## 14. False green禁止
 
