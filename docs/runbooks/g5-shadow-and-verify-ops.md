@@ -70,7 +70,8 @@ docker exec -i tastile-verify-db pg_restore -U tastile -d tastile --clean --if-e
 - `fullyExplained` はヒューリスティックであり PASS 根拠にしない
   (pagination 打切り・生成未完了・状態差を回帰なしと誤分類しない)
 
-日次記録 (各日 1 ファイル、`docs/evidence/g5-shadow/YYYY-MM-DD.json`):
+日次記録 (各日 1 ファイル、`tastile-web/docs/evidence/g5-shadow/YYYY-MM-DD.json`。
+diff ハーネス `scripts/v2-v1-occurrence-diff.ts` と同じ repo に置く):
 
 ```json
 {
