@@ -21,7 +21,7 @@ SSH tunnel・事前配布の秘密鍵なしで、公開済み成果物だけか�
 | --- | --- |
 | Core | `tastile-core` tag `v2.0.0-rc.1` = commit `0e6ecb2f00038cbaa0fca149e5268f31386e8fe7` (`release-2-0-0` head) |
 | Core artifacts | GitHub Release `v2.0.0-rc.1` の `tastile-core-2.0.0-rc.1-linux-{amd64,arm64}.tar.gz` + `SHA256SUMS.txt` |
-| CLI | `tastile-cli` tag `v1.1.0-rc.1` = commit `ae369b80693b7b7f307b40416bee215a6f359cac` (`release-1-1-0` head、`tastile 1.1.0`) |
+| CLI | `tastile-cli` tag `v1.1.0-rc.1` = commit `28d9b1d951bf330e4f4a544e50e27ebb71b7658a` (`release-1-1-0` head、`tastile 1.1.0`) |
 | CLI artifacts | GitHub Release `v1.1.0-rc.1` の `tastile-linux-{amd64,arm64}` + `SHA256SUMS.txt` |
 | OpenAPI pin | `tastile-openapi` tag `v3.8.1` = `49a1b449f22ca70b66989dbcebe224fd50c57d26` |
 
