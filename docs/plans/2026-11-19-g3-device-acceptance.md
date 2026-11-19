@@ -9,10 +9,9 @@
 | 項目 | 値 |
 |---|---|
 | APK | `app-debug.apk`（debug 署名。"署名済み test APK" の要件は debug 鍵署名で充足する解釈。release 署名が必須なら要 Infisical prod の署名情報で別途 `assembleRelease`） |
-| source SHA | tastile-android `release-0-7-0` @ `5c1e0d4`（OpenAPI pin v3.5.0 `8a61003`、generated client coverage 36/36） |
-| verify APK | `/Users/rebui/work/ta-g3-apk/app/build/outputs/apk/debug/app-debug.apk` |
-| SHA-256 | `ea7be8cee442167fb31d09adfb0026f3c24a4f7f2388e700863f906339caec07`（40,299,938 bytes、2026-11-18 ビルド） |
-| 焼き込み確認 | dex 内に `http://127.0.0.1:3000` / `http://127.0.0.1:31410` を確認済み（§2 の override が有効） |
+| **推奨候補 (2026-11-20 再ビルド)** | source SHA: tastile-android `release-0-7-0` @ `407e0b2a`（OpenAPI pin **v3.8.1** `49a1b449`、`verifyV1ApiCoverage` 46/46 ops、PR #119 merge 済み head）。APK SHA-256: `705258fd3ddb243ed8997ff935609edd72e2ab31266b540a5be07f214e533709`（39,744,289 bytes）。dex 内 `http://127.0.0.1:3000` / `http://127.0.0.1:31410` 焼き込み確認済み。ビルド: `infisical run --projectId 949b4193-a226-4620-8371-726a37c7195b --env dev --path /tastile/android -- env WEB_BASE_URL=http://127.0.0.1:3000 TASTILE_CORE_URL=http://127.0.0.1:31410 ./gradlew assembleDebug -Popenapi.input=<tastile-root>/openapi/openapi.yaml`（worktree `/Users/rebui/work/ta-g3-apk` @ `407e0b2a`） |
+| 旧候補 (v3.5.0 pin) | source SHA: tastile-android `release-0-7-0` @ `5c1e0d4`（OpenAPI pin v3.5.0 `8a61003`、generated client coverage 36/36）。SHA-256 `ea7be8cee442167fb31d09adfb0026f3c24a4f7f2388e700863f906339caec07`（40,299,938 bytes、2026-11-18 ビルド）。受入項目の wire 契約は互換だが pin 鮮度のため上記新候補を優先する |
+| verify APK | `/Users/rebui/work/ta-g3-apk/app/build/outputs/apk/debug/app-debug.apk`（新候補で上書き済み） |
 
 ## 2. 検証環境（verify stack、運用 SoT とは完全分離）
 
