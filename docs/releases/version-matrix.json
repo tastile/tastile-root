@@ -70,8 +70,8 @@
         "active": "release-1-1-0"
       },
       "contract_pins": {
-        "openapi_spec": "tastile-openapi v3.7.0 submodule pin",
-        "consumer_evidence": "web PR #238 で型再生成 + typecheck clean"
+        "openapi_spec": "tastile-openapi v3.8.1 submodule pin (49a1b44)",
+        "consumer_evidence": "web PR #243 で submodule pin + 型再生成 (doc comment/version のみ差分) + typecheck clean、merge bfb5ee5f"
       },
       "acceptance": {
         "state": "in-progress"
