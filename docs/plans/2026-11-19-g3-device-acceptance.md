@@ -68,16 +68,16 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 | 2 | Web (`localhost:3000`) で sign-in → アプリへ復帰 | `/api/mobile/api-token` 経由で token mint 成功（expires_at 30日・scopes `tastile.read tastile.write` が送られることを Core/DB または proxy log で確認可） |
 | 3 | タイムライン/予定の表示 | verify Core のデータが表示される（双方向 sync の read 側） |
 | 4a | **Web→Android**: Web UI または Web session 経由で source tile を作成 → アプリで日付ページを swipe して refresh | 数秒以内にアプリのタイムラインへ新規 tile が表示される（Core→端末の read 伝播） |
-| 4b | **Android→Web**: アプリから source tile 作成 → Web dashboard / `GET /v1/source-tiles` で確認 | write が Core に到達し Web 側 read model に反映される |
+| 4b | **Android→Web**: アプリから source tile 作成 → **Web dashboard の UI 上で当該 tile が表示されることを確認**（`GET /v1/source-tiles` は Core 到達の証拠にはなるが Web read-model 投影の確認にはならないため、API 確認だけで PASS としない。dashboard 表示が確認できない場合は API 結果を併記して FAIL/要調査として記録する） | write が Core に到達し Web 側 read model/UI に反映される |
 | 4c | **初回 bootstrap との区別**: 新規アカウント sign-in 直後にタイムラインへ大量の tile（約 548–549 件: 休憩/睡眠の seed source + recurring placement + Start Point anchor）が現れるのは初回 provisioning の正常動作であり、ユーザー write ではない。双方向 sync の write 証拠としては 4a/4b で**ユーザーが明示的に作成した tile のみ**を使い、bootstrap 生成物の件数自体を sync 正常性の指標にしない | bootstrap 件数は別枠の観察項目。重複・再送による増殖がないこと（同一 owner で再 login / 再 mint 後も件数が増えないこと）を確認する |
 | 5 | アプリを完全終了 → 再起動（コールドスタート） | セッション/token が復元され再ログイン不要、データが再表示される |
-| 6 | **明示的 sign-out → sign-in**: アプリの account menu から Sign out → 同一アカウントで再ログイン | ログイン画面へ戻り、再ログイン後に同一 owner の全データ（タイムライン・tile・未同期 queue）が復元される。別アカウントでの sign-in も owner 分離の確認になる |
+| 6 | **明示的 sign-out → sign-in**: アプリの account menu から Sign out → 同一アカウントで再ログイン | ログイン画面へ戻り、再ログイン後に同一 owner の全データ（タイムライン・tile・未同期 queue）が復元される。別アカウントでの sign-in も owner 分離の確認になる。**emulator では別アカウント sign-in のみ実施済みで、同一アカウントの data restoration は物理受入での確認が pending** |
 | 7 | token 失効シミュレーション（任意）: verify DB で token revoke → アプリ操作 | 401 → token 破棄 → 再 mint → 1 回再試行で復帰（android#93 契約） |
-| 8 | **実 offline**: `adb reverse --remove tcp:3000` と `adb reverse --remove tcp:31410` で Core/Web を端末から到達不能にする（機内モードだけでは `adb reverse` の USB 経路が残るため不十分）→ アプリで refresh を試行 → cache 表示と graceful な失敗を確認 → `adb reverse tcp:3000 tcp:3000` / `adb reverse tcp:31410 tcp:31410` で復帰 → 再度 refresh | offline 中はクラッシュせず cache が表示され、復帰後の refresh で最新データに追いつく。offline 中の write が queue される仕様がある場合は復帰後に二重実行なく反映されること |
+| 8 | **実 offline**: `adb reverse --remove tcp:3000` と `adb reverse --remove tcp:31410` で Core/Web を端末から到達不能にする（機内モードだけでは `adb reverse` の USB 経路が残るため不十分）→ アプリで refresh を試行 → cache 表示と graceful な失敗を確認 → **offline 前に設定していた各 `adb reverse` mapping をそのまま再設定して復帰**（`tcp:3000` を空き port へ退避 + forwarder で運用していた場合はその対応を復元する。`tcp:3000 tcp:3000` 固定で戻すと退避設定を壊す）→ 再度 refresh | offline 中はクラッシュせず cache が表示され、復帰後の refresh で最新データに追いつく。offline 中の write が queue される仕様がある場合は復帰後に二重実行なく反映されること |
 
 ### 補足: emulator での既知の差分
 
-- emulator では `adb reverse tcp:3000` の転送先を host の `127.0.0.1` にする必要がある。host の port 3000 が他プロセスに占有されている場合は `adb reverse tcp:3000 tcp:<空きport>` + host 側 TCP forwarder（例: `127.0.0.1:<port>` → `[::1]:3000`）で回避する。物理デバイスでは USB 経由の `adb reverse tcp:3000 tcp:3000` が直接 verify web に届く前提でよいが、host 側の port 競合は同様に起こりうる
+- emulator では `adb reverse tcp:3000` の転送先を host の `127.0.0.1` にする必要がある。host の port 3000 が他プロセスに占有されている場合は `adb reverse tcp:3000 tcp:<空きport>` + host 側 TCP forwarder（例: `127.0.0.1:<port>` → `[::1]:3000`）で回避する。**物理デバイスでも同じ port 競合は起こりうる**ため、`adb reverse tcp:3000 tcp:3000` が verify web に届かない場合は同じ退避 + forwarder 手順を使う
 - タイムラインの refresh はページ swipe / settle で発火する。起動直後の cache 表示だけでは server 側の新規データを判定できないため、Web→Android の確認では必ず swipe refresh を行う
 
 ### emulator 検証結果（2026-11-18、verify stack、account `g3verify002@example.com`）
