@@ -1,6 +1,6 @@
 {
   "schema": "tastile/version-matrix/v1",
-  "updated": "2026-11-22",
+  "updated": "2026-11-23",
   "authority": "docs/adr/0013-independent-product-versioning.md",
   "note": "各製品は独立した SemVer 系列を持つ。root は統合対象 (version/tag/SHA/契約pin/受入状態) を記録するだけで、共通バージョン番号も release branch も持たない。matrix は記録であり強制機構ではない。",
   "version_axes": {
@@ -44,30 +44,15 @@
         "openapi_spec": "tastile-openapi v3.8.1 (49a1b449f22ca70b66989dbcebe224fd50c57d26)",
         "derivation": "crates-v1/api dump_openapi 出力。v3.8.1 は release-2-0-0 @ 0e6ecb2f 由来 (core#399 / PR #400-401: security schemes, summaries, servers, info.version 1.2.0)"
       },
-      "release": {
-        "tag": "v2.0.0",
-        "tag_sha": "1d92f91b0ee15a8a601a3d6ebfeffdc185d1ca33",
-        "release_branch": "release-2-0-0",
-        "main_merge": "e7e109f1174dab766fba1fb688d3ba082ec9952f",
-        "published": "2026-11-22",
-        "github_release": "https://github.com/tastile/tastile-core/releases/tag/v2.0.0",
-        "assets": [
-          "tastile-core-2.0.0-linux-amd64.tar.gz",
-          "tastile-core-2.0.0-linux-arm64.tar.gz",
-          "SHA256SUMS.txt"
-        ],
-        "ci_note": "GitHub Actions アカウント課金制限により release 対象 commit の CI は job 未開始 (未実施、PASS ではない)。固定 SHA の包括 QA + 独立レビューは tastile-core#444、例外の正式記録は tastile-core docs/release.md §Release 証跡。"
-      },
       "acceptance": {
         "state": "in-progress",
         "gates": [
           "root#105 G3 device",
           "root#105 G5 shadow",
           "release-1-1-0 -> main approval"
-        ],
-        "note": "ソース公開 (tag/release/assets) は 2026-11-22 に完了。Muse 実運用環境への切替・受入は root#105 の別ゲートであり未完了。"
+        ]
       },
-      "note": " その後 core#399/PR#400-401 (OpenAPI security/summaries/servers) を merge 統合し head 0e6ecb2f。2026-11-22 に v2.0.0 として公開 (tag → 1d92f91b、main merge e7e109f1)。"
+      "note": " その後 core#399/PR#400-401 (OpenAPI security/summaries/servers) を merge 統合し head 0e6ecb2f。"
     },
     {
       "id": "web",
@@ -169,7 +154,7 @@
       "repo": "tastile/tastile-openapi",
       "display_name": "Tastile OpenAPI contract snapshot",
       "version_sot": "git tag vX.Y.Z + CHANGELOG.md",
-      "version_sot_value": "v3.8.1",
+      "version_sot_value": "v3.10.0",
       "series": "semver",
       "series_note": "wire format の互換性で bump。Core 製品バージョンとは独立",
       "surfaces": [
@@ -184,12 +169,13 @@
       },
       "derivation": {
         "generator": "tastile-core crates-v1/api dump_openapi",
-        "latest": "release-2-0-0 @ 0e6ecb2f → v3.8.1 (tag 49a1b44)",
+        "latest": "release-2-1-0 @ a88bd3d1 → v3.10.0 (tag 5b8827e)",
         "compat_matrix": "docs/compatibility.md (merged via openapi PR #29)"
       },
       "acceptance": {
         "state": "released",
-        "known_debt": "route parity: 98 undocumented paths は core openapi_router_parity baseline で ratchet 管理 (openapi#27 の lint 債務は v3.8.0 で解消)"
+        "known_debt": "route parity: 98 undocumented paths は core openapi_router_parity baseline で ratchet 管理 (openapi#27 の lint 債務は v3.8.0 で解消)",
+        "note": "v3.10.0: GET /v1/sync + ApiErrorSchema (CURSOR_EXPIRED kind=8) を追加。純粋追加のみ。consumer (web/android/desktop) は /v1/sync 未消費のため再生成不要。DOMAIN_EVENT_RETENTION_ENABLED は OFF 維持 (core#504)"
       }
     },
     {
