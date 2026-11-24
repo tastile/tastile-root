@@ -105,8 +105,10 @@ v7 仕様で開発を進めるが複雑化 → 2026-06-24 に v1 era として�
 
 ### 3-2. 当面の目標
 
-- **web と android を完全に完成させる** ことが最優先
-- desktop / ios / mac は後続
+- **正式リリース計画 v0.4（tastile-root#141、ADR-0025）**: Desktop を日常利用の
+  主力（P0）とし、Web・認証・Core・DB・CLI/Muse 連携を備えた正式リリースを、
+  追加クラウド料金 0 円で成立させる。Web は必須。Android / iOS / macOS は後続
+- 旧方針「web と android を完全に完成させることが最優先」は v0.4 で改訂済み
 
 ### 3-3. 仕様の正本
 
@@ -156,12 +158,13 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 
 | リポジトリ | 状態 | 優先度 |
 | --- | --- | --- |
-| tastile-core | 開発中 (v1 Phase A-D 完了) | **最高** |
-| tastile-web | 開発中 | **高** — 完全な完成が目標 |
-| tastile-android | 開発中 | **高** — 完全な完成が目標 |
-| tastile-desktop | 開発中 (動作可能) | 中 — 後続 |
+| tastile-core | 開発中 (v1 Phase A-D 完了、v2 semantics 系列 release-2-0-0) | **最高** |
+| tastile-desktop | 開発中 | **最高** — v0.4 の日常利用主力（P0） |
+| tastile-web | 開発中 | **高** — 正式リリースで必須 |
+| tastile-android | 開発中 | 中 — 後続（既存契約・作業は維持） |
+| tastile-cli | 開発中 | 中 — Muse 連携・配布経路 |
 | tastile-brands | 安定 | 維持 |
-| tastile-ios / tastile-mac | 未着手 | 低 — 将来 |
+| tastile-ios / tastile-mac | 未着手 / stub | 低 — 将来 |
 
 ---
 
@@ -213,6 +216,13 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 > 開発・検証・利用はローカル実行 (host dev server + ローカル PostgreSQL +
 > Core daemon) を前提とする。AWS リソースの復旧・再作成は開発目標に含めない。
 > 既存のローカル運用データは保護し、未承認の移行・破壊的操作は行わない。
+>
+> **2026-11-24 改訂 (ADR-0025 / tastile-root#141)**: 正式リリース構成として、
+> 既存 Windows マシン上の無償仮想化による隔離 Ubuntu LTS VM + Docker Compose
+> (API/Worker/Web/PostgreSQL 16/Caddy) を採用し、公開は Caddy + Cloudflare
+> Tunnel Free、製品サイトは Cloudflare Pages Free とする。追加クラウド料金は
+> 0 円が上限で、Oracle Cloud は採用・調査・代替のすべてから除外する。
+> 以下 §6-1〜6-4 は停止中の旧構成の記録であり、§6-5 が現行の採用構成である。
 
 ### 6-1. クラウドサーバー構成 (3 台) ※停止中の記録
 
@@ -246,6 +256,28 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 - canonical として **`.env.<env>.sops`** (AWS KMS で暗号化された ciphertext) を commit し、起動時に bun loader (`scripts/sops-decrypt.ts`) が KMS Decrypt で `.env.<env>` へ復号する。KMS key policy は developer SSO / GitHub Actions OIDC role / EC2 instance profile の 3 principal category を allow する (旧 `kms:ViaService` condition は SSO 直接復号を誤って遮断していたため除去済み — 経緯は `docs/adr/0006-kms-viaservice-removal.md`、設計は `docs/superpowers/specs/2026-08-27-sops-env-decryption-design.md` を参照)
 - production の hot path は **AWS SSM Parameter Store / Secrets Manager** を並列維持し、systemd `EnvironmentFile=` 経由で配信する (SOPS 復号値と衝突しないよう、infra URL 類は SSM 側 / application secret は `.sops` 側で分担)
 - 平文 `.env` / `.env.<env>` は `.gitignore` で除外 (loader が起動時に書き出す)
+
+### 6-5. 採用構成 — Native-first 正式リリース (2026-11-24, ADR-0025 / #141)
+
+> 正式リリース計画 v0.4 (tastile-root#141) で採用が確定した構成。詳細な
+> タスク分解・受入条件・依存関係は #141 と配下の NF04-* Issue が正本。
+
+- **実行ホスト**: 既存の常時稼働 Windows マシン + 既存無償仮想化 (購入不要)
+- **サーバ環境**: 隔離 Ubuntu LTS VM + Docker Compose
+  - API (Rust/axum)・Worker (Rust/Tokio)・Web (Next.js standalone)・
+    PostgreSQL 16・Caddy reverse proxy を固定入力から再現可能に構成
+- **公開経路**: Caddy + Cloudflare Tunnel Free (独立無料環境)。
+  製品サイトは Cloudflare Pages Free の静的配信
+- **配布**: Windows = Microsoft Store / MSIX、CLI = GitHub Releases。
+  インストーラーを Tunnel/API で中継しない
+- **Secret**: Infisical を編集正本、実行時は最小権限供給 (常時接続を必須にしない)
+- **Backup**: 既存の別物理 Mac へ SSH 転送 + age 暗号化。別障害ドメインで復元実証
+- **費用境界**: 追加クラウド料金 0 円。Oracle Cloud は採用・調査・代替・
+  fallback のすべてから除外。有料経路の再開・新規課金契約・外部公開・
+  DNS 移管・本番データ切替は明示承認が必要
+- **隔離**: 現行 Muse 運用 SoT (実予定・認証・通知・自動化) とは DB/port/
+  credential/通知先を分離し、許可なき操作を禁止。検証は #104 の verify-stack
+  等の隔離環境で行う
 
 ---
 
@@ -327,13 +359,14 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 ### 9-3. Windows 開発環境
 
 - **WSL container** を使用し、Linux バイナリを動かす (注: `wsl` サブシステムとは別系統。`wslc` が OCI ランタイム。WSL distro `Ubuntu` の `ext4.vhdx` がこのホストで `HCS/ERROR_PATH_NOT_FOUND` を返すため `wsl -d Ubuntu --exec ...` 経路は塞がれている。WSLC コンテナ (`tastile-db`, `tastile-api`, `tastile-worker`) は別ファイルシステムで独立稼働。)
-- **Docker は使わない** (開発でも本番でも)
 - `tastile-core.wslc` は WSL distro `Ubuntu` 内の `tastile-core` クローン (`cargo build`/`cargo test` の Linux 実行用; `wsl -d Ubuntu` 依存)
 
 ### 9-4. 本番環境
 
-- Linux バイナリが直接動く
-- Docker は使わない
+- **2026-11-24 改訂 (ADR-0025)**: 本番相当環境は専用 Ubuntu LTS VM 上の
+  Docker Compose (API/Worker/Web/PostgreSQL 16/Caddy) とする。旧来の
+  「Docker は使わず Linux バイナリ直接実行」モデルは退役。開発・検証でも
+  #104 の verify-stack (Colima/Compose) を隔離環境として利用する
 
 ---
 
@@ -350,6 +383,7 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 | Web 実装詳細 | tastile-web/AGENTS.md |
 | Android 実装詳細 | tastile-android/README.md |
 | Desktop 実装詳細 | tastile-desktop/README.md, tastile-desktop/CLAUDE.md |
+| 正式リリース計画 v0.4 (NF04 全42タスク) | **tastile-root#141** + 配下の NF04-* Issue |
 
 ---
 
@@ -378,7 +412,7 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 - **archive を改変しない**: `docs/archive/` 配下は不変
 - **tastile-brands を相対パスで参照しない**: 必要なときにコピーして使用
 - **フロントエンドにビジネスロジックを置かない**: すべて tastile-core API 経由
-- **Docker を使わない**: 開発でも本番でも Linux バイナリ直接実行
+- **コンテナ利用は ADR-0025 の採用範囲に限定**: 専用 VM の本番 Compose と隔離 verify-stack (#104) では Docker Compose を使う。それ以外の環境でのコンテナ依存追加は ADR 改訂を要する
 - **PostgreSQL の enum 型を使わない**: `smallint` + アプリ Registry
 - **JSONB を正本に保存しない**: 子テーブルへ正規化
 - **env の値をリポジトリにコミットしない**: `.env.example` に項目のみ残す (`.env.<env>.sops` は KMS で暗号化された ciphertext であり例外 — §6-4 参照)
@@ -439,7 +473,7 @@ contract は `verify-tastile-change` Skill に統一する。
 
 ### 13-4. 次のマイルストーン
 
-1. **web と android の完全な完成**
-2. 通知機能の実装
-3. 課金機能の実装 (Stripe)
-4. Phase 5: 旧 v0 撤去
+正式リリース計画 v0.4 (tastile-root#141 / ADR-0025) の NF04-* Issue 群を完了し、
+NF04-I07 の全 gate (Cost/Domain/Security/Usability/Recovery/Performance) を
+達成して正式リリースする。#105 の個人実用化 gate (G3/G5) は NF04-I06 として
+リリース受入へ接続する。
