@@ -1,6 +1,6 @@
 {
   "schema": "tastile/version-matrix/v1",
-  "updated": "2026-11-23",
+  "updated": "2026-11-24",
   "authority": "docs/adr/0013-independent-product-versioning.md",
   "note": "各製品は独立した SemVer 系列を持つ。root は統合対象 (version/tag/SHA/契約pin/受入状態) を記録するだけで、共通バージョン番号も release branch も持たない。matrix は記録であり強制機構ではない。",
   "version_axes": {
@@ -14,7 +14,7 @@
       "repo": "tastile/tastile-core",
       "display_name": "Tastile Core (daemon / API / engine / 同梱 CLI)",
       "version_sot": "crates-v1/Cargo.toml [workspace.package] version",
-      "version_sot_value": "2.0.0",
+      "version_sot_value": "2.1.0",
       "series": "semver",
       "surfaces": [
         "/v1/version",
@@ -31,28 +31,48 @@
       },
       "release_branches": {
         "v1_rc": "release-1-1-0",
-        "v2_semantics": "release-2-0-0",
-        "historical": "release-1-2-0 (superseded by release-2-0-0)"
+        "v2_0": "release-2-0-0",
+        "v2_1": "release-2-1-0 (merged to main, tagged v2.1.0)",
+        "historical": "release-1-2-0 (superseded)"
       },
       "integration_candidate": {
-        "product_version": "2.0.0",
-        "release_branch": "release-2-0-0",
-        "base_sha": "0e6ecb2f",
-        "note": "release-1-2-0 head (12773d66) から release-2-0-0 を作成し core#388/PR#389-390 で 2.0.0 を確定。PR #394 で release-1-1-0 (v1 RC 全成果) を merge 統合、P1 empty-span 意味論を post-#362 v1 に整合。head aded3936 は P4 advisory lock (#392)・P1-P6 全統合・T12 scheduler-option 差分ハーネス (#396) を含む。release-1-2-0 は履歴として保持。v1 RC (release-1-1-0 → 1.1.0) とは独立系列 その後 core#397/PR#398 (scheduler-v1-expand artifact, fe858e1) を merge 統合し head 0e6ecb2f。"
+        "product_version": "2.1.0",
+        "release_branch": "release-2-1-0",
+        "base_sha": "e1b9ba763fd33f884cba2f79d0519f6572a9f89b",
+        "tag": "v2.1.0",
+        "release_url": "https://github.com/tastile/tastile-core/releases/tag/v2.1.0",
+        "artifact": {
+          "name": "tastile-core-2.1.0-x86_64-unknown-linux-gnu.tar.gz",
+          "sha256": "f3a348c5d9cc7d22545867d3ea99ac1559273403b8cb9460c4363f3b40abd6ab",
+          "bins": [
+            "api",
+            "worker",
+            "bundle",
+            "migrate_run",
+            "migrate_dry_run",
+            "dump_openapi"
+          ],
+          "build_identity": "commit=e1b9ba76 dirty=false mode=release timestamp=2026-11-24T04:17:50Z"
+        },
+        "note": "v2.0.0 (release-2-0-0) 以降 128 commits / 53 PRs。Sync 永続シーケンス化 (V1_085-087)、work_item dead-letter (V1_088)、Timeline/Flow 性能改善、デッドロック修正 (core#549/#564)、S4 1,000-user 実測と Lane P 原価モデル。GitHub Actions は billing 障害で未実施、全必須ゲートをローカル代替で検証 (PR #566 対応表)。"
       },
       "contract_pins": {
-        "openapi_spec": "tastile-openapi v3.8.1 (49a1b449f22ca70b66989dbcebe224fd50c57d26)",
-        "derivation": "crates-v1/api dump_openapi 出力。v3.8.1 は release-2-0-0 @ 0e6ecb2f 由来 (core#399 / PR #400-401: security schemes, summaries, servers, info.version 1.2.0)"
+        "openapi_spec": "tastile-openapi v3.10.0 (tag v3.10.0 = 5b8827e9bead10c57e8e2ff26a29289bade584b3)",
+        "derivation": "crates-v1/api dump_openapi 出力。v3.10.0 は core v2.1.0 @ e1b9ba76 由来 (GET /v1/sync + CURSOR_EXPIRED kind=8、純粋追加)"
       },
       "acceptance": {
-        "state": "in-progress",
+        "state": "released",
+        "released_at": "2026-11-24",
         "gates": [
-          "root#105 G3 device",
-          "root#105 G5 shadow",
-          "release-1-1-0 -> main approval"
-        ]
+          "workspace cargo test 全量 pass (実PG + TC299 専用 server)",
+          "rollback compatibility script PASS",
+          "specs-004-lean 全工程 (sorry/lake build/axiom audit/fixture byte-compare 7/7)",
+          "backup/restore populated DB + 復元後 api/worker/read/command/idempotency",
+          "配布物 identity gate + 公開後 SHA256 再検証"
+        ],
+        "known_debt": "domain_event retention OFF / idempotency TTL OFF (core#546)。#547/#548/#563 は後続。高 active 率負荷・長期容量成長は未実測。"
       },
-      "note": " その後 core#399/PR#400-401 (OpenAPI security/summaries/servers) を merge 統合し head 0e6ecb2f。"
+      "note": "v2.1.0 正式リリース済み (2026-11-24)。次期は Native-first 正式運用構成とクライアント統合 (docs/plans/2026-11-24-core-v2.1.0-native-first-handoff.md)。"
     },
     {
       "id": "web",
@@ -70,11 +90,12 @@
         "active": "release-1-1-0"
       },
       "contract_pins": {
-        "openapi_spec": "tastile-openapi v3.8.1 submodule pin (49a1b44)",
-        "consumer_evidence": "web PR #243 で submodule pin + 型再生成、PR #244 で v2 eval subprocess hardening、PR #246 で unsupported ゲート回帰 test。release-1-1-0 head 1eba46e8"
+        "openapi_spec": "main pin = 0a8a66b (v1.0.1-era, stale)。release-1-1-0 pin = 49a1b44 (v3.8.1)。v3.10.0 未追従",
+        "consumer_evidence": "web PR #243 で submodule pin + 型再生成、PR #244 で v2 eval subprocess hardening、PR #246 で unsupported ゲート回帰 test。release-1-1-0 head 1eba46e8 | 2026-11-24: openapi-generated.d.ts に /v1/sync・CURSOR_EXPIRED が無いことを確認。次回 Web リリースの受入条件として submodule pin を v3.10.0 (5b8827e) へ更新し bun run generate-types で再生成すること。"
       },
       "acceptance": {
-        "state": "in-progress"
+        "state": "in-progress",
+        "note": "core v2.1.0 対応: OpenAPI pin 更新 + 型再生成が次回リリース前提"
       },
       "note": "package.json#version を release-1-1-0 目標版へ整合 (web#239/PR#240)。web#219/PR#241 (v2 scheduler-v1-expand adapter + QuickCreate opt-in + semantic gate, 2a5621b0, merge 2ca47f5c)、web#235/PR#244 (v2 eval subprocess hardening, afe4fc39, merge 22d0397e)、web#245/PR#246 (unsupported ゲート回帰 test, 91cc09d1, merge 1eba46e8) を release-1-1-0 へ統合済み。release-1-1-0 head = 1eba46e8。"
     },
@@ -94,14 +115,12 @@
         "active": "release-0-7-0"
       },
       "contract_pins": {
-        "openapi_spec": "openapi submodule v3.8.1 (49a1b449) → generateV1Api (Retrofit/Moshi)",
+        "openapi_spec": "tastile-root/openapi submodule @ 5b8827e (= v3.10.0) → build 時 generateV1Api (Retrofit/Moshi)。commit 済み生成物なし",
         "consumer_evidence": "android PR #119 で pin v3.8.1 + 生成 client の重複 import 除去 post-process 追加、generateV1Api 46/46 ops + compileDebugKotlin + testDebugUnitTest pass、merge 407e0b2a (android#118)"
       },
       "acceptance": {
         "state": "in-progress",
-        "gates": [
-          "root#105 G3 physical device"
-        ]
+        "note": "contract は build 時に v3.10.0 を解決するため core v2.1.0 と整合。/v1/sync 消費は未実装 (未消費でも wire 互換)"
       }
     },
     {
@@ -121,10 +140,11 @@
         "active": "release-0-7-0"
       },
       "contract_pins": {
-        "openapi_spec": "tastile-openapi submodule"
+        "openapi_spec": "openapi submodule なし (remote tree に openapi gitlink 未検出)。契約消費経路は個別確認が必要"
       },
       "acceptance": {
-        "state": "in-progress"
+        "state": "in-progress",
+        "note": "core v2.1.0 との契約整合は未検証。次回 Desktop リリース時に確認"
       }
     },
     {
@@ -142,11 +162,12 @@
         "active": "release-1-1-0"
       },
       "contract_pins": {
-        "openapi_spec": "openapi submodule v3.8.1 (49a1b449)",
+        "openapi_spec": "main pin = 0a8a66b (stale)。release-1-1-0 pin = be70922 (v3.9.0)。v3.10.0 未追従",
         "consumer_evidence": "cli PR #31 で pin v3.8.1、check-openapi-drift 20/20 ops + surface 20/20 pass、merge 582d7e1a (cli#30)"
       },
       "acceptance": {
-        "state": "in-progress"
+        "state": "in-progress",
+        "note": "tastile-cli repo は別製品。core v2.1.0 artifact 同梱の CLI (crates-v1/cli: bundle/migrate_run/migrate_dry_run) とは別系統。次回 cli リリースで pin 更新が前提"
       }
     },
     {
@@ -174,8 +195,10 @@
       },
       "acceptance": {
         "state": "released",
-        "known_debt": "route parity: 98 undocumented paths は core openapi_router_parity baseline で ratchet 管理 (openapi#27 の lint 債務は v3.8.0 で解消)",
-        "note": "v3.10.0: GET /v1/sync + ApiErrorSchema (CURSOR_EXPIRED kind=8) を追加。純粋追加のみ。consumer (web/android/desktop) は /v1/sync 未消費のため再生成不要。DOMAIN_EVENT_RETENTION_ENABLED は OFF 維持 (core#504)"
+        "note": "v3.10.0: /v1/sync + CURSOR_EXPIRED (core#504)。core v2.1.0 @ e1b9ba76 の dump_openapi と byte 一致確認済み。consumer の /v1/sync 未消費のため既存 pin でも wire 互換 (純粋追加)。"
+      },
+      "contract_pins": {
+        "openapi_spec": "v3.10.0 (tag = 5b8827e)"
       }
     },
     {
