@@ -1,0 +1,182 @@
+# Production-equivalent stack for the Native-first release plan (root#141, NF04-R02).
+# Runs on the dedicated always-on Windows host inside an isolated Ubuntu LTS VM
+# (ADR-0025). Public ingress is Caddy + Cloudflare Tunnel (free tier); no host
+# ports are published for db / api / web except caddy's 80/443, which the tunnel
+# dials outbound. Secrets are injected from Infisical at deploy time — never
+# committed, never baked into images.
+#
+# This file is configuration-as-code. Bringing the stack up on the VM is a
+# separate approval-gated step (NF04-I01..I07). Do NOT point this stack at the
+# existing Muse operational data: it provisions its own databases, roles,
+# volumes and credentials.
+#
+# Required env (see .env.example for the full schema; values come from Infisical):
+#   TASTILE_CORE_IMAGE / TASTILE_WEB_IMAGE  prebuilt image refs (preferred), or
+#   TASTILE_CORE_DIR / TASTILE_WEB_DIR      sibling checkouts for local builds
+#   TASTILE_PG_PASSWORD / TASTILE_CORE_DB_PASSWORD / TASTILE_AUTH_DB_PASSWORD
+#   TASTILE_WEB_BRIDGE_SECRET / BETTER_AUTH_SECRET
+#   APP_DOMAIN / API_DOMAIN                 public hostnames (DNS transfer is an
+#                                           approval boundary; placeholders OK)
+#
+# Bring up:   docker compose --env-file <infisical-rendered.env> up -d
+# Validate:   docker compose --env-file <env> config
+# Tear down:  docker compose --env-file <env> down        (volumes preserved)
+#             docker compose --env-file <env> down -v     (wipes ALL data —
+#                                             destructive, confirm first)
+
+name: ${COMPOSE_PROJECT_NAME:-tastile-prod}
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-tastile-prod}-db
+    environment:
+      POSTGRES_USER: ${TASTILE_PG_USER:-tastile_admin}
+      POSTGRES_PASSWORD: ${TASTILE_PG_PASSWORD:?set TASTILE_PG_PASSWORD (Infisical /tastile/prod)}
+      POSTGRES_DB: postgres
+      # Provision app databases/roles on first init only (see initdb/).
+      TASTILE_CORE_DB: ${TASTILE_CORE_DB:-tastile}
+      TASTILE_CORE_DB_USER: ${TASTILE_CORE_DB_USER:-tastile_core}
+      TASTILE_CORE_DB_PASSWORD: ${TASTILE_CORE_DB_PASSWORD:?set TASTILE_CORE_DB_PASSWORD}
+      TASTILE_AUTH_DB: ${TASTILE_AUTH_DB:-tastile_auth}
+      TASTILE_AUTH_DB_USER: ${TASTILE_AUTH_DB_USER:-tastile_auth}
+      TASTILE_AUTH_DB_PASSWORD: ${TASTILE_AUTH_DB_PASSWORD:?set TASTILE_AUTH_DB_PASSWORD}
+    volumes:
+      - prod-pgdata:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    # No host port: the database is reachable only on the internal network.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  api:
+    image: ${TASTILE_CORE_IMAGE:-tastile-core:${TASTILE_CORE_TAG:-latest}}
+    # Local-build fallback for bring-up before a registry exists:
+    # build:
+    #   context: ${TASTILE_CORE_DIR:-../../../tastile-core}
+    #   dockerfile: .wslc/Containerfile.v1
+    container_name: ${COMPOSE_PROJECT_NAME:-tastile-prod}-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      TASTILE_ENV: production
+      TASTILE_DATABASE_URL: postgres://${TASTILE_CORE_DB_USER:-tastile_core}:${TASTILE_CORE_DB_PASSWORD}@db:5432/${TASTILE_CORE_DB:-tastile}
+      DATABASE_URL: postgres://${TASTILE_CORE_DB_USER:-tastile_core}:${TASTILE_CORE_DB_PASSWORD}@db:5432/${TASTILE_CORE_DB:-tastile}
+      TASTILE_API_HOST: 0.0.0.0
+      TASTILE_API_PORT: "31400"
+      TASTILE_DATABASE__MAX_CONNECTIONS: ${TASTILE_DATABASE__MAX_CONNECTIONS:-10}
+      TASTILE_ALLOWED_ORIGINS: https://${APP_DOMAIN:?set APP_DOMAIN}
+      TASTILE_WEB_BRIDGE_SECRET: ${TASTILE_WEB_BRIDGE_SECRET:?set TASTILE_WEB_BRIDGE_SECRET}
+      TASTILE_DELIVERY_PROVIDER: ${TASTILE_DELIVERY_PROVIDER:-fake}
+      TASTILE_MAX_REQUEST_BODY_BYTES: "2097152"
+      TASTILE_REQUEST_TIMEOUT_SECONDS: "30"
+      AWS_EC2_METADATA_DISABLED: "true"
+      RUST_LOG: ${RUST_LOG:-info}
+    # No host port: reached only via the internal network / caddy.
+    restart: unless-stopped
+
+  worker:
+    image: ${TASTILE_CORE_IMAGE:-tastile-core:${TASTILE_CORE_TAG:-latest}}
+    container_name: ${COMPOSE_PROJECT_NAME:-tastile-prod}-worker
+    depends_on:
+      db:
+        condition: service_healthy
+      api:
+        condition: service_started
+    environment:
+      TASTILE_ENV: production
+      TASTILE_DATABASE_URL: postgres://${TASTILE_CORE_DB_USER:-tastile_core}:${TASTILE_CORE_DB_PASSWORD}@db:5432/${TASTILE_CORE_DB:-tastile}
+      DATABASE_URL: postgres://${TASTILE_CORE_DB_USER:-tastile_core}:${TASTILE_CORE_DB_PASSWORD}@db:5432/${TASTILE_CORE_DB:-tastile}
+      TASTILE_DATABASE__MAX_CONNECTIONS: ${TASTILE_DATABASE__MAX_CONNECTIONS:-10}
+      TASTILE_DELIVERY_PROVIDER: ${TASTILE_DELIVERY_PROVIDER:-fake}
+      AWS_EC2_METADATA_DISABLED: "true"
+      RUST_LOG: ${RUST_LOG:-info}
+    command: ["/app/worker"]
+    restart: unless-stopped
+
+  web:
+    image: ${TASTILE_WEB_IMAGE:-tastile-web:${TASTILE_WEB_TAG:-latest}}
+    # Local-build fallback (build args must come from Infisical; see README):
+    # build:
+    #   context: ${TASTILE_WEB_DIR:-../../../tastile-web}
+    #   dockerfile: Containerfile
+    #   args:
+    #     TASTILE_INFISICAL_INJECTED: "1"
+    #     APP_VERSION: ${TASTILE_WEB_VERSION:-0.0.0}
+    #     NEXT_PUBLIC_APP_URL: https://${APP_DOMAIN}
+    #     NEXT_PUBLIC_APP_HOST: ${APP_DOMAIN}
+    #     NEXT_PUBLIC_APEX_HOST: ${APP_DOMAIN}
+    #     NEXT_PUBLIC_DAEMON_BASE_URL: https://${API_DOMAIN}
+    container_name: ${COMPOSE_PROJECT_NAME:-tastile-prod}-web
+    depends_on:
+      api:
+        condition: service_started
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      # Server-side runtime wiring (NEXT_PUBLIC_* values are baked at image
+      # build time by the web Containerfile via Infisical injection).
+      CLOUD_API_BASE: http://api:31400
+      TASTILE_CORE_URL: http://api:31400
+      TASTILE_RUST_API_URL: http://api:31400
+      NEXT_PUBLIC_DAEMON_BASE_URL: https://${API_DOMAIN}
+      TASTILE_USE_RUST_CORE: "1"
+      TASTILE_AUTH_DATABASE_URL: postgres://${TASTILE_AUTH_DB_USER:-tastile_auth}:${TASTILE_AUTH_DB_PASSWORD}@db:5432/${TASTILE_AUTH_DB:-tastile_auth}
+      TASTILE_WEB_BRIDGE_SECRET: ${TASTILE_WEB_BRIDGE_SECRET:?set TASTILE_WEB_BRIDGE_SECRET}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: https://${APP_DOMAIN}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PRO_MONTHLY_PRICE_ID: ${STRIPE_PRO_MONTHLY_PRICE_ID:-}
+      STRIPE_PRO_YEARLY_PRICE_ID: ${STRIPE_PRO_YEARLY_PRICE_ID:-}
+    # No host port: reached only via caddy.
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-tastile-prod}-caddy
+    depends_on:
+      - web
+      - api
+    ports:
+      # Only public surface. With cloudflared (profile "tunnel") these can be
+      # bound to loopback; without it they are the direct ingress.
+      - "${CADDY_HTTP_PORT:-80}:80"
+      - "${CADDY_HTTPS_PORT:-443}:443"
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+
+  # Optional: Cloudflare Tunnel connector (free tier). Runs only under
+  # `--profile tunnel`; the tunnel token is a secret from Infisical.
+  # Outbound-only: no inbound ports are opened by cloudflared itself.
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: ${COMPOSE_PROJECT_NAME:-tastile-prod}-cloudflared
+    profiles: ["tunnel"]
+    depends_on:
+      - caddy
+    environment:
+      # Empty token makes cloudflared exit at startup; set it from Infisical
+      # before enabling --profile tunnel.
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    command: tunnel --no-autoupdate run
+    restart: unless-stopped
+
+volumes:
+  prod-pgdata:
+    name: ${COMPOSE_PROJECT_NAME:-tastile-prod}-pgdata
+  caddy-data:
+    name: ${COMPOSE_PROJECT_NAME:-tastile-prod}-caddy-data
+  caddy-config:
+    name: ${COMPOSE_PROJECT_NAME:-tastile-prod}-caddy-config
