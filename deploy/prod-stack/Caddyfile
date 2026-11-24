@@ -1,0 +1,14 @@
+# Caddy reverse proxy for the Native-first production stack (root#141, NF04-R02).
+# APP_DOMAIN serves the Next.js standalone web app; API_DOMAIN serves the
+# tastile-core HTTP API. Both names are placeholders until DNS transfer is
+# approved (approval boundary). Caddy provisions internal TLS automatically
+# when the domains resolve; behind cloudflared the tunnel terminates public
+# TLS and caddy may serve plain HTTP internally.
+
+{$APP_DOMAIN} {
+	reverse_proxy web:3000
+}
+
+{$API_DOMAIN} {
+	reverse_proxy api:31400
+}
