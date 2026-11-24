@@ -1,5 +1,15 @@
 # Decisions
 
+## 2026-11-24 — Native-first 正式リリース構成 (計画 v0.4)
+
+正式リリース計画 v0.4 (tastile-root#141) の採用構成を ADR-0025 として確定した。
+Desktop 主力 + Web 必須、既存 Windows マシン上の無償仮想化による Ubuntu LTS VM +
+Docker Compose、Caddy + Cloudflare Tunnel Free / Pages Free、Microsoft Store/MSIX +
+GitHub Releases、Infisical secret SoT、別物理 Mac への age 暗号化バックアップ。
+追加クラウド料金 0 円、Oracle Cloud は全面除外。旧「web/android 最優先」「Docker
+不使用」等の HARNESS 記述を改訂した。全 42 タスクは #141 配下の NF04-* Issue が
+追跡する。
+
 ## 2026-08-22 — Cognito → BetterAuth 認証置き換え
 
 アカウント認証を AWS Cognito Hosted UI から BetterAuth へ置き換える。
