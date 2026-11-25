@@ -15,6 +15,20 @@ export type Verdict = "PASS" | "FAIL" | "BLOCKED" | "NOT-RUN" | "N-A";
 export class BlockedError extends Error {}
 export class FailFastError extends Error {}
 
+// Cloudflare Access service-token headers for the https profile: when the
+// api hostname sits behind an Access service-auth policy, every harness
+// request must carry CF-Access-Client-Id/Secret. Values come from the
+// environment (Infisical at run time); absent env = no headers.
+function accessServiceTokenHeaders(): Record<string, string> {
+  const id = process.env.CF_ACCESS_CLIENT_ID?.trim();
+  const secret = process.env.CF_ACCESS_CLIENT_SECRET?.trim();
+  if (!id || !secret) return {};
+  return {
+    "CF-Access-Client-Id": id,
+    "CF-Access-Client-Secret": secret,
+  };
+}
+
 export interface CheckResult {
   id: string;
   ok: boolean | null; // null = not evaluated (blocked/skip)
@@ -114,7 +128,7 @@ export class RunContext {
   clientFor(name: string, base: string): ApiClient {
     let c = this.clients.get(name);
     if (!c) {
-      c = new ApiClient(base);
+      c = new ApiClient(base, accessServiceTokenHeaders());
       this.clients.set(name, c);
     }
     return c;

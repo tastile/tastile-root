@@ -43,9 +43,11 @@ export function redact(text: string): string {
 export class ApiClient {
   readonly base: string;
   private cookies = new Map<string, string>();
+  private readonly defaultHeaders: Record<string, string>;
 
-  constructor(base: string) {
+  constructor(base: string, defaultHeaders: Record<string, string> = {}) {
     this.base = base.replace(/\/+$/, "");
+    this.defaultHeaders = defaultHeaders;
   }
 
   cookieHeader(): string | null {
@@ -87,7 +89,7 @@ export class ApiClient {
   async request(path: string, opts: RequestOptions = {}): Promise<HttpResponse> {
     const method = opts.method ?? "GET";
     const url = path.startsWith("http") ? path : `${this.base}${path.startsWith("/") ? path : `/${path}`}`;
-    const headers: Record<string, string> = { ...(opts.headers ?? {}) };
+    const headers: Record<string, string> = { ...this.defaultHeaders, ...(opts.headers ?? {}) };
     if (opts.bearer) headers.authorization = `Bearer ${opts.bearer}`;
     const cookie = this.cookieHeader();
     if (cookie && !headers.cookie) headers.cookie = cookie;
