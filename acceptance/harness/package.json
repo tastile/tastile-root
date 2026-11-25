@@ -1,0 +1,20 @@
+{
+  "name": "tastile-acceptance-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "NF04-A acceptance test harness for tastile-root#165 (contract: acceptance/contract/acceptance-contract.json)",
+  "packageManager": "bun@1.4.2",
+  "scripts": {
+    "acceptance": "bun src/main.ts",
+    "typecheck": "tsc --noEmit",
+    "check:contract": "bun src/main.ts --list"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  },
+  "optionalDependencies": {
+    "playwright": "^1.62.0"
+  }
+}

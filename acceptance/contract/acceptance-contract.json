@@ -1,0 +1,607 @@
+{
+  "schema": "tastile/acceptance-contract/v1",
+  "contract_version": "0.1.0",
+  "status": "draft-baseline",
+  "canonical_issue": "tastile/tastile-root#165",
+  "contract_issue": "tastile/tastile-root#166",
+  "purpose": "NF04-A 先行稼働の受入テスト契約。#165 の A-AT01〜17 と中核 E2E を、環境別・担当 Issue 別・証跡形式付きで版管理する。意味の正本は #165 であり、本契約はそれを実行可能な検査項目へ具体化したものである。受入条件を緩和する変更は #165 の版更新と同時にのみ許可する。",
+  "language": {
+    "prose": "ja",
+    "identifiers_and_code": "en"
+  },
+  "spec_pins": {
+    "domain_spec": "tastile-core/v1/ 00..15 (16 chapters); invariants: v1/10-invariants.md; endpoints: v1/14-read-model-and-endpoint.md",
+    "openapi_contract": "tastile-openapi submodule pin (root openapi/); info.version 1.2.0 at v3.10.0",
+    "core_candidate": "recorded per run in evidence (candidate SHA); baseline run pins the checkout used",
+    "web_candidate": "recorded per run in evidence"
+  },
+  "profiles": {
+    "local": {
+      "description": "deploy/verify-stack の隔離ローカルスタック (Compose, TASTILE_ENV=development)。唯一の破壊的試験許可環境の一つ。",
+      "api_base_env": "TASTILE_ACCEPTANCE_API_BASE",
+      "api_base_default": "http://127.0.0.1:31410",
+      "web_base_env": "TASTILE_ACCEPTANCE_WEB_BASE",
+      "web_base_default": "http://127.0.0.1:3000",
+      "url_scheme": "http",
+      "host_requirement": "loopback only",
+      "auth_bootstrap": "core /v1/auth/signup (password auth enabled in development) OR web Better Auth when web_base is set",
+      "ops": "docker compose against deploy/verify-stack with TASTILE_VERIFY_PREFIX; project name recorded in evidence",
+      "notes": "verify-stack は非本番。preflight attestation が必須。"
+    },
+    "prod-equivalent": {
+      "description": "deploy/prod-stack の Compose 構成を隔離 Ubuntu LTS VM (または同等の隔離ホスト) で起動した本番相当環境。Caddy が唯一の ingress。",
+      "api_base_env": "TASTILE_ACCEPTANCE_API_BASE",
+      "api_base_default": null,
+      "web_base_env": "TASTILE_ACCEPTANCE_WEB_BASE",
+      "web_base_default": null,
+      "url_scheme": "https 推奨 (caddy)。http の場合は loopback/内部網のみ許可",
+      "host_requirement": "explicit env required; loopback default 禁止 (誤接続防止)",
+      "auth_bootstrap": "web Better Auth sign-up/email + /api/auth/bridge → tastile_api_token cookie (core TASTILE_ENV=production では core password auth は無効)",
+      "ops": "profile が提供する ops コマンド (既定: SSH 先で docker compose)。restart/stop/backup/restore はこの profile と local のみ許可",
+      "notes": "実デプロイ・DNS 移管・外部公開は承認境界。harness は設定の検査までを行い、起動自体は承認済み手順に従う。"
+    },
+    "https": {
+      "description": "Cloudflare Tunnel 経由の正規ドメインに対する実 HTTPS 経路。実ネットワークからの到達性を証明する最終 profile。",
+      "api_base_env": "TASTILE_ACCEPTANCE_API_BASE",
+      "api_base_default": null,
+      "web_base_env": "TASTILE_ACCEPTANCE_WEB_BASE",
+      "web_base_default": null,
+      "url_scheme": "https only",
+      "host_requirement": "https scheme + 公開 DNS 名。loopback/IP 直打ち拒否",
+      "auth_bootstrap": "web Better Auth (prod-equivalent と同じ)",
+      "ops": "restart/stop/backup/restore 注入は禁止 (安全な専用アカウント操作と許可された観測のみ)",
+      "notes": "A-AT13/14/15 の障害注入はここでは実施しない。証拠は prod-equivalent の同一構成に紐づける。"
+    }
+  },
+  "common_rules": {
+    "dedicated_owner": "全ケースは専用 owner (email prefix `acc-<runId>-`) のみを作成・使用する。既存運用 owner・実データには触れない。",
+    "fail_closed": "profile と URL scheme/host が一致しない場合、資格情報が欠ける場合、対象が loopback であるべきでないのに loopback の場合は FAIL ではなく BLOCKED/ERROR として記録し実行しない。",
+    "secrets": "token・cookie・password・bridge secret を evidence・log・stdout に出力しない。evidence には hash prefix (先頭8文字) と owner_id のみ記録する。",
+    "idempotency": "書き込み系 step は idempotency_key を必ず付与し、UUIDv4 を使う。",
+    "no_mock": "200 応答・health のみ・mock・localhost 完結を合格根拠にしない。",
+    "timeouts": "各 case の timeout_seconds を超えた場合 FAIL (timeout) とし、hang を PASS にしない。"
+  },
+  "verdicts": ["PASS", "FAIL", "BLOCKED", "NOT-RUN", "N-A"],
+  "verdict_meaning": {
+    "PASS": "契約の全 check が実測で成立",
+    "FAIL": "実行したが期待と不一致 (実装欠陥または環境欠陥。証跡必須)",
+    "BLOCKED": "前提 (stack/profile/資格情報/未実装経路) がなく実行不能。理由必須",
+    "NOT-RUN": "profile の environments に含まれず適用外、または依存 case が未成立",
+    "N-A": "契約上その環境では検証不能と明示された項目 (例: https での再起動注入)"
+  },
+  "cases": [
+    {
+      "id": "A-AT01",
+      "title": "外部ネットワークから正規ドメインへHTTPS",
+      "summary": "正しい証明書・host・Tunnel経路で Web/API へ到達し、意図しない直接公開がないこと。",
+      "environments": ["https"],
+      "kind": "http+tls",
+      "destructive": false,
+      "timeout_seconds": 120,
+      "owner_issues": ["#144"],
+      "prerequisites": [
+        {"type": "profile", "profile": "https", "detail": "TASTILE_ACCEPTANCE_WEB_BASE / API_BASE が https 公開ドメイン"},
+        {"type": "external", "detail": "Cloudflare Tunnel + DNS の稼働 (NF04-R04)"}
+      ],
+      "fixture": "なし (未認証で到達性のみ検査)",
+      "oracle": "TLS 証明書が公開 CA で有効・hostname 一致、/v1/health と / が https で 200 系、HTTP→HTTPS リダイレクトまたは拒否、DB/Worker/internal port が外部から不達。",
+      "checks": [
+        {"id": "tls-cert-valid", "description": "api_base/web_base の TLS 証明書が信頼チェーン・hostname・有効期限を満たす"},
+        {"id": "https-reachable", "description": "GET {api}/v1/health と GET {web}/ が https で成功"},
+        {"id": "no-plain-http-bypass", "description": "http:// 同一 host へのアクセスが拒否または https へ redirect される"},
+        {"id": "no-direct-backend", "description": "公開経路以外 (DB port, worker, 内部管理経路) が外部から到達不能"}
+      ],
+      "steps": [
+        "profile assert (https scheme, 非 loopback)",
+        "TLS handshake + cert 検証 (api/web 両 base)",
+        "GET /v1/health, GET / (web) — status と content-type を記録",
+        "http:// への同一 request で redirect/拒否を確認",
+        "db port・内部 port への外部 probe が接続不可であることを確認 (A-AT16 と共用の probe 集合)"
+      ],
+      "api_refs": ["GET /v1/health", "GET /v1/ready"],
+      "evidence": ["tls cert subject/issuer/expiry/SAN", "各 request の status/redirect", "probe 結果一覧"],
+      "harness": "cases/edge.ts"
+    },
+    {
+      "id": "A-AT02",
+      "title": "Webアプリを実ブラウザで表示",
+      "summary": "実ブラウザで Web が実バックエンドに接続し主要画面・データを表示する。mock なし。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "browser",
+      "destructive": false,
+      "timeout_seconds": 180,
+      "owner_issues": ["tastile/tastile-web#252", "tastile/tastile-web#253", "tastile/tastile-web#200"],
+      "prerequisites": [
+        {"type": "profile", "profile": "*", "detail": "web_base が設定済みで到達可能"},
+        {"type": "tool", "detail": "Playwright + chromium (harness devDependency)。未導入なら BLOCKED"}
+      ],
+      "fixture": "dedicated owner で sign-up 済み (A-AT03 の bootstrap を共用)",
+      "oracle": "ログイン後ダッシュボードが描画され、Core 由来のデータ (tile/placement) が表示される。network 証跡で /api/proxy/v1/* が実 API に到達し mock/stub 応答がない。",
+      "checks": [
+        {"id": "login-render", "description": "sign-in 後 /dashboard が 200 で主要要素を描画"},
+        {"id": "real-backend-data", "description": "API 経由で作成した tile/placement が UI に表示される"},
+        {"id": "no-mock", "description": "ブラウザの network log に mock service worker / fixture 応答がない"}
+      ],
+      "steps": [
+        "browser 起動 (chromium)",
+        "sign-up/sign-in (Better Auth form または API bootstrap + cookie 注入)",
+        "/dashboard 遷移、主要領域の描画を待機",
+        "A-AT08 で作成した fixture tile のタイトルが表示されることを確認",
+        "screenshot と network summary を evidence に保存"
+      ],
+      "api_refs": ["GET /", "GET /dashboard", "GET /api/proxy/v1/tiles (via web)"],
+      "evidence": ["screenshot", "console error 一覧", "network request log (secret 除去)"],
+      "harness": "cases/web.ts"
+    },
+    {
+      "id": "A-AT03",
+      "title": "Better Authログイン・ログアウト",
+      "summary": "実 Auth DB と Core identity mapping が成立し、ログアウト後の保護経路は拒否。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "http",
+      "destructive": false,
+      "timeout_seconds": 120,
+      "owner_issues": ["tastile/tastile-web#252", "tastile/tastile-web#253"],
+      "prerequisites": [
+        {"type": "profile", "profile": "*", "detail": "web_base 設定済み (Better Auth は web 内蔵)"},
+        {"type": "stack", "detail": "tastile_auth DB が bootstrap 済み (verify-stack は bootstrap-web-auth.sh、prod-stack は initdb)"}
+      ],
+      "fixture": "専用 owner email `acc-<runId>-*@tastile-acceptance.invalid`",
+      "oracle": "sign-up → session 確立 → bridge で core api token 取得 → core API が owner として応答。sign-out 後は保護経路が 401/redirect。",
+      "checks": [
+        {"id": "signup", "description": "POST /api/auth/sign-up/email が成功し session が発行される"},
+        {"id": "bridge-token", "description": "GET /api/auth/bridge が tastile_api_token cookie を発行し core /v1/tiles が 200"},
+        {"id": "identity-mapping", "description": "core 側 owner_id が better-auth user id の UUIDv5 導出と一致 (session/owner endpoint で確認)"},
+        {"id": "logout-rejects", "description": "sign-out 後に保護経路 (dashboard, /api/proxy/v1/*) が拒否される"}
+      ],
+      "steps": [
+        "POST {web}/api/auth/sign-up/email {email,password,name}",
+        "cookie jar に session を保持し GET {web}/api/auth/bridge",
+        "tastile_api_token cookie を Bearer として {api}/v1/tiles GET → 200",
+        "POST {web}/api/auth/sign-out → 以降の保護経路が拒否"
+      ],
+      "api_refs": ["POST /api/auth/sign-up/email", "GET /api/auth/bridge", "POST /api/auth/sign-out", "GET /v1/tiles", "GET /v1/auth/session"],
+      "evidence": ["各 step の status", "cookie 名一覧 (値は記録しない)", "owner_id"],
+      "harness": "cases/auth.ts"
+    },
+    {
+      "id": "A-AT04",
+      "title": "reload・セッション再利用・失効",
+      "summary": "有効なセッションは維持、失効後は適切に拒否/再認証。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "http",
+      "destructive": false,
+      "timeout_seconds": 120,
+      "owner_issues": ["tastile/tastile-web#252"],
+      "prerequisites": [{"type": "case", "id": "A-AT03", "detail": "sign-up/session 確立済み"}],
+      "fixture": "A-AT03 の owner",
+      "oracle": "同一 cookie/token の再利用で session が維持される。token revoke / session 失効後は 401。",
+      "checks": [
+        {"id": "session-reuse", "description": "同一 credential で連続 request が成功"},
+        {"id": "expiry-or-revoke", "description": "revoke/期限切れ credential が拒否される (検証可能な範囲: revoke した api token が 401)"}
+      ],
+      "steps": [
+        "A-AT03 の credential で /v1/tiles を複数回 GET",
+        "DELETE /v1/api-tokens/{id} で使用中 token を revoke → 同 credential が 401",
+        "再 bootstrap して session 継続を確認"
+      ],
+      "api_refs": ["GET /v1/tiles", "DELETE /v1/api-tokens/{id}", "GET /v1/auth/session"],
+      "evidence": ["各 request status", "revoke 対象 token の prefix"],
+      "harness": "cases/auth.ts"
+    },
+    {
+      "id": "A-AT05",
+      "title": "Museの実行環境から直接HTTP",
+      "summary": "機械認証と Core の scope 付き token により、ブラウザ/CLI 非依存で実 API を操作。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "http",
+      "destructive": false,
+      "timeout_seconds": 120,
+      "owner_issues": ["#150"],
+      "prerequisites": [
+        {"type": "case", "id": "A-AT03", "detail": "owner bootstrap 済み"},
+        {"type": "stack", "detail": "POST /v1/api-tokens が OwnerAdmin で mint 可能"}
+      ],
+      "fixture": "scope=tastile.read,tastile.write の専用 api token (label `acc-<runId>-muse`)。有効期限は run 内で十分な短期 (既定 1h)。",
+      "oracle": "Bearer token のみで tile 作成→取得が完結し、cookie/web session なしで動作。scope なし・不正 token は拒否。",
+      "checks": [
+        {"id": "mint-scoped-token", "description": "POST /v1/api-tokens で tastile.read+tastile.write token を発行"},
+        {"id": "direct-crud", "description": "token のみで POST /v1/tiles → GET /v1/tiles/{id} が成功"},
+        {"id": "no-browser-dep", "description": "cookie/session header を付けず Bearer のみで成立"}
+      ],
+      "steps": [
+        "owner credential (bridge api token) で POST /v1/api-tokens {label, scopes:'tastile.read tastile.write', expires_at}",
+        "発行 token を Bearer に POST /v1/tiles (kind=1 PLACEMENT tile)",
+        "GET /v1/tiles/{id} で readback",
+        "token の prefix/hash のみを evidence に記録"
+      ],
+      "api_refs": ["POST /v1/api-tokens", "POST /v1/tiles", "GET /v1/tiles/{id}", "GET /v1/tiles"],
+      "evidence": ["token prefix", "作成 tile id/owner_id", "各 status"],
+      "harness": "cases/api.ts"
+    },
+    {
+      "id": "A-AT06",
+      "title": "未認証・誤資格情報・失効・scope不足の拒否",
+      "summary": "入口とアプリ双方の境界で拒否、書込やデータ漏えいなし。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "http",
+      "destructive": false,
+      "timeout_seconds": 120,
+      "owner_issues": ["#150", "#144"],
+      "prerequisites": [{"type": "case", "id": "A-AT05", "detail": "scope 付き token が存在"}],
+      "fixture": "無効 token / scope 不足 token / revoked token / 誤 password",
+      "oracle": "未認証・無効・失効・scope 不足の各要求が 401/403 で拒否され、保護データを返さない・書き込まない。",
+      "checks": [
+        {"id": "no-credential", "description": "Authorization なしで GET /v1/tiles → 401"},
+        {"id": "bad-credential", "description": "不正 Bearer で GET /v1/tiles → 401"},
+        {"id": "revoked", "description": "revoke 済み token で GET /v1/tiles → 401"},
+        {"id": "scope-read-only-write", "description": "tastile.read のみ token で POST /v1/tiles → 403"},
+        {"id": "scope-write-only-read", "description": "tastile.write のみ token で GET /v1/tiles → 403 (独立 scope モデル)"},
+        {"id": "web-unauth", "description": "web の保護経路に未認証でアクセス → redirect/401"}
+      ],
+      "steps": [
+        "各 credential パターンで read/write endpoint を叩き status と body を記録",
+        "拒否時に tile 一覧・他 owner データが含まれないことを確認",
+        "write 拒否時に対象 aggregate が作成されていないことを readback で確認"
+      ],
+      "api_refs": ["GET /v1/tiles", "POST /v1/tiles", "GET /api/proxy/v1/tiles (web)"],
+      "evidence": ["credential 種別ごとの status 一覧", "拒否 body の error code"],
+      "harness": "cases/api.ts"
+    },
+    {
+      "id": "A-AT07",
+      "title": "別ownerの読取・更新の拒否",
+      "summary": "許可されないデータへのアクセスが拒否され、相手の状態が不変。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "http",
+      "destructive": false,
+      "timeout_seconds": 120,
+      "owner_issues": ["#150"],
+      "prerequisites": [{"type": "case", "id": "A-AT05", "detail": "owner A の token"}],
+      "fixture": "owner A と owner B (ともに専用 acc- owner) がそれぞれ tile を所有",
+      "oracle": "B の credential で A の tile/placement/execution id を read/update/delete しても 404/403 で拒否され、A の revision/状態が不変。",
+      "checks": [
+        {"id": "cross-read-denied", "description": "B token で A の /v1/tiles/{id} → 404/403"},
+        {"id": "cross-write-denied", "description": "B token で A の tile へ PATCH/DELETE → 拒否"},
+        {"id": "state-unchanged", "description": "拒否後に A credential で readback し revision/内容が不変"},
+        {"id": "list-isolation", "description": "B の /v1/tiles 一覧に A の tile が含まれない"}
+      ],
+      "steps": [
+        "owner A で tile 作成、id を記録",
+        "owner B を bootstrap し tile 作成",
+        "B token で A の id 群に GET/PATCH/DELETE",
+        "A token で readback → revision と内容の一致を確認"
+      ],
+      "api_refs": ["GET /v1/tiles/{id}", "PATCH /v1/tiles/{id}", "DELETE /v1/tiles/{id}", "GET /v1/tiles"],
+      "evidence": ["owner A/B の owner_id", "拒否 status", "readback の revision"],
+      "harness": "cases/api.ts"
+    },
+    {
+      "id": "A-AT08",
+      "title": "source/task作成→取得の確定",
+      "summary": "仕様適合の入力が実 DB に確定し、readback で内容/ID/revision が一致。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "http",
+      "destructive": false,
+      "timeout_seconds": 120,
+      "owner_issues": ["#150", "#149"],
+      "prerequisites": [{"type": "case", "id": "A-AT05", "detail": "write scope token"}],
+      "fixture": "固定 fixture: title `acc-<runId>-tile`, kind=1 PLACEMENT, 固定色/アイコン。時刻は UTC ISO8601 固定値。",
+      "oracle": "POST /v1/tiles の CommandResponse (aggregate.id, revision) と GET /v1/tiles/{id} の view が一致。DB 上の行が存在 (read model 経由で確認)。",
+      "checks": [
+        {"id": "create-accepted", "description": "POST /v1/tiles が 2xx で aggregate.id/revision を返す"},
+        {"id": "readback-match", "description": "GET /v1/tiles/{id} の title/kind/owner が fixture と一致"},
+        {"id": "idempotent-replay", "description": "同一 idempotency_key の再送が同一 aggregate を返し重複作成しない"},
+        {"id": "revision-monotonic", "description": "更新ごとに revision が単調増加"}
+      ],
+      "steps": [
+        "POST /v1/tiles (fixture body + idempotency_key)",
+        "GET /v1/tiles/{id} readback",
+        "同一 body+key で再 POST → 同一 id",
+        "GET /v1/tiles 一覧に含まれることを確認"
+      ],
+      "api_refs": ["POST /v1/tiles", "GET /v1/tiles/{id}", "GET /v1/tiles", "GET /v1/tiles/{id}/detail"],
+      "evidence": ["request/response の status と aggregate id/revision", "readback view"],
+      "harness": "cases/api.ts"
+    },
+    {
+      "id": "A-AT09",
+      "title": "予定化 (placement 確定)",
+      "summary": "固定 fixture/clock/timezone に基づく期待 placement と実結果が一致し、worker の確定を確認。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "http+worker",
+      "destructive": false,
+      "timeout_seconds": 300,
+      "owner_issues": ["#150", "#142"],
+      "prerequisites": [
+        {"type": "case", "id": "A-AT08", "detail": "tile/plan が存在"},
+        {"type": "stack", "detail": "worker が稼働し placement/materialization が確定する経路がある"}
+      ],
+      "fixture": "固定 window/flow/placement fixture。clock は /v1/tick-at で固定時刻を注入できること。timezone は UTC offset_min 固定。",
+      "oracle": "source/task から派生した placement が期待する start/end・owner・revision で確定し、worker の処理痕跡 (events/sync) で生成が確認できる。",
+      "checks": [
+        {"id": "placement-created", "description": "POST /v1/placements または worker materialization で placement が作成される"},
+        {"id": "expected-window", "description": "placement の span が fixture の期待値と一致"},
+        {"id": "worker-commit", "description": "/v1/tick-at または sync/events で worker の確定が観測できる"},
+        {"id": "readback-consistent", "description": "GET /v1/placements/{id} と timeline が一致"}
+      ],
+      "steps": [
+        "tile+plan 作成 (A-AT08 fixture)",
+        "window/flow/recurring fixture を仕様に従い作成",
+        "materialize または /v1/tick-at で worker を駆動",
+        "GET /v1/placements, /v1/timeline, /v1/calendar/day で結果を照合"
+      ],
+      "api_refs": ["POST /v1/placements", "POST /v1/windows", "POST /v1/flows", "POST /v1/tick-at", "GET /v1/placements", "GET /v1/timeline", "GET /v1/calendar/day"],
+      "evidence": ["fixture 定義", "tick 注入時刻", "placement span", "worker event/log 参照"],
+      "harness": "cases/placement.ts"
+    },
+    {
+      "id": "A-AT10",
+      "title": "Web↔直接APIの同一owner収束",
+      "summary": "同一 owner の操作が Web と直接 API の双方で観測でき、revision/状態が一致。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "http+browser",
+      "destructive": false,
+      "timeout_seconds": 180,
+      "owner_issues": ["#150", "tastile/tastile-web#253"],
+      "prerequisites": [
+        {"type": "case", "id": "A-AT08", "detail": "API 側で tile 作成済み"},
+        {"type": "profile", "profile": "*", "detail": "web_base 設定済み"}
+      ],
+      "fixture": "同一 owner で API 作成 tile を Web が読む",
+      "oracle": "API で作成・更新した tile/placement が Web UI (または /api/proxy/v1/* read) で同じ revision/内容として観測される。",
+      "checks": [
+        {"id": "api-write-web-read", "description": "API で作成した tile が web proxy GET /api/proxy/v1/tiles に現れる"},
+        {"id": "web-write-api-read", "description": "web 経由 (proxy POST) の変更が API GET で同じ revision"},
+        {"id": "revision-match", "description": "双方の read model で revision/updated_at が一致 (収束条件内)"}
+      ],
+      "steps": [
+        "API token で tile 作成 → web session cookie で /api/proxy/v1/tiles/{id} GET",
+        "web proxy POST で tile 更新 → API GET で revision 確認",
+        "browser が有効なら UI 上の表示も確認 (A-AT02 と共用)"
+      ],
+      "api_refs": ["GET /api/proxy/v1/tiles/{id}", "POST /api/proxy/v1/tiles/{id}/update", "GET /v1/tiles/{id}"],
+      "evidence": ["両経路の response", "revision 対応表"],
+      "harness": "cases/convergence.ts"
+    },
+    {
+      "id": "A-AT11",
+      "title": "編集・削除・再配置",
+      "summary": "仕様に沿った readback・配置変化・履歴。意図しない消失なし。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "http",
+      "destructive": false,
+      "timeout_seconds": 180,
+      "owner_issues": ["#150"],
+      "prerequisites": [{"type": "case", "id": "A-AT09", "detail": "placement が存在"}],
+      "fixture": "A-AT09 の placement。編集=title 変更、削除=archive、再配置=span 変更 (append_changes または update)。",
+      "oracle": "各操作後の readback が仕様通り (内容更新・archive 状態・span 変更) で、events/change-set 履歴が残り、無関係 aggregate が消失しない。",
+      "checks": [
+        {"id": "edit-readback", "description": "PATCH /v1/tiles/{id} 後の GET で title が更新され revision 増加"},
+        {"id": "archive-hides", "description": "DELETE /v1/tiles/{id} 後に通常一覧から除外され、placement 履歴は残る"},
+        {"id": "re-place", "description": "append_changes/update で span が変わり timeline/calendar に反映"},
+        {"id": "no-loss", "description": "操作対象外の tile/placement が不変"}
+      ],
+      "steps": [
+        "tile PATCH → GET readback",
+        "placement へ append_changes (span 変更) → GET /v1/placements/{id}",
+        "tile DELETE (archive) → GET /v1/tiles と detail で状態確認",
+        "events/debug で change 履歴を確認"
+      ],
+      "api_refs": ["PATCH /v1/tiles/{id}", "DELETE /v1/tiles/{id}", "POST /v1/placements/{id}/changes", "GET /v1/placements/{id}", "GET /v1/events"],
+      "evidence": ["各操作の status/revision", "archive 後の一覧", "change-set id"],
+      "harness": "cases/api.ts"
+    },
+    {
+      "id": "A-AT12",
+      "title": "開始・中断・再開・終了の状態遷移",
+      "summary": "合法な状態遷移、実行履歴と時刻・状態が保存され、無効遷移は拒否。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "http",
+      "destructive": false,
+      "timeout_seconds": 180,
+      "owner_issues": ["#150"],
+      "prerequisites": [{"type": "case", "id": "A-AT09", "detail": "placement が存在"}],
+      "fixture": "A-AT09 の placement に対し start → pause → resume → finish",
+      "oracle": "各遷移が受理され execution の状態・時刻が保存される。無効遷移 (例: finish 後の resume) は拒否。",
+      "checks": [
+        {"id": "start", "description": "POST /v1/placements/{id}/executions で execution 開始"},
+        {"id": "pause-resume", "description": "pause → resume が受理され状態が PAUSED→RUNNING"},
+        {"id": "finish", "description": "finish で終了状態と時刻が保存"},
+        {"id": "invalid-transition", "description": "終了後の resume/pause 等が拒否される"},
+        {"id": "history-kept", "description": "GET /v1/executions/{id}(/view) で履歴・時刻が readback できる"}
+      ],
+      "steps": [
+        "POST /v1/placements/{id}/executions → execution id",
+        "POST /v1/executions/{id}/pause → /resume → /finish",
+        "各段階で GET /v1/executions/{id} を readback",
+        "finish 後に pause/resume を試行し拒否を確認"
+      ],
+      "api_refs": ["POST /v1/placements/{id}/executions", "POST /v1/executions/{id}/pause", "POST /v1/executions/{id}/resume", "POST /v1/executions/{id}/finish", "GET /v1/executions/{id}", "GET /v1/executions/{id}/view"],
+      "evidence": ["execution id", "各状態の readback", "無効遷移の status"],
+      "harness": "cases/api.ts"
+    },
+    {
+      "id": "A-AT13",
+      "title": "サービス再起動後の永続性",
+      "summary": "同一永続 volume で予定・状態・履歴が保たれ、認証/認可も成立。",
+      "environments": ["local", "prod-equivalent"],
+      "kind": "ops",
+      "destructive": false,
+      "timeout_seconds": 600,
+      "owner_issues": ["#142", "#145", "#153"],
+      "prerequisites": [
+        {"type": "case", "id": "A-AT12", "detail": "永続化対象データが存在"},
+        {"type": "profile", "profile": "local|prod-equivalent", "detail": "compose restart が許可された隔離環境"}
+      ],
+      "fixture": "再起動前に tile/placement/execution と token を作成",
+      "oracle": "api/worker/web/db を順に restart した後、全データが readback でき、認証済み request が成立。volume は再作成されない。",
+      "checks": [
+        {"id": "restart-api", "description": "api restart 後に /v1/health と認証付き read が成功"},
+        {"id": "restart-worker", "description": "worker restart 後も予定・状態が保持"},
+        {"id": "restart-db", "description": "db restart 後に全 readback が一致 (volume 永続)"},
+        {"id": "auth-survives", "description": "再起動後も api token/session が有効"}
+      ],
+      "steps": [
+        "pre-restart snapshot: tiles/placements/executions の id+revision を記録",
+        "ops: compose restart db → api → worker → web (順序は profile 規定)",
+        "health/ready が回復するまで待機",
+        "全 readback を再実行し snapshot と比較"
+      ],
+      "api_refs": ["GET /v1/health", "GET /v1/ready", "GET /v1/tiles/{id}", "GET /v1/placements/{id}", "GET /v1/executions/{id}"],
+      "evidence": ["restart 前後の snapshot diff", "compose ps 状態", "各 readback status"],
+      "harness": "cases/ops.ts"
+    },
+    {
+      "id": "A-AT14",
+      "title": "Worker停止→復旧",
+      "summary": "隔離環境で永続 work を処理再開し、欠落・重複適用なし。",
+      "environments": ["local", "prod-equivalent"],
+      "kind": "ops",
+      "destructive": false,
+      "timeout_seconds": 600,
+      "owner_issues": ["#142", "#145", "#153"],
+      "prerequisites": [
+        {"type": "case", "id": "A-AT09", "detail": "worker が処理すべき work (materialize/tick) が存在"},
+        {"type": "profile", "profile": "local|prod-equivalent", "detail": "worker の stop/start が可能"}
+      ],
+      "fixture": "worker 停止中に /v1/tick-at 等で work を滞留させ、復旧後に処理されることを確認",
+      "oracle": "停止中の work が欠落せず、復旧後に一度だけ適用される (重複 placement/二重 execution なし)。",
+      "checks": [
+        {"id": "work-queued", "description": "worker 停止中に work を投入し滞留を確認"},
+        {"id": "resume-processing", "description": "worker 起動後に滞留 work が処理される"},
+        {"id": "no-loss-no-dup", "description": "処理結果が一意 (同一 idempotency/occurrence で重複なし)"}
+      ],
+      "steps": [
+        "ops: worker stop",
+        "API から work を投入 (tick/materialize)",
+        "ops: worker start → 処理完了を待機",
+        "readback で結果の一意性を確認"
+      ],
+      "api_refs": ["POST /v1/tick-at", "GET /v1/placements", "GET /v1/sync"],
+      "evidence": ["worker stop/start の記録", "滞留→処理の対応", "重複検査結果"],
+      "harness": "cases/ops.ts"
+    },
+    {
+      "id": "A-AT15",
+      "title": "バックアップ→別環境への復元",
+      "summary": "Core/Auth DB・identity/履歴を保全し、復元後に認証済み readback が成立。",
+      "environments": ["local", "prod-equivalent"],
+      "kind": "ops",
+      "destructive": false,
+      "timeout_seconds": 900,
+      "owner_issues": ["#146", "#153"],
+      "prerequisites": [
+        {"type": "case", "id": "A-AT13", "detail": "永続データが存在"},
+        {"type": "profile", "profile": "local|prod-equivalent", "detail": "backup/restore 手順が profile で利用可能 (pg_dump/restore or 既定 backup 経路)"}
+      ],
+      "fixture": "復元先は別 volume/別 compose project (隔離)。本番 SoT へは接続しない。",
+      "oracle": "dump → 別環境 restore → 認証・identity mapping・履歴が保持され、認証済み readback が成立。",
+      "checks": [
+        {"id": "backup-created", "description": "Core/Auth 両 DB の backup artifact が生成される"},
+        {"id": "restore-into-isolated", "description": "別環境へ restore が成功"},
+        {"id": "identity-preserved", "description": "復元後に同一 credential で認証が成立"},
+        {"id": "data-preserved", "description": "tile/placement/execution 履歴が復元側で readback 一致"}
+      ],
+      "steps": [
+        "ops: backup (pg_dump custom format、両 DB)",
+        "ops: 隔離 restore 環境を起動し restore 実行",
+        "復元環境の api に対し認証付き readback",
+        "artifact の checksum と保存先を evidence に記録"
+      ],
+      "api_refs": ["GET /v1/tiles/{id}", "GET /v1/auth/session", "GET /v1/executions/{id}"],
+      "evidence": ["backup artifact 名/checksum", "restore 先 project", "復元後 readback"],
+      "harness": "cases/ops.ts"
+    },
+    {
+      "id": "A-AT16",
+      "title": "公開境界の否定試験",
+      "summary": "DB・Worker・内部管理経路に外部からアクセス不可、origin bypass なし。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "http+ops",
+      "destructive": false,
+      "timeout_seconds": 300,
+      "owner_issues": ["#144", "#145"],
+      "prerequisites": [
+        {"type": "profile", "profile": "https", "detail": "外部経路が存在"},
+        {"type": "stack", "detail": "compose の port 公開設定を検査可能"}
+      ],
+      "fixture": "公開 host に対し DB port・内部 port・管理経路・偽 origin で probe",
+      "oracle": "DB/Worker/内部経路は外部から接続不可。Host/X-Forwarded-* 偽装や直接 IP での origin bypass が成立しない。",
+      "checks": [
+        {"id": "db-not-public", "description": "DB port への外部接続が拒否"},
+        {"id": "worker-not-public", "description": "worker/内部管理経路が外部から不達"},
+        {"id": "origin-bypass-denied", "description": "偽 Host/Origin header での bypass が拒否または無効"},
+        {"id": "internal-headers-blocked", "description": "x-tastile-web-bridge-secret 等の内部 header を外部から注入しても認証にならない"}
+      ],
+      "steps": [
+        "公開 base に対し未認証・内部 header 付き・偽 origin で request",
+        "compose/caddy 設定で公開 port を静的検査",
+        "到達不能 port への TCP probe (timeout 短縮)"
+      ],
+      "api_refs": ["GET /v1/health", "POST /v1/tiles (bridge header injection 試行)"],
+      "evidence": ["probe 一覧と結果", "compose port 公開表", "拒否 status"],
+      "harness": "cases/edge.ts"
+    },
+    {
+      "id": "A-AT17",
+      "title": "資源・費用の強制と監査",
+      "summary": "安定 host 上で実測に基づく CPU/RAM/disk/接続/リクエスト上限が強制され、追加クラウド利用料金 0 円・未確認有料経路無効を契約/設定/権限監査と否定試験で確認。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "audit",
+      "destructive": false,
+      "timeout_seconds": 300,
+      "owner_issues": ["#145", "#102", "#144"],
+      "prerequisites": [
+        {"type": "profile", "profile": "*", "detail": "対象構成ファイル (compose/env schema) が repo 内で参照可能"},
+        {"type": "external", "detail": "有料経路の不在は契約/設定/権限の監査証跡で示す (本 harness は repo/config 面を検査)"}
+      ],
+      "fixture": "deploy/prod-stack・deploy/verify-stack・関連 env schema・workflow を監査対象にする",
+      "oracle": "resource 上限 (deploy.resources / ulimit / rate limit) が設定され、TASTILE_DELIVERY_PROVIDER=fake 等の外部送信なし、Oracle/AWS/GCP/Stripe 等の有料経路が既定で無効または未設定。監査結果は HTTP 機能テストと分離して記録。",
+      "checks": [
+        {"id": "resource-limits-declared", "description": "compose/env に CPU/RAM/disk/接続/request 上限の宣言がある"},
+        {"id": "no-paid-defaults", "description": "課金サービスの credential/endpoint が既定で空または fake"},
+        {"id": "rate-limit-active", "description": "API の rate limit env が設定されている"},
+        {"id": "audit-separated", "description": "本 case の証跡が機能テストの evidence と別ファイルに出力される"}
+      ],
+      "steps": [
+        "deploy/prod-stack/compose.yaml + .env.example + verify-stack を静的検査",
+        "rate limit / body size / timeout env を確認",
+        "監査結果を acceptance/evidence/<run>/cost-audit.md に分離出力"
+      ],
+      "api_refs": [],
+      "evidence": ["cost-audit.md (判定・根拠・未確認項目)", "検査対象ファイル一覧"],
+      "harness": "cases/audit.ts"
+    },
+    {
+      "id": "A-E2E-CORE",
+      "title": "中核シナリオ E2E",
+      "summary": "Web ログイン→Muse 直接 API でタスク作成→Core/Worker 予定化→Web で予定確認・編集→Muse が編集結果取得→開始/中断/再開/終了→Web で履歴確認→再起動後も全状態・履歴保持。",
+      "environments": ["local", "prod-equivalent", "https"],
+      "kind": "mixed",
+      "destructive": false,
+      "timeout_seconds": 900,
+      "owner_issues": ["#165", "#150", "#142"],
+      "prerequisites": [
+        {"type": "cases", "ids": ["A-AT03", "A-AT05", "A-AT08", "A-AT09", "A-AT10", "A-AT11", "A-AT12"], "detail": "構成 case が PASS であること (依存順)"}
+      ],
+      "fixture": "専用 owner 1 名 + Muse scope token 1 本 + 固定 fixture tile/placement",
+      "oracle": "一連の操作が仕様通りに連鎖し、各段階の readback が一致。200 応答や自己比較で代用しない。",
+      "checks": [
+        {"id": "chain-complete", "description": "login→create→place→web-view→edit→exec lifecycle→history→restart persistence が全て実測で成立"},
+        {"id": "cross-surface-consistency", "description": "Web と API の観測が各段階で一致"},
+        {"id": "post-restart-state", "description": "再起動後も予定・状態・履歴が保持 (A-AT13 と連動)"}
+      ],
+      "steps": [
+        "web sign-up/sign-in → bridge token 取得",
+        "Muse token で tile 作成 → worker で placement 確定",
+        "web で予定表示を確認 → API で編集 → Muse が編集結果を取得",
+        "start/pause/resume/finish → web で履歴確認",
+        "(local/prod-equivalent) 再起動 → 全状態 readback"
+      ],
+      "api_refs": ["A-AT03..A-AT13 の全 api_refs"],
+      "evidence": ["各段階の status/revision/owner_id", "最終 snapshot", "失敗段階の切り分け"],
+      "harness": "cases/core-e2e.ts"
+    }
+  ]
+}
