@@ -40,11 +40,20 @@ project / identity mapping を持ち、secret path は `/tastile/<repo>` 規約�
 | `GET /user/tokens/verify` | 200 `active` (user token, id `26c54285…`) |
 | `GET /accounts` | 200、account 1 件 |
 | `GET /zones`, `GET /zones/{id}`, `GET /zones/{id}/dns_records`, `GET /zones/{id}/settings` | 200。zone: `tastile.app`, `rebuildup.dev`, `yusuke-kim.com` (すべて active) |
-| `GET /accounts/{id}/cfd_tunnel` | 200、tunnel 0 件 (read 可。edit scope は write 禁止のため未実証) |
+| `GET /accounts/{id}/cfd_tunnel` | 200、tunnel 0 件 (read 可) |
 | `GET /accounts/{id}/access/apps` | 200、0 件 |
+| `GET /accounts/{id}/access/service_tokens` | 200、0 件 |
 | `GET /accounts/{id}/workers/scripts`, `/workers/domains` | 200、script 9 件 (`tastile-web-staging`, `tastile-web-preview`, `tastile-edge-staging` 等) |
 | `GET /accounts/{id}/r2/buckets`, `/hyperdrive/configs`, `/memberships`, `/accounts/{id}/tokens` | 403 |
 | `GET /user/tokens/{id}` (self detail) | 403 |
+
+write-probe (2026-11-25 追試。作成物は即削除または失敗のため残存物なし):
+
+| probe | 結果 |
+|---|---|
+| `POST /zones/{id}/dns_records` (TXT `acc-perm-probe`) → `DELETE` | **200 作成・削除成功 → DNS: Edit 保有を実測** |
+| `POST /accounts/{id}/cfd_tunnel` (`tastile-phase-a-acc`) | **403 Authentication error → Tunnel: Edit 非保有を確定** |
+| `POST /accounts/{id}/access/service_tokens` (`acc-probe-delete-me`) | **403 → Access service token 発行権限 非保有を確定** |
 
 R2 S3 credential (prod `/tastile/desktop`):
 
@@ -53,8 +62,10 @@ R2 S3 credential (prod `/tastile/desktop`):
 | `aws s3 ls s3://tastile-desktop-releases --endpoint-url https://<account>.r2.cloudflarestorage.com` | 200、prefix `channels/ releases/ updates/` |
 | `aws s3api head-bucket` | 200 |
 
-注: read の成功は対応する Edit scope の存在を保証しない。Edit 系は write 操作を伴うため
-本調査では未実証。既存 token の権限は Cloudflare dashboard の token 詳細でのみ確定できる。
+注: write-probe により DNS: Edit の保有と Tunnel / Access write の非保有を実測で
+確定した (上表)。残る「未確定」は Access Apps and Policies の application/policy
+書き込みのみで、service token 発行が 403 である以上同 scope も非保有と見なすのが
+安全。
 
 ## 3. 実 HTTPS に必要な権限の充足表
 
@@ -62,14 +73,15 @@ A-AT01 (`https` プロファイル) が要求する公開経路:
 
 | # | 操作 | 必要権限 | 現状 |
 |---|---|---|---|
-| 1 | remotely-managed tunnel 作成 | Account → Cloudflare Tunnel: Edit | 未実証 |
+| 1 | remotely-managed tunnel 作成 | Account → Cloudflare Tunnel: Edit | **403 で非保有を確定** |
 | 2 | tunnel token 取得 (`GET /accounts/{id}/cfd_tunnel/{tid}/token`) | 同上 | `TUNNEL_TOKEN` 未発行・未登録 |
-| 3 | 公開 hostname の DNS record 作成 | Zone(`tastile.app`) → DNS: Edit | DNS read は実証済み、Edit 未実証 |
-| 4 | (任意) Access application + policy | Account → Access: Apps and Policies: Edit | Access read 実証済み、Edit 未実証 |
+| 3 | 公開 hostname の DNS record 作成 | Zone(`tastile.app`) → DNS: Edit | **write-probe で保有を実測済み** |
+| 4 | (任意) Access application + policy / service token | Account → Access: Apps and Policies: Edit (service token 発行を含む) | service token 作成 **403 で非保有を確定** |
 | 5 | cloudflared runtime | `TUNNEL_TOKEN` を Infisical から注入 | compose 済み (`deploy/prod-stack`)、secret のみ不足 |
 
 `app.tastile.app` / `api.tastile.app` の DNS は既存 A/AAAA record が別 stack を指している
-(`acceptance/https-readiness.md` 参照)。cutover は #66 の DNS 移管承認が前提。
+(`acceptance/https-readiness.md` 参照)。cutover は #144 の公開経路構築における
+明示承認が前提 (root#66 は Infisical SoT の issue であり DNS 移管承認の正本ではない)。
 
 ## 4. 不足権限の最小要求 (user 判断)
 
@@ -77,12 +89,16 @@ A-AT01 (`https` プロファイル) が要求する公開経路:
 
 - **案 A**: 既存 `CLOUDFLARE_API_TOKEN` (staging `/tastile/edge`) に以下を追加付与
   - Account → Cloudflare Tunnel: Edit
-  - Zone → DNS: Edit (`tastile.app` zone に限定)
   - (Access を使う場合) Account → Access: Apps and Policies: Edit
+    (service token 発行権限を含む。Muse probe 用に必須)
+  - ~~Zone → DNS: Edit~~ → **write-probe で既保有を実測済みのため不要**
   - rotation は root#99 の手順に従う。
 - **案 B**: 上記 scope の専用 Account API Token を新規発行し、Infisical prod project の
   `/tastile/edge` (新規 path) に `CLOUDFLARE_TUNNEL_API_TOKEN` として登録。
   prod 側に `/tastile/edge` がないため、deploy 用途なら prod project への配置が自然。
+- **案 C (権限付与なし)**: tunnel と Access service token を CF dashboard で手動作成し、
+  token / client id+secret を Infisical へ直接登録する。agent は DNS route・
+  cloudflared・Caddy/env 整備を既存 DNS:Edit 権限で実行する。
 
 `TUNNEL_TOKEN` は tunnel 作成後にしか発行できないため、現時点での要求は API token の scope のみ。
 tunnel 作成・DNS 変更・Access 変更はいずれも承認境界の内側であり、権限付与後も実行は別途承認を得る。
@@ -111,9 +127,12 @@ tunnel 作成・DNS 変更・Access 変更はいずれも承認境界の内側�
 | `app.<domain>` (apex) | `http://web:3000` | Next.js web |
 | `api.<domain>` | `http://api:31400` | tastile-core API |
 
-fallback: `http_status:404`。`APP_DOMAIN` / `API_DOMAIN` の最終値は DNS 移管承認 (#66) 後に確定。
-現行 placeholder 候補は `app.tastile.app` / `api.tastile.app` だが既存 stack が利用中のため、
-cutover までは preview 系 hostname (例: `*.staging.app.tastile.app`) を使う選択肢がある。
+fallback: `http_status:404`。`APP_DOMAIN` / `API_DOMAIN` の最終値は #144 の
+公開経路構築における明示承認後に確定 (root#66 は Infisical SoT の issue)。
+現行 placeholder 候補は `app.tastile.app` / `api.tastile.app` だが既存 stack が
+利用中のため、cutover 前の Phase A 検証には既存レコードと分離した専用
+サブドメイン (例: `acc-app.tastile.app` / `acc-api.tastile.app`) を使う
+(公開のため record 作成自体に承認が必要。DNS:Edit は token が保有済み)。
 
 ### 5.3 DNS record (計画、未作成)
 
@@ -122,7 +141,7 @@ cutover までは preview 系 hostname (例: `*.staging.app.tastile.app`) を使
 - `<hostname>` CNAME → `<tunnel-id>.cfargotunnel.com`
 
 `cloudflared tunnel route dns <tunnel> <hostname>` でも同等。既存 A/AAAA record との
-衝突は cutover 時に置き換える (#66 承認後)。
+衝突は cutover 時に置き換える (#144 公開経路構築の明示承認後)。
 
 ### 5.4 Access (採用する場合の設計案)
 

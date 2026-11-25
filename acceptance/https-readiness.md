@@ -12,18 +12,23 @@ N-A、その他 case は prod-equivalent で代替検証済み。本書は `http
 - ops 注入 (A-AT13–A-AT15) は `https` プロファイルでは禁止 (fail-closed)。
   Cloudflare Tunnel / DNS cutover / Access 設定は承認境界の内側であり、
   受入ハーネスからは実行しない。
-- 外部経路の構築は `#144` (公開経路) / `#66` (DNS 移管) 側の作業である。
+- 外部経路の構築は `#144` (公開経路) / `#141` (正式リリース計画の承認境界)
+  側の作業である。root#66 は Infisical SoT の issue であり DNS 移管の正本ではない。
 
 ## 前提条件チェックリスト
 
 ### 1. Cloudflare / Tunnel
 
 - [ ] Cloudflare account への管理権限を保有していること。
-      2026-11-25 の read-only 実証 (root#179) で account `c6ab6651…` と
-      `CLOUDFLARE_API_TOKEN` (staging `/tastile/edge`) の read scope
-      (zones / DNS records / tunnels / access apps / workers) を確認済み。
-      Tunnel/DNS/Access の Edit scope と `TUNNEL_TOKEN` は未充足であり、
-      不足権限の最小要求は `docs/runbooks/cloudflare-tunnel-access.md` §4 を参照。
+      2026-11-25 の実証 (root#179 read-only + write-probe) で account
+      `c6ab6651…` と `CLOUDFLARE_API_TOKEN` (staging `/tastile/edge`) の
+      権限範囲を確定済み: zones / DNS records / tunnels / access apps /
+      workers の read は可、**DNS record の create/delete も可**
+      (TXT probe で実測)。一方 `POST /cfd_tunnel` と
+      `POST /access/service_tokens` は 403 で、Zero Trust write scope
+      (Tunnel:Edit / Access service token 発行) のみが不足。
+      最小要求は `docs/runbooks/cloudflare-tunnel-access.md` §4 を参照
+      (DNS:Edit は既保有のため要求から除外済み)。
 - [ ] `cloudflared` tunnel を作成し `TUNNEL_TOKEN` を取得済みであること。
       compose 上は `cloudflared` service (`tunnel --no-autoupdate run`) が存在するが、
       token 未設定では起動しない。
@@ -37,7 +42,9 @@ N-A、その他 case は prod-equivalent で代替検証済み。本書は `http
 
 - [ ] 公開 DNS 名が決定し、A/CNAME が Cloudflare に向いていること。
       現在 `app.tastile.app` / `api.tastile.app` は既存の別 stack が利用中のため、
-      新 stack への cutover は `#66` の承認が必要 (DNS 移管は不可逆に近い操作)。
+      新 stack への cutover は `#144` の公開経路構築における明示承認が必要
+      (DNS 移管は不可逆に近い操作。root#66 は Infisical SoT の issue であり
+      DNS 移管承認の正本ではない)。
 - [ ] `APP_DOMAIN` / `API_DOMAIN` が prod-equivalent の `*.localhost` から
       公開名へ切り替わった env が用意されていること。
 - [ ] `TASTILE_ALLOWED_ORIGINS` / `BETTER_AUTH_URL` / `NEXT_PUBLIC_*` が
