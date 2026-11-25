@@ -18,7 +18,12 @@ N-A、その他 case は prod-equivalent で代替検証済み。本書は `http
 
 ### 1. Cloudflare / Tunnel
 
-- [ ] Cloudflare account へのアクセス権を保有していること (現状: 未保有、最大 blocker)。
+- [ ] Cloudflare account への管理権限を保有していること。
+      2026-11-25 の read-only 実証 (root#179) で account `c6ab6651…` と
+      `CLOUDFLARE_API_TOKEN` (staging `/tastile/edge`) の read scope
+      (zones / DNS records / tunnels / access apps / workers) を確認済み。
+      Tunnel/DNS/Access の Edit scope と `TUNNEL_TOKEN` は未充足であり、
+      不足権限の最小要求は `docs/runbooks/cloudflare-tunnel-access.md` §4 を参照。
 - [ ] `cloudflared` tunnel を作成し `TUNNEL_TOKEN` を取得済みであること。
       compose 上は `cloudflared` service (`tunnel --no-autoupdate run`) が存在するが、
       token 未設定では起動しない。
@@ -43,7 +48,9 @@ N-A、その他 case は prod-equivalent で代替検証済み。本書は `http
 ### 3. Secrets (Infisical)
 
 - [ ] `/tastile/*` に Cloudflare / Tunnel / Access 関連 secret の schema が
-      追加されていること (現状: 未整備)。
+      追加されていること (現状: `CLOUDFLARE_API_TOKEN` と R2 S3 credential のみ登録済み。
+      `TUNNEL_TOKEN` / Access service token は未登録。配置案は
+      `docs/runbooks/cloudflare-tunnel-access.md` §5.5 を参照)。
 - [ ] `TUNNEL_TOKEN`、Access service token、`BETTER_AUTH_SECRET`、
       `TASTILE_WEB_BRIDGE_SECRET`、Stripe 系が対象 environment で解決できること。
 - [ ] secret 値を本 repository / `.tmp/` 以外へ commit しないこと。
