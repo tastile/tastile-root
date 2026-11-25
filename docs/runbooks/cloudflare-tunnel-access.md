@@ -17,14 +17,14 @@ Tastile の Caddy、Cloudflare Tunnel、Access、DNS を構成する運用者向
 | 資格情報の種類 | 保管・利用経路 |
 | --- | --- |
 | DNS | 既存の `tastile-staging / staging / /tastile/edge` の `CLOUDFLARE_API_TOKEN` に `tastile.app` の DNS 書き込み実績がある。公開承認後に運用者が使用する。将来専用化する場合は対象 Zone の `DNS Write` に制限し、旧経路の利用を照合してから切り替える。 |
-| Tunnel コネクター | `TUNNEL_TOKEN` を Tunnel 作成後に発行し、対象 Tunnel の実行ホスト専用の Infisical 保管先から Compose の `cloudflared` に注入する。 |
+| Tunnel コネクター | 受入用 `tastile-acceptance` の `TUNNEL_TOKEN` は `tastile-edge-runtime / staging / /cloudflared`。本番コネクターは専用資格情報と対象実行主体を設定する。 |
 | Access のサービス認証 | `CF_ACCESS_CLIENT_ID` と `CF_ACCESS_CLIENT_SECRET` をサービスごとに発行し、Muse や受入プローブの実行主体専用の保管先から注入する。Access の後段で Core のスコープ付き認証も要求する。 |
 | R2 配布 | `tastile-prod / prod / /tastile/desktop` の R2 S3 資格情報。Desktop のリリース workflow が既存バケットへの配布に使う。通常の S3 互換ツールが読む `AWS_*` はこの経路では R2 の値を指す。 |
 | 製品サイトと既存 Workers | Pages は静的サイト用。既存 Workers の配備・メディア・R2 は個別に管理する。Pages と Workers の資格情報をエッジ管理プロジェクトに共用しない。 |
 
 2026-11-25 に Cloudflare の請求画面を確認した。対象アカウントは Zero Trust が `Teams Free Base`、`tastile.app` が `Free Plan` で、既存の `Workers Paid` と `R2 Paid` も同居している。ADR-0025 の独立無料環境の成立は未確認。公開前に Phase A の経路を対象に、有料サービスとの分離と追加課金ゼロを確認する。既存のデプロイ、配布、請求契約は各所有者が管理する。
 
-`TUNNEL_TOKEN` と `CF_ACCESS_CLIENT_*` は、それぞれの実行主体とアクセス境界を確認して保管先を決める。コネクターとサービスクライアントの取得は、発行後に実行主体ごとに検証する。
+コネクターと Access サービス認証は、実行主体とアクセス境界を確認して保管先を決める。発行後は実行主体ごとに取得を検証する。
 
 ## 取得と検証
 
@@ -37,9 +37,25 @@ infisical run --domain=https://secrets.rebuildup.dev \
   --include-imports=false --secret-overriding=false -- <管理用コマンド>
 ```
 
-3 本取得する上記コマンドは運用者の管理プロセス用。通常の CI、アプリ runtime、エージェントへの一括注入は避ける。Devin を含む委譲先の取得は、承認された実行主体で `prod /provisioning` の読み取りと対象外へのアクセス拒否を実測してから引き渡す。値をチャット、環境設定の複製、作業ログへ渡す手順は設けない。
+3 本取得する上記コマンドは運用者の管理プロセス用。委譲時は対象セッションを承認し、`prod:/provisioning` の読み取りだけを持つ有効期限 1 時間以下の Infisical サービストークンを、サンドボックス内の対象プロセスに注入する。検証コマンドは値をプロセス内で使用し、取得結果と対象 API の成否だけを返す。別環境・別プロジェクトを指定したリクエストから対象外のキーを取得できないことも確認する。
 
-2026-11-25 に Infisical から 3 キーを取得した。Cloudflare の token verify で、互いに異なる 3 本が `active` であることを確認した。用途ごとの一覧 API は `200`。R2 バケット一覧とアカウント API トークン一覧は全件 `403` だった。一部の Tunnel・Access 一覧は異なる用途のトークンでも `200` を返すため、書き込みの分離は発行設定を確認した。実リソースを作成する試験は公開作業の承認後に行う。既存 DNS トークンの書き込み実績は [root #144 の調査](https://github.com/tastile/tastile-root/issues/144#issuecomment-7157284771) を参照する。
+2026-11-25 に Devin の指定セッションで、3 キーの取得と各 Cloudflare API の読み取りを検証した。Infisical の単一スコープのサービストークンは、対象外の環境・パスを指定しても許可スコープへ絞り込む場合がある。応答のステータスと返されたキーの所属を確認する。新たな作業で資格情報が必要になった場合は、そのセッションと作業に対して改めて期限付きの実行プロセスを起動する。
+
+2026-11-25 に Infisical から 3 キーを取得した。Cloudflare の token verify で、互いに異なる 3 本が `active` であることを確認した。用途ごとの一覧 API は `200`。R2 バケット一覧とアカウント API トークン一覧は全件 `403` だった。一部の Tunnel・Access 一覧は異なる用途のトークンでも `200` を返すため、書き込みの分離は発行設定を確認した。既存 DNS トークンの書き込み実績は [root #144 の調査](https://github.com/tastile/tastile-root/issues/144#issuecomment-7157284771) を参照する。
+
+### 非公開の受入コネクター
+
+受入 Tunnel `tastile-acceptance` の実行用プロジェクト ID は `6a91a2d3-bf8d-4d51-804b-98fd99cc7d65`。公開前の接続検証では、一時プロセスにトークンを注入して `cloudflared` を実行する。`cloudflared` は公式配布の固定バージョンを使用する。
+
+```sh
+infisical run --domain=https://secrets.rebuildup.dev \
+  --projectId=6a91a2d3-bf8d-4d51-804b-98fd99cc7d65 \
+  --env=staging --path=/cloudflared --expand=false \
+  --include-imports=false --secret-overriding=false -- \
+  cloudflared tunnel --config /dev/null --no-autoupdate --metrics 127.0.0.1:0 run
+```
+
+`cloudflared` 2026.11.2 で接続 4 件と Cloudflare の `healthy` を確認した。Tunnel の公開 ingress と対象を指す DNS レコードは 0 件。検証後にコネクターを停止した。実 HTTPS、Access と Muse の検証は公開範囲の承認後に行う。
 
 ## 公開作業
 

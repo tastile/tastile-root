@@ -24,10 +24,12 @@ N-A、その他 case は prod-equivalent で代替検証済み。本書は `http
       Cloudflare の有効性検証と対応する一覧 API が全件 `200` であることを確認。
       既存トークンの DNS 書き込み実績、管理スコープ、利用方法は
       [Cloudflare エッジ基盤 runbook](../docs/runbooks/cloudflare-tunnel-access.md) を参照。
-- [ ] 公開作業を担当する実行主体で、必要な管理資格情報の取得範囲を検証済みであること。
-- [ ] `cloudflared` tunnel を作成し `TUNNEL_TOKEN` を取得済みであること。
-      compose 上は `cloudflared` service (`tunnel --no-autoupdate run`) が存在するが、
-      token 未設定では起動しない。
+- [x] 指定の Devin セッションで期限付き読み取りを検証。対象の 3 キーを取得し、
+      対応する Cloudflare API を呼び出せることと、対象外の環境・プロジェクトのキーを取得できないことを確認した。
+- [x] 非公開の受入 Tunnel `tastile-acceptance` を作成し、
+      `tastile-edge-runtime / staging / /cloudflared` から `TUNNEL_TOKEN` を取得。
+      実際に `cloudflared` を起動して接続 4 件と Cloudflare の `healthy` を確認した。
+- [ ] 承認済みの実行ホストで、固定した配備候補のコネクターが同じ取得経路で接続できること。
 - [ ] Tunnel が Caddy 経由で `api.<domain>` → `api:31400`、
       `app.<domain>` → `web:3000` に到達し、未定義ホストを拒否すること。
 - [ ] Cloudflare Access の Service Auth を構成し、Muse と受入プローブに必要な資格情報を
