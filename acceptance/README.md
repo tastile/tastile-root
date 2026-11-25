@@ -12,6 +12,8 @@
   fixture bootstrap、ops 注入チャネル、証跡 writer、runner を持つ。
 - `muse-access.md` — Muse 実行環境からの直接 HTTP probe と資格情報供給経路の設計
   (#150 が実施、A-AT05/A-AT06/A-AT16 に対応)。
+- `muse-handoff.md` — Muse へ引き渡す接続先・契約版・機械認証・資格情報経路・
+  操作例・失効手順の正本 (#150 / #165 実行タスク 4)。
 - `review/` — 実装レビュー記録。
 
 ## 実行
