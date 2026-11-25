@@ -24,7 +24,7 @@
 	}
 }
 
-{$APP_DOMAIN} {
+http://{$APP_DOMAIN} {
 	request_body {
 		max_size 32MB
 	}
@@ -38,7 +38,7 @@
 	}
 }
 
-{$API_DOMAIN} {
+http://{$API_DOMAIN} {
 	request_body {
 		max_size 32MB
 	}
