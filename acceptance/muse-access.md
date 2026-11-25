@@ -1,6 +1,8 @@
 # Muse 実環境 probe・資格情報供給経路の設計 (NF04-A)
 
 正本: tastile/tastile-root#165 (A-AT05/A-AT06/A-AT16, 実行タスク 4)、担当 Issue #150。
+引渡しパッケージ (接続先・契約版・操作例・失効手順) は
+[`muse-handoff.md`](./muse-handoff.md) を正本とする。
 本書は「Muse の実行環境から直接 HTTP で実 API を操作する」経路の設計を版管理する。
 実環境からの実測は #150 / #165 の統合候補で行い、本書はその手順・契約・証跡形式を固定する。
 local harness の A-AT05 は同一 API 呼び出しを loopback で再現するものであり、
@@ -63,7 +65,7 @@ Better Auth の session cookie や `x-tastile-web-bridge-secret` は Muse 経路
 | 項目 | 担当 |
 |---|---|
 | token 発行/失効 API・scope 検証 | 本 harness A-AT05/A-AT06 (local で実測済み) |
-| probe script の実装と実環境実行 | #150 (Muse 連携) |
+| probe script の実装と実環境実行 | #150 (Muse 連携)。prod-acc での直接 HTTP 実測は harness run `muse-nf04a2` (A-AT05–12 PASS) で実施済み。実 Muse 環境からの probe は承認境界 |
 | 外部到達性 (DNS/Tunnel/Access) | #144/#66 → A-AT01 (https profile) |
 | 資格情報の保管・供給経路確定 | #150 + Infisical 運用 (#102 費用境界と整合) |
 | handoff (接続先・OpenAPI 版・scope・操作例・失効手順) | #165 実行タスク 4 |
