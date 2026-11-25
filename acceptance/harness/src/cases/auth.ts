@@ -41,9 +41,15 @@ export async function at03(ctx: RunContext): Promise<void> {
   // after sign-out, not that a fresh client is unauthenticated (that is
   // already covered by A-AT06). absorbCookies applies any Set-Cookie
   // deletion the server sends.
-  const out = await ctx.web.post("/api/auth/sign-out", { body: {} });
-  ctx.step("POST /api/auth/sign-out", out);
-  const signOutOk = out.status === 200 || out.status === 204;
+  // Sign-out goes through the app's own route (`GET /auth/logout`), which
+  // revokes the Better Auth session server-side, forwards its Set-Cookie
+  // deletions, and clears every Tastile cookie before redirecting. The
+  // bare `POST /api/auth/sign-out` endpoint rejects non-browser callers
+  // (403) and is not the product path.
+  const out = await ctx.web.get("/auth/logout", {});
+  ctx.step("GET /auth/logout", out);
+  const signOutOk =
+    out.status === 200 || out.status === 204 || (out.status >= 300 && out.status < 400);
 
   const dash = await ctx.web.get("/dashboard", {});
   const proxy = await ctx.web.get("/api/proxy/v1/tiles", {});
@@ -58,6 +64,23 @@ export async function at03(ctx: RunContext): Promise<void> {
     signOutOk && rejected,
     `sign-out=${out.status} dashboard=${dash.status} proxy=${proxy.status}`,
   );
+
+  // Restore the shared web session for later cases: the cookie jar is
+  // run-global, so a real sign-out must be followed by a real sign-in.
+  if (owner.email && owner.password) {
+    const signIn = await ctx.web.post("/api/auth/sign-in/email", {
+      body: { email: owner.email, password: owner.password },
+    });
+    ctx.step("POST /api/auth/sign-in/email (re-auth)", signIn);
+    if (signIn.status === 200) {
+      const reBridge = await ctx.web.get("/api/auth/bridge?next=/dashboard");
+      ctx.step("bridge re-auth", reBridge);
+      const fresh = ctx.web.getCookie("tastile_api_token");
+      if (fresh) owner.bearer = fresh;
+    } else {
+      ctx.note(`re-auth after logout failed: status ${signIn.status}`);
+    }
+  }
 }
 
 export async function at04(ctx: RunContext): Promise<void> {

@@ -57,6 +57,8 @@ export async function signupViaWeb(
     bearer: apiToken,
     userSub: userSub ?? undefined,
     tokenPrefix: tokenPrefix(apiToken),
+    email: input.email,
+    password: input.password,
     createdVia: "web-bridge",
   };
   ctx.creds.set(name, cred);
@@ -90,6 +92,8 @@ export async function signupViaCore(
     bearer: view.token,
     ownerId: view.owner_id,
     tokenPrefix: tokenPrefix(view.token),
+    email: input.email,
+    password: input.password,
     createdVia: "core-signup",
   };
   ctx.creds.set(name, cred);
