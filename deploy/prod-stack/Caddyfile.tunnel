@@ -1,19 +1,30 @@
 # Tunnel-mode variant of Caddyfile (root#144, NF04-R04).
 #
 # Selected by setting CADDYFILE=Caddyfile.tunnel in the stack env file.
-# Use this whenever public TLS terminates at Cloudflare Tunnel: caddy then
-# serves plain HTTP inside the compose network and never attempts ACME for
-# the public hostnames (which would fail anyway — ports are loopback-only
-# or tunnel-only). cloudflared reaches `http://caddy:80`.
+# Use this whenever public TLS terminates at Cloudflare Tunnel: the public
+# sites stay plain HTTP on :80 (cloudflared dials http://caddy:80) and never
+# attempt ACME for the public hostnames (which would fail anyway — ports are
+# loopback-only or tunnel-only).
 #
 # The direct-ingress Caddyfile stays the default: without the tunnel
 # profile, caddy is the public edge and needs real certificates.
+#
+# `https://api.internal` is an internal-only TLS hop (caddy internal CA) so
+# the web server-side core client can use an https:// URL — the protected
+# runtime rejects plain http core bases (root#165 https profile). Browsers
+# never see this hostname; web resolves it to caddy via a compose network
+# alias and trusts the internal root through NODE_EXTRA_CA_CERTS.
 #
 # Resource ceilings are identical to Caddyfile — keep the two files in sync
 # except for the TLS/auto_https differences noted below.
 
 {
-	auto_https off
+	# NOT `auto_https off`: that disables cert management entirely and the
+	# internal `tls internal` hop below then has no issuer (handshake
+	# fails). `disable_redirects` keeps automatic cert management for
+	# api.internal while never redirecting the explicit http:// public
+	# sites that cloudflared dials.
+	auto_https disable_redirects
 	servers {
 		max_header_size 64KB
 		timeouts {
@@ -39,6 +50,24 @@ http://{$APP_DOMAIN} {
 }
 
 http://{$API_DOMAIN} {
+	request_body {
+		max_size 32MB
+	}
+	reverse_proxy api:31400 {
+		transport http {
+			max_conns_per_host 512
+		}
+		unhealthy_request_count 512
+		fail_duration 30s
+		max_fails 3
+	}
+}
+
+# Internal TLS hop for web -> api inside the compose network. `tls internal`
+# pins the local CA issuer, so no ACME is attempted for api.internal and
+# the public http:// sites above remain untouched.
+https://api.internal {
+	tls internal
 	request_body {
 		max_size 32MB
 	}

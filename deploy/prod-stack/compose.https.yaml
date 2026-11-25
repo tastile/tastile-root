@@ -8,23 +8,47 @@
 #
 # Rendered env (.tmp/https/prod.env) must set:
 #   APP_DOMAIN=acc-app.tastile.app API_DOMAIN=acc-api.tastile.app
-#   CADDYFILE=Caddyfile.tunnel  (plain HTTP inside; TLS terminates at CF)
+#   CADDYFILE=Caddyfile.tunnel  (public sites plain HTTP inside; public TLS
+#                                terminates at CF, plus an internal-TLS hop
+#                                https://api.internal for web/worker -> api)
 #   CADDY_HTTP_PORT=127.0.0.1:<port>  (host cloudflared or published bind)
 #
-# web -> api connectivity: canonical compose already points server-side
-# core URLs at http://api:31400 inside the compose network — the public
-# TLS edge is never on this path. Browser traffic uses the baked
-# NEXT_PUBLIC_DAEMON_BASE_URL=https://acc-api.tastile.app through
-# Cloudflare Access; the web BFF proxies carry the service token server
-# side where required.
+# web -> api connectivity: the canonical compose points server-side core
+# URLs at http://api:31400, which the protected web runtime rejects
+# (InvalidCloudApiBaseError — https required off-loopback). This overlay
+# mirrors compose.acceptance.yaml: caddy serves an internal-TLS site
+# `https://api.internal` (Caddyfile.tunnel), the compose network alias
+# resolves it to caddy, and web trusts the internal CA via
+# NODE_EXTRA_CA_CERTS. Ordering: bring caddy up first so the internal root
+# cert exists in caddy-data before web boots.
+# Browser traffic uses the baked NEXT_PUBLIC_DAEMON_BASE_URL=
+# https://acc-api.tastile.app through Cloudflare Access; the web BFF
+# proxies carry the service token server side where required.
 
 services:
+  caddy:
+    networks:
+      default:
+        aliases:
+          # Lets web resolve the internal TLS API hop to caddy inside the
+          # compose network (same pattern as api.localhost in
+          # compose.acceptance.yaml).
+          - api.internal
+
   worker:
     environment:
       # Same delivery double as prod-equivalent: the worker drains through
-      # the stack's own API over the internal network.
+      # the stack's own API. TASTILE_ENV=production rejects a plain-http
+      # base URL in core's delivery driver, so this uses the same internal
+      # TLS hop as web (https://api.internal via caddy). The http provider
+      # is a stand-in for the real push provider; per-item send failures
+      # do not fail the drain. NOTE: core's reqwest uses webpki roots only,
+      # so it cannot validate caddy's internal CA — sends currently record
+      # TLS verify failures (same limitation as api.localhost in
+      # compose.acceptance.yaml). A real provider (FCM/etc.) is env-gated
+      # and out of acceptance scope.
       TASTILE_DELIVERY_PROVIDER: http
-      TASTILE_DELIVERY_BASE_URL: http://api:31400
+      TASTILE_DELIVERY_BASE_URL: https://api.internal
       TASTILE_DELIVERY_PROVIDER_TOKEN: ${TASTILE_DELIVERY_PROVIDER_TOKEN:?set TASTILE_DELIVERY_PROVIDER_TOKEN}
 
   web:
@@ -32,3 +56,15 @@ services:
     # domain allowlist, no Stripe/Cognito values (cost boundary, root#174).
     env_file:
       - ../../.tmp/https/web.env
+    volumes:
+      # Caddy internal CA root so server-side fetches trust
+      # https://api.internal. Cert lives at
+      # caddy/pki/authorities/local/root.crt inside the volume.
+      - caddy-data:/etc/tastile-caddy-ca:ro
+    environment:
+      # Server-side core base: internal TLS via caddy (prod-equivalent
+      # path; protected runtime rejects plain http off-loopback).
+      CLOUD_API_BASE: https://api.internal
+      TASTILE_CORE_URL: https://api.internal
+      TASTILE_RUST_API_URL: https://api.internal
+      NODE_EXTRA_CA_CERTS: /etc/tastile-caddy-ca/caddy/pki/authorities/local/root.crt
