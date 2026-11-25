@@ -32,7 +32,7 @@ services:
     container_name: ${COMPOSE_PROJECT_NAME:-tastile-prod}-db
     environment:
       POSTGRES_USER: ${TASTILE_PG_USER:-tastile_admin}
-      POSTGRES_PASSWORD: ${TASTILE_PG_PASSWORD:?set TASTILE_PG_PASSWORD (Infisical /tastile/prod)}
+      POSTGRES_PASSWORD: ${TASTILE_PG_PASSWORD:?set TASTILE_PG_PASSWORD from the approved Infisical database path}
       POSTGRES_DB: postgres
       # Provision app databases/roles on first init only (see initdb/).
       TASTILE_CORE_DB: ${TASTILE_CORE_DB:-tastile}

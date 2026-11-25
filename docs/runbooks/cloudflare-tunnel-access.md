@@ -1,180 +1,75 @@
-# Cloudflare Tunnel / DNS / Access — 資格情報実証と HTTPS 公開経路の設定準備
+# Cloudflare エッジ基盤の資格情報と運用
 
-対象 Issue: tastile/tastile-root#179
-関連: #165 (A-AT01 実 HTTPS), #144 (NF04-R04 公開経路), #66 (Infisical SoT), #99 (edge token rotation), #34 (Cloudflare/AWS 責務分離)
+Tastile の Caddy、Cloudflare Tunnel、Access、DNS を構成する運用者向け。公開の承認と受入条件は [root #144](https://github.com/tastile/tastile-root/issues/144) と [root #165](https://github.com/tastile/tastile-root/issues/165) が管理する。旧トークンの権限調査は [root #179](https://github.com/tastile/tastile-root/issues/179) に記録している。
 
-本書は read-only 調査の結果と、権限が揃った後に実行する設定手順の正本である。
-secret 値は一切記録しない。キー名・path・権限 scope・HTTP status のみを記録する。
+## 保管先とアクセス
 
-## 1. Infisical 調査結果 (2026-11-25 時点)
+編集正本は self-hosted Infisical (`https://secrets.rebuildup.dev`) とする。エッジ基盤の管理資格情報は `tastile-edge-admin` (`8196a4fd-4246-4c7d-a3a6-edf7b733743a`) が所有する。環境は `dev`、`staging`、`prod` で分け、管理用の資格情報は必要な環境の `/provisioning` に置く。Cloudflare 側の権限はプロジェクトの環境名から継承されない。管理する Cloudflare アカウントとリソース範囲は発行時に制限する。
 
-SoT: self-hosted Infisical `https://secrets.rebuildup.dev`。全 repo の `.infisical.json` は同一の
-project / identity mapping を持ち、secret path は `/tastile/<repo>` 規約。
+| Infisical キー (`prod /provisioning`) | Cloudflare アカウント所有トークン | アカウントスコープ |
+| --- | --- | --- |
+| `CLOUDFLARE_TUNNEL_API_TOKEN` | `tastile-edge-tunnel-admin` | `Cloudflare One Connector: cloudflared Write` |
+| `CLOUDFLARE_ACCESS_POLICY_API_TOKEN` | `tastile-edge-access-policy-admin` | `Access: Apps and Policies Write` |
+| `CLOUDFLARE_ACCESS_SERVICE_TOKEN_API_TOKEN` | `tastile-edge-service-token-admin` | `Access: Service Tokens Write` |
 
-| project | env | 主な path | Cloudflare 関連キー |
-|---|---|---|---|
-| `949b4193-…` | dev | `/tastile/{android,ci,core,desktop,web}` | なし |
-| `44081e84-…` | staging | `/tastile/edge` | `CLOUDFLARE_API_TOKEN`, `TASTILE_EDGE_ASSERTION` |
-| `44081e84-…` | staging | `/tastile/core/{api,migrate,shared,worker}`, `/tastile/platform/cloud-sql`, `/tastile/web/runtime` | なし |
-| `ab532e90-…` | prod | `/tastile/desktop` | `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_R2_ACCESS_KEY_ID`, `CLOUDFLARE_R2_BUCKET`, `CLOUDFLARE_R2_SECRET_ACCESS_KEY` |
-| `ab532e90-…` | prod | `/tastile/{android,core,web}` | なし |
+3 本とも同じ既存 Cloudflare アカウント内の対応リソースを管理できる。DNS、Pages、Workers、R2、請求の権限は付与していない。管理プロジェクトの直接メンバーは人間の Admin 1 名、Machine Identity とグループは 0 件。既存の `tastile-prod` は Web runtime に Viewer、GitHub Actions に Member を付与しており、両標準ロールはプロジェクト内の secret 値を読める。このため、フォルダーだけで管理資格情報のアクセスを分離できない。
 
-確認済みの事実:
+| 資格情報の種類 | 保管・利用経路 |
+| --- | --- |
+| DNS | 既存の `tastile-staging / staging / /tastile/edge` の `CLOUDFLARE_API_TOKEN` に `tastile.app` の DNS 書き込み実績がある。公開承認後に運用者が使用する。将来専用化する場合は対象 Zone の `DNS Write` に制限し、旧経路の利用を照合してから切り替える。 |
+| Tunnel コネクター | 受入用 `tastile-acceptance` の `TUNNEL_TOKEN` は `tastile-edge-runtime / staging / /cloudflared`。本番コネクターは専用資格情報と対象実行主体を設定する。 |
+| Access のサービス認証 | `CF_ACCESS_CLIENT_ID` と `CF_ACCESS_CLIENT_SECRET` をサービスごとに発行し、Muse や受入プローブの実行主体専用の保管先から注入する。Access の後段で Core のスコープ付き認証も要求する。 |
+| R2 配布 | `tastile-prod / prod / /tastile/desktop` の R2 S3 資格情報。Desktop のリリース workflow が既存バケットへの配布に使う。通常の S3 互換ツールが読む `AWS_*` はこの経路では R2 の値を指す。 |
+| 製品サイトと既存 Workers | Pages は静的サイト用。既存 Workers の配備・メディア・R2 は個別に管理する。Pages と Workers の資格情報をエッジ管理プロジェクトに共用しない。 |
 
-- `TUNNEL_TOKEN`、`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`、その他 tunnel / Access 関連キーは
-  全 project・全 path・root `/` に**未登録**。
-- `/tastile` 直下にも secret はない。staging のみ `/tastile/edge` と `/tastile/platform` が存在する。
-- `CLOUDFLARE_ACCOUNT_ID` = Cloudflare account `c6ab6651a5d4d6d0d07686bbd3c3d56f`
-  (Rebuild.up.up@gmail.com's Account)。`CLOUDFLARE_API_TOKEN` が verify した account と一致。
-- R2 bucket `tastile-desktop-releases` は `download.tastile.app` 配信用
-  (`tastile-desktop/.github/workflows/release.yml` が `/tastile/desktop` から S3 credential を注入)。
-- `CLOUDFLARE_API_TOKEN` (staging `/tastile/edge`) の consumer はこの workspace 内に見当たらない。
-  root#99 の「Cloudflare edge deploy token」に相当すると推定される (edge worker deploy 用)。
+2026-11-25 に Cloudflare の請求画面を確認した。対象アカウントは Zero Trust が `Teams Free Base`、`tastile.app` が `Free Plan` で、既存の `Workers Paid` と `R2 Paid` も同居している。ADR-0025 の独立無料環境の成立は未確認。公開前に Phase A の経路を対象に、有料サービスとの分離と追加課金ゼロを確認する。既存のデプロイ、配布、請求契約は各所有者が管理する。
 
-## 2. 権限実証結果 (read-only API のみ、write は未実施)
+コネクターと Access サービス認証は、実行主体とアクセス境界を確認して保管先を決める。発行後は実行主体ごとに取得を検証する。
 
-`CLOUDFLARE_API_TOKEN`:
+## 取得と検証
 
-| probe | 結果 |
-|---|---|
-| `GET /user/tokens/verify` | 200 `active` (user token, id `26c54285…`) |
-| `GET /accounts` | 200、account 1 件 |
-| `GET /zones`, `GET /zones/{id}`, `GET /zones/{id}/dns_records`, `GET /zones/{id}/settings` | 200。zone: `tastile.app`, `rebuildup.dev`, `yusuke-kim.com` (すべて active) |
-| `GET /accounts/{id}/cfd_tunnel` | 200、tunnel 0 件 (read 可) |
-| `GET /accounts/{id}/access/apps` | 200、0 件 |
-| `GET /accounts/{id}/access/service_tokens` | 200、0 件 |
-| `GET /accounts/{id}/workers/scripts`, `/workers/domains` | 200、script 9 件 (`tastile-web-staging`, `tastile-web-preview`, `tastile-edge-staging` 等) |
-| `GET /accounts/{id}/r2/buckets`, `/hyperdrive/configs`, `/memberships`, `/accounts/{id}/tokens` | 403 |
-| `GET /user/tokens/{id}` (self detail) | 403 |
+既存の Infisical ログイン済み運用者は、プロジェクト・環境・パスを明示して CLI から必要な値を実行プロセスに注入する。標準出力に値を出さず、CLI のエラーや Cloudflare の応答からは HTTP ステータスとトークン状態だけを証跡に残す。
 
-write-probe (2026-11-25 追試。作成物は即削除または失敗のため残存物なし):
-
-| probe | 結果 |
-|---|---|
-| `POST /zones/{id}/dns_records` (TXT `acc-perm-probe`) → `DELETE` | **200 作成・削除成功 → DNS: Edit 保有を実測** |
-| `POST /accounts/{id}/cfd_tunnel` (`tastile-phase-a-acc`) | **403 Authentication error → Tunnel: Edit 非保有を確定** |
-| `POST /accounts/{id}/access/service_tokens` (`acc-probe-delete-me`) | **403 → Access service token 発行権限 非保有を確定** |
-
-R2 S3 credential (prod `/tastile/desktop`):
-
-| probe | 結果 |
-|---|---|
-| `aws s3 ls s3://tastile-desktop-releases --endpoint-url https://<account>.r2.cloudflarestorage.com` | 200、prefix `channels/ releases/ updates/` |
-| `aws s3api head-bucket` | 200 |
-
-注: write-probe により DNS: Edit の保有と Tunnel / Access write の非保有を実測で
-確定した (上表)。残る「未確定」は Access Apps and Policies の application/policy
-書き込みのみで、service token 発行が 403 である以上同 scope も非保有と見なすのが
-安全。
-
-## 3. 実 HTTPS に必要な権限の充足表
-
-A-AT01 (`https` プロファイル) が要求する公開経路:
-
-| # | 操作 | 必要権限 | 現状 |
-|---|---|---|---|
-| 1 | remotely-managed tunnel 作成 | Account → Cloudflare Tunnel: Edit | **403 で非保有を確定** |
-| 2 | tunnel token 取得 (`GET /accounts/{id}/cfd_tunnel/{tid}/token`) | 同上 | `TUNNEL_TOKEN` 未発行・未登録 |
-| 3 | 公開 hostname の DNS record 作成 | Zone(`tastile.app`) → DNS: Edit | **write-probe で保有を実測済み** |
-| 4 | (任意) Access application + policy / service token | Account → Access: Apps and Policies: Edit (service token 発行を含む) | service token 作成 **403 で非保有を確定** |
-| 5 | cloudflared runtime | `TUNNEL_TOKEN` を Infisical から注入 | compose 済み (`deploy/prod-stack`)、secret のみ不足 |
-
-`app.tastile.app` / `api.tastile.app` の DNS は既存 A/AAAA record が別 stack を指している
-(`acceptance/https-readiness.md` 参照)。cutover は #144 の公開経路構築における
-明示承認が前提 (root#66 は Infisical SoT の issue であり DNS 移管承認の正本ではない)。
-
-## 4. 不足権限の最小要求 (user 判断)
-
-次のいずれか。値の登録は Infisical のみで行い、GitHub Secret / repo への commit はしない。
-
-- **案 A**: 既存 `CLOUDFLARE_API_TOKEN` (staging `/tastile/edge`) に以下を追加付与
-  - Account → Cloudflare Tunnel: Edit
-  - (Access を使う場合) Account → Access: Apps and Policies: Edit
-    (service token 発行権限を含む。Muse probe 用に必須)
-  - ~~Zone → DNS: Edit~~ → **write-probe で既保有を実測済みのため不要**
-  - rotation は root#99 の手順に従う。
-- **案 B**: 上記 scope の専用 Account API Token を新規発行し、Infisical prod project の
-  `/tastile/edge` (新規 path) に `CLOUDFLARE_TUNNEL_API_TOKEN` として登録。
-  prod 側に `/tastile/edge` がないため、deploy 用途なら prod project への配置が自然。
-- **案 C (権限付与なし)**: tunnel と Access service token を CF dashboard で手動作成し、
-  token / client id+secret を Infisical へ直接登録する。agent は DNS route・
-  cloudflared・Caddy/env 整備を既存 DNS:Edit 権限で実行する。
-
-`TUNNEL_TOKEN` は tunnel 作成後にしか発行できないため、現時点での要求は API token の scope のみ。
-tunnel 作成・DNS 変更・Access 変更はいずれも承認境界の内側であり、権限付与後も実行は別途承認を得る。
-
-## 5. 権限付与後の設定手順 (準備済みドラフト)
-
-以下は権限が揃った時点で実行する手順。秘密値は Infisical 経由でのみ扱う。
-
-### 5.1 tunnel 作成 (API、remote-managed)
-
-```bash
-# 前提: token は Infisical から process 内変数へ (値を出力しない)
-# POST /accounts/{account_id}/cfd_tunnel  {name: "tastile-prod", config_src: "cloudflare"}
-# → tunnel id と token を取得。token は即座に Infisical へ登録し、以後出力しない。
+```sh
+infisical run --domain=https://secrets.rebuildup.dev \
+  --projectId=8196a4fd-4246-4c7d-a3a6-edf7b733743a \
+  --env=prod --path=/provisioning --expand=false \
+  --include-imports=false --secret-overriding=false -- <管理用コマンド>
 ```
 
-- tunnel 名案: `tastile-prod` (account 内で一意)。
-- `config_src: "cloudflare"` = remotely-managed。ingress は dashboard/API で管理し、
-  `cloudflared` は token のみで `tunnel --no-autoupdate run` できる
-  (`deploy/prod-stack/compose.yaml` の `cloudflared` service と一致)。
+3 本取得する上記コマンドは運用者の管理プロセス用。委譲時は対象セッションを承認し、`prod:/provisioning` の読み取りだけを持つ有効期限 1 時間以下の Infisical サービストークンを、サンドボックス内の対象プロセスに注入する。検証コマンドは値をプロセス内で使用し、取得結果と対象 API の成否だけを返す。別環境・別プロジェクトを指定したリクエストから対象外のキーを取得できないことも確認する。
 
-### 5.2 ingress / public hostname (計画)
+2026-11-25 に Devin の指定セッションで、3 キーの取得と各 Cloudflare API の読み取りを検証した。Infisical の単一スコープのサービストークンは、対象外の環境・パスを指定しても許可スコープへ絞り込む場合がある。応答のステータスと返されたキーの所属を確認する。新たな作業で資格情報が必要になった場合は、そのセッションと作業に対して改めて期限付きの実行プロセスを起動する。
 
-| public hostname | service | 対応 origin |
-|---|---|---|
-| `app.<domain>` (apex) | `http://web:3000` | Next.js web |
-| `api.<domain>` | `http://api:31400` | tastile-core API |
+2026-11-25 に Infisical から 3 キーを取得した。Cloudflare の token verify で、互いに異なる 3 本が `active` であることを確認した。用途ごとの一覧 API は `200`。R2 バケット一覧とアカウント API トークン一覧は全件 `403` だった。一部の Tunnel・Access 一覧は異なる用途のトークンでも `200` を返すため、書き込みの分離は発行設定を確認した。既存 DNS トークンの書き込み実績は [root #144 の調査](https://github.com/tastile/tastile-root/issues/144#issuecomment-7157284771) を参照する。
 
-fallback: `http_status:404`。`APP_DOMAIN` / `API_DOMAIN` の最終値は #144 の
-公開経路構築における明示承認後に確定 (root#66 は Infisical SoT の issue)。
-現行 placeholder 候補は `app.tastile.app` / `api.tastile.app` だが既存 stack が
-利用中のため、cutover 前の Phase A 検証には既存レコードと分離した専用
-サブドメイン (例: `acc-app.tastile.app` / `acc-api.tastile.app`) を使う
-(公開のため record 作成自体に承認が必要。DNS:Edit は token が保有済み)。
+### 非公開の受入コネクター
 
-### 5.3 DNS record (計画、未作成)
+受入 Tunnel `tastile-acceptance` の実行用プロジェクト ID は `6a91a2d3-bf8d-4d51-804b-98fd99cc7d65`。公開前の接続検証では、一時プロセスにトークンを注入して `cloudflared` を実行する。`cloudflared` は公式配布の固定バージョンを使用する。
 
-各 public hostname に tunnel への CNAME を作成 (proxied):
-
-- `<hostname>` CNAME → `<tunnel-id>.cfargotunnel.com`
-
-`cloudflared tunnel route dns <tunnel> <hostname>` でも同等。既存 A/AAAA record との
-衝突は cutover 時に置き換える (#144 公開経路構築の明示承認後)。
-
-### 5.4 Access (採用する場合の設計案)
-
-- application: `api.<domain>` に self-hosted application を作成。
-- policy: Muse / harness probe 用に **service token** (`non_identity` + `service_auth`) を
-  1 本発行し、`CF-Access-Client-Id` / `CF-Access-Client-Secret` を Infisical に登録
-  (`acceptance/https-readiness.md` の要求と一致)。
-- Web (`app.<domain>`) は Access を掛けない (一般公開が目的)。Edge assertion
-  (`TASTILE_EDGE_ASSERTION`) は別層のアプリ認証であり、Access とは独立。
-- Bypass / service-auth の scope は最小限にし、service token は環境ごとに分離する。
-
-### 5.5 secret schema 追加 (Infisical、値は登録時にのみ設定)
-
-prod project (`ab532e90-…`) に `/tastile/edge` を新設し、以下を登録する案:
-
-| key | 用途 |
-|---|---|
-| `CLOUDFLARE_TUNNEL_API_TOKEN` | tunnel 作成・route 管理用 API token (あれば) |
-| `TUNNEL_TOKEN` | `cloudflared run` 用。tunnel 作成後に発行・即登録 |
-| `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` | Access 採用時の probe/service token |
-
-prod-stack の env 注入は `deploy/prod-stack/.env.example` の `TUNNEL_TOKEN=` に対応済み。
-`/tastile/prod-stack` のような専用 path を新設する案もあるが、既存規約
-(`/tastile/<consumer>`) に合わせ `/tastile/edge` を推奨。
-
-## 6. 検証 (権限付与直後、read-only)
-
-```bash
-TOKEN=<infisical から取得>
-curl -s -H "Authorization: Bearer $TOKEN" \
-  https://api.cloudflare.com/client/v4/user/tokens/verify   # active
-curl -s -H "Authorization: Bearer $TOKEN" \
-  "https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/cfd_tunnel"
+```sh
+infisical run --domain=https://secrets.rebuildup.dev \
+  --projectId=6a91a2d3-bf8d-4d51-804b-98fd99cc7d65 \
+  --env=staging --path=/cloudflared --expand=false \
+  --include-imports=false --secret-overriding=false -- \
+  cloudflared tunnel --config /dev/null --no-autoupdate --metrics 127.0.0.1:0 run
 ```
 
-write を伴う確認 (tunnel 作成等) は承認後に実施し、結果は本 runbook へ追記する。
+`cloudflared` 2026.11.2 で接続 4 件と Cloudflare の `healthy` を確認した。Tunnel の公開 ingress と対象を指す DNS レコードは 0 件。検証後にコネクターを停止した。実 HTTPS、Access と Muse の検証は公開範囲の承認後に行う。
+
+## 公開作業
+
+1. `#144` で検証用ホスト名と公開範囲を確定する。既存 `app.tastile.app` と `api.tastile.app` の切替は独立した承認で扱う。
+2. 対象アカウントで remotely managed Tunnel を構成する。取得したコネクタートークンを指定保管先に登録してから `cloudflared` に供給する。
+3. ingress は Caddy を経由する。固定した Compose 候補で Caddy のホスト振り分けと origin TLS を確認し、末尾に `http_status:404` を置く。
+4. Access で保護する API ホストには限定した Service Auth ポリシーを適用する。Muse と検証の資格情報は、実行主体と必要範囲を照合して発行する。DNS の作成前に Access 側の拒否条件を確認する。
+5. API で設定する場合、Tunnel ingress の設定と Zone の proxied CNAME の作成は別の操作。承認済みのホスト名だけを `<tunnel-id>.cfargotunnel.com` に向ける。ダッシュボードの公開導線では DNS が自動作成されるため、承認前に送信しない。
+6. 追加課金が発生しない契約・設定を確認し、[HTTPS 受入手順](../../acceptance/https-readiness.md) を実行する。
+
+Cloudflare の仕様は [Tunnel 設定と DNS 作成](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/get-started/create-remote-tunnel-api/) と [Access Service Token 作成権限](https://developers.cloudflare.com/api/resources/zero_trust/subresources/access/subresources/service_tokens/methods/create/) を参照する。
+
+## 期限、失効、復旧
+
+運用者は Cloudflare で 90 日の期限を設定し、Infisical のキーコメントと [root #99](https://github.com/tastile/tastile-root/issues/99) に期限、担当、更新予定を記録する。初回の有効期限は 2027-02-23。更新の目安は 14 日前の 2027-02-09。
+
+更新時は用途を 1 本ずつ扱う。同じスコープで新規発行し、切替用の一時キーに登録して token verify と対象 API を検証する。次に正規キーへ反映し、取得する運用コマンドを再検証する。旧トークンは切替の検証と承認まで有効に保つ。復旧では有効な既知のトークンへの切戻し、または必要な用途だけの再発行を行う。期限を過ぎた場合は広いトークンにフォールバックせず、管理操作を止める。コネクターやサービス認証が別資格情報で構成されているため、管理トークンの期限切れだけで実行中の通信は止まらない。
