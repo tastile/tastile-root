@@ -57,6 +57,10 @@ export class ApiClient {
     return this.cookies.get(name) ?? null;
   }
 
+  allCookies(): { name: string; value: string }[] {
+    return [...this.cookies.entries()].map(([name, value]) => ({ name, value }));
+  }
+
   clearCookies(): void {
     this.cookies.clear();
   }

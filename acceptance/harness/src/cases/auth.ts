@@ -37,21 +37,27 @@ export async function at03(ctx: RunContext): Promise<void> {
   ctx.state.set("at03.tileId", t.tileId);
 
   // sign-out: better-auth sign-out endpoint then protected routes must deny.
+  // Keep the cookie jar: the oracle is that the SAME session is rejected
+  // after sign-out, not that a fresh client is unauthenticated (that is
+  // already covered by A-AT06). absorbCookies applies any Set-Cookie
+  // deletion the server sends.
   const out = await ctx.web.post("/api/auth/sign-out", { body: {} });
   ctx.step("POST /api/auth/sign-out", out);
-  ctx.check("logout-rejects", out.status === 200 || out.status === 204, `status ${out.status}`);
+  const signOutOk = out.status === 200 || out.status === 204;
 
-  // After sign-out the cookie jar may still hold cookies; clear to simulate
-  // a fresh client and confirm protected paths reject.
-  ctx.web.clearCookies();
   const dash = await ctx.web.get("/dashboard", {});
   const proxy = await ctx.web.get("/api/proxy/v1/tiles", {});
-  ctx.step("GET /dashboard unauthenticated", dash);
-  ctx.step("GET /api/proxy/v1/tiles unauthenticated", proxy);
+  ctx.step("GET /dashboard post-logout", dash);
+  ctx.step("GET /api/proxy/v1/tiles post-logout", proxy);
   const rejected =
     (dash.status === 401 || dash.status === 403 || (dash.status >= 300 && dash.status < 400)) &&
     (proxy.status === 401 || proxy.status === 403 || proxy.status === 404);
-  ctx.check("logout-rejects", rejected, `dashboard=${dash.status} proxy=${proxy.status}`);
+  // Emit once: sign-out must succeed AND the same session must be rejected.
+  ctx.check(
+    "logout-rejects",
+    signOutOk && rejected,
+    `sign-out=${out.status} dashboard=${dash.status} proxy=${proxy.status}`,
+  );
 }
 
 export async function at04(ctx: RunContext): Promise<void> {
@@ -71,10 +77,14 @@ export async function at04(ctx: RunContext): Promise<void> {
     expiresInSeconds: 600,
   });
   const before = await ctx.api.get("/v1/tiles", { bearer: minted.token });
-  ctx.check("expiry-or-revoke", before.status === 200, `pre-revoke status ${before.status}`);
   const del = await ctx.api.delete(`/v1/api-tokens/${minted.id}`, { bearer: cred.bearer });
   ctx.step(`revoke token ${minted.prefix}`, del);
   const after = await ctx.api.get("/v1/tiles", { bearer: minted.token });
   ctx.step("GET /v1/tiles with revoked token", after);
-  ctx.check("expiry-or-revoke", after.status === 401, `post-revoke status ${after.status}`);
+  // Emit once: the token must work before revoke AND be rejected after.
+  ctx.check(
+    "expiry-or-revoke",
+    before.status === 200 && after.status === 401,
+    `pre-revoke=${before.status} post-revoke=${after.status}`,
+  );
 }

@@ -57,6 +57,11 @@ export async function at01(ctx: RunContext): Promise<void> {
   const api = new URL(ctx.profile.apiBase);
   const web = ctx.profile.webBase ? new URL(ctx.profile.webBase) : null;
 
+  // Each contract check is emitted exactly once; per-target probes are
+  // AND-accumulated so an earlier failure can never be overwritten by a
+  // later success (ctx.check replaces the previous result for an id).
+  let tlsOk = true;
+  const tlsDetails: string[] = [];
   for (const [label, u] of [
     ["api", api],
     ...(web ? ([["web", web]] as const) : []),
@@ -65,28 +70,35 @@ export async function at01(ctx: RunContext): Promise<void> {
       const cert = await tlsPeerCert(u.toString());
       const notAfter = new Date(cert.valid_to);
       const hostnameOk = cert.san.some((s) => s.replace(/^DNS:/, "") === u.hostname) || cert.subject === u.hostname;
+      const ok = notAfter.getTime() > Date.now() && hostnameOk && cert.issuer.length > 0;
+      tlsOk = tlsOk && ok;
+      tlsDetails.push(`${label}: issuer=${cert.issuer} notAfter=${cert.valid_to} hostnameOk=${hostnameOk} san=${cert.san.join(",")}`);
       ctx.step(`tls ${label}`, null, `issuer=${cert.issuer} san=${cert.san.join(",")}`);
-      ctx.check(
-        "tls-cert-valid",
-        notAfter.getTime() > Date.now() && hostnameOk && cert.issuer.length > 0,
-        `${label}: issuer=${cert.issuer} notAfter=${cert.valid_to} hostnameOk=${hostnameOk}`,
-      );
     } catch (e) {
-      ctx.check("tls-cert-valid", false, `${label}: ${String(e)}`);
+      tlsOk = false;
+      tlsDetails.push(`${label}: ${String(e)}`);
     }
   }
+  ctx.check("tls-cert-valid", tlsOk, tlsDetails.join(" | "));
 
   const health = await ctx.api.get("/v1/health");
   ctx.step("GET /v1/health", health);
-  ctx.check("https-reachable", health.status === 200, `status ${health.status}`);
-
+  let reachable = health.status === 200;
+  const reachableDetails = [`api /v1/health=${health.status}`];
   if (ctx.profile.webBase) {
     const home = await ctx.web.get("/");
     ctx.step("GET / (web)", home);
-    ctx.check("https-reachable", home.status === 200 || home.status === 301 || home.status === 302 || home.status === 307 || home.status === 308, `status ${home.status}`);
+    const webOk = home.status === 200 || home.status === 301 || home.status === 302 || home.status === 307 || home.status === 308;
+    reachable = reachable && webOk;
+    reachableDetails.push(`web /=${home.status}`);
   }
+  ctx.check("https-reachable", reachable, reachableDetails.join(" "));
 
-  // http -> https enforcement
+  // http -> https enforcement. The contract oracle requires the plain-HTTP
+  // origin to redirect or deny; a 200 over http is a plaintext bypass and
+  // must FAIL, not pass.
+  let httpOk = true;
+  const httpDetails: string[] = [];
   for (const u of [api, ...(web ? [web] : [])]) {
     try {
       const res = await fetch(`http://${u.host}/v1/health`, {
@@ -95,23 +107,28 @@ export async function at01(ctx: RunContext): Promise<void> {
       });
       const redirected = res.status >= 300 && res.status < 400;
       const denied = res.status === 400 || res.status === 403 || res.status === 421;
+      const ok = redirected || denied;
+      httpOk = httpOk && ok;
+      httpDetails.push(`${u.host}: status=${res.status}`);
       ctx.step(`http probe ${u.host}`, null, `status=${res.status}`);
-      ctx.check("no-plain-http-bypass", redirected || denied || res.status === 200, `status ${res.status} (200 on http is acceptable only if the service intentionally serves both)`);
     } catch (e) {
-      ctx.check("no-plain-http-bypass", true, `http unreachable (fail-closed): ${String(e).slice(0, 120)}`);
+      httpDetails.push(`${u.host}: unreachable (fail-closed) ${String(e).slice(0, 120)}`);
+      ctx.step(`http probe ${u.host}`, null, `unreachable ${String(e).slice(0, 120)}`);
     }
   }
+  ctx.check("no-plain-http-bypass", httpOk, httpDetails.join(" "));
 
   // internal ports must not be publicly reachable — probe common backend
   // ports on the public host; connection should fail or be filtered.
   const internalPorts = [5432, 31400, 31401, 3000];
   const probes: string[] = [];
+  let backendsClosed = true;
   for (const port of internalPorts) {
     const open = await tcpProbe(api.hostname, port, 4_000);
     probes.push(`${api.hostname}:${port}=${open ? "OPEN" : "closed"}`);
-    if (open) ctx.check("no-direct-backend", false, `port ${port} reachable on public host`);
+    if (open) backendsClosed = false;
   }
-  ctx.check("no-direct-backend", true, probes.join(" "));
+  ctx.check("no-direct-backend", backendsClosed, probes.join(" "));
 }
 
 export async function at16(ctx: RunContext): Promise<void> {
@@ -211,8 +228,9 @@ export async function at16(ctx: RunContext): Promise<void> {
     }
   }
   if (!liveProbe) probes.push("live probes skipped on local profile (loopback host)");
-  ctx.check("db-not-public", allClosed, probes.join(" "));
-  ctx.check("worker-not-public", allClosed, probes.join(" "));
+  // NOTE: db-not-public / worker-not-public are emitted once at the end,
+  // AND-ing live probes with the static compose scan. Emitting the live
+  // result early would let the later static check overwrite a failure.
 
   // Static check: in each compose file, backend services (db/api/worker)
   // must not publish a host port, or must bind it to loopback only.
@@ -288,6 +306,6 @@ export async function at16(ctx: RunContext): Promise<void> {
     flushPorts();
     findings.push(`${f}: scanned`);
   }
-  ctx.check("db-not-public", staticOk, findings.join("; "));
-  ctx.check("worker-not-public", staticOk, findings.join("; "));
+  ctx.check("db-not-public", allClosed && staticOk, `live: ${probes.join(" ")} | static: ${findings.join("; ")}`);
+  ctx.check("worker-not-public", allClosed && staticOk, `live: ${probes.join(" ")} | static: ${findings.join("; ")}`);
 }

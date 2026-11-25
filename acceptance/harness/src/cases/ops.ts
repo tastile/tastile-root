@@ -72,11 +72,20 @@ export async function at13(ctx: RunContext): Promise<void> {
   if (declared.includes("web")) services.push("web");
   else ctx.note("no web service in this stack; web restart covered by prod-stack profile");
 
+  // Map each restarted service to its contract check id so a restart
+  // failure is recorded under the right check and returns immediately
+  // (later checks would otherwise overwrite the failure via ctx.check).
+  const restartCheckId: Record<string, string> = {
+    db: "restart-db",
+    api: "restart-api",
+    worker: "restart-worker",
+    web: "restart-api",
+  };
   for (const svc of services) {
     const r = await runOps(ctx.profile.ops, "restart", svc);
     ctx.step(`restart ${svc}`, null, `exit=${r.exitCode} ${r.stderr.slice(0, 200)}`);
     if (r.exitCode !== 0) {
-      ctx.check("restart-api", false, `${svc} restart failed: ${r.stderr.slice(0, 200)}`);
+      ctx.check(restartCheckId[svc] ?? "restart-api", false, `${svc} restart failed: ${r.stderr.slice(0, 200)}`);
       return;
     }
   }

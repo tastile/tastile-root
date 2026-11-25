@@ -28,27 +28,22 @@ export async function at02(ctx: RunContext): Promise<void> {
   const browser = await playwright.chromium.launch();
   try {
     const context = await browser.newContext({ baseURL: ctx.profile.webBase ?? undefined });
-    // Inject the post-bridge cookie state: the web app authorizes proxy
-    // calls from these cookies server-side.
+    // Inject the full web session state captured during bootstrap
+    // (better-auth session cookie + bridge-issued tastile_* cookies);
+    // the app authorizes proxy calls from these server-side.
     const webUrl = new URL(ctx.profile.webBase!);
-    await context.addCookies([
-      {
-        name: "tastile_api_token",
-        value: owner.bearer,
-        domain: webUrl.hostname,
-        path: "/",
-      },
-      ...(owner.userSub
-        ? [
-            {
-              name: "tastile_uid",
-              value: owner.userSub,
-              domain: webUrl.hostname,
-              path: "/",
-            },
-          ]
-        : []),
-    ]);
+    const jarCookies = ctx.web.allCookies().map((c) => ({
+      name: c.name,
+      value: c.value,
+      domain: webUrl.hostname,
+      path: "/",
+    }));
+    const fallback = [
+      { name: "tastile_api_token", value: owner.bearer },
+      ...(owner.userSub ? [{ name: "tastile_uid", value: owner.userSub }] : []),
+    ].map((c) => ({ ...c, domain: webUrl.hostname, path: "/" }));
+    const names = new Set(jarCookies.map((c) => c.name));
+    await context.addCookies([...jarCookies, ...fallback.filter((c) => !names.has(c.name))]);
     const page = await context.newPage();
     const apiHits: string[] = [];
     const consoleErrors: string[] = [];
@@ -66,13 +61,35 @@ export async function at02(ctx: RunContext): Promise<void> {
       timeout: 60_000,
     });
     ctx.step("browser GET /dashboard", null, `status=${resp?.status()}`);
-    // Give client-side fetch a moment, then assert on rendered content.
-    await page.waitForTimeout(5_000);
-    const bodyText = await page.locator("body").innerText().catch(() => "");
+    // Dev-mode Next compiles routes on first hit; poll until the page
+    // has real content instead of sampling once.
+    let bodyText = "";
+    const contentDeadline = Date.now() + 45_000;
+    while (Date.now() < contentDeadline) {
+      bodyText = await page.locator("body").innerText().catch(() => "");
+      if (bodyText.trim().length > 200 || bodyText.includes(title)) break;
+      await page.waitForTimeout(1_000);
+    }
+    ctx.step("browser dashboard content", null, `finalUrl=${page.url()} bodyLen=${bodyText.length}`);
     const hasTile = bodyText.includes(title) || bodyText.includes("acc-at02");
     // A proxy read that returned real data is the network-level oracle;
     // any 2xx on the tiles collection specifically.
     const proxyTilesOk = apiHits.some((h) => h.startsWith("2") && h.includes("/v1/tiles"));
+    // Stronger oracle per contract: the API-created fixture tile must be
+    // readable through the web proxy with matching content — a bare 2xx
+    // on the collection does not prove the specific aggregate crossed
+    // the Web<->Core boundary.
+    let proxyTileOk = false;
+    let proxyDetail = "proxy read skipped";
+    try {
+      const viaProxy = await ctx.web.get(`/api/proxy/v1/tiles/${tile.tileId}`);
+      const pv = viaProxy.json as { title?: string; id?: string } | null;
+      proxyTileOk = viaProxy.status === 200 && pv?.title === title;
+      proxyDetail = `status=${viaProxy.status} title=${pv?.title ?? "?"}`;
+      ctx.step("GET /api/proxy/v1/tiles/{id} fixture", viaProxy);
+    } catch (e) {
+      proxyDetail = `proxy read error: ${String(e).slice(0, 120)}`;
+    }
     ctx.check(
       "login-render",
       !!resp && resp.status() < 400 && bodyText.trim().length > 0,
@@ -80,8 +97,8 @@ export async function at02(ctx: RunContext): Promise<void> {
     );
     ctx.check(
       "real-backend-data",
-      hasTile || proxyTilesOk,
-      `tileVisible=${hasTile} proxyTiles2xx=${proxyTilesOk} apiHits=${apiHits.length}`,
+      hasTile || proxyTileOk,
+      `tileVisible=${hasTile} proxyTile=${proxyTileOk} (${proxyDetail}) proxyTiles2xx=${proxyTilesOk} apiHits=${apiHits.length}`,
     );
     const mockSignals = apiHits.filter((h) => /mock|fixture|serviceWorker/i.test(h));
     ctx.check("no-mock", mockSignals.length === 0, mockSignals.join("; ") || "no mock signals");

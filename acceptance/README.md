@@ -31,6 +31,20 @@ compose ops を使う。`prod-equivalent` は `TASTILE_ACCEPTANCE_OPS_CMD` (shel
 `TASTILE_ACCEPTANCE_OPS=compose` の明示指定がない限り ops なし (fail-closed)。`https`
 プロファイルでは ops 注入を行わない (承認境界)。
 
+verify-stack の compose は `TASTILE_WEB_BRIDGE_SECRET` 等を `${VAR:?}` で必須化するため、
+ops が interpolation できるよう env file を用意して `TASTILE_ACCEPTANCE_COMPOSE_ENV_FILE`
+に渡す (値は gitignore 済みの `.tmp/` 配下に置き、commit しない):
+
+```bash
+# 例: .tmp/acceptance/verify-stack.env (gitignored)
+#   TASTILE_VERIFY_PREFIX=tastile-acc
+#   TASTILE_API_PORT=31430
+#   TASTILE_VERIFY_PG_PORT=<db host port>
+#   TASTILE_WEB_BRIDGE_SECRET=<stack と同一値>
+TASTILE_ACCEPTANCE_COMPOSE_ENV_FILE=$PWD/../../.tmp/acceptance/verify-stack.env \
+  bun src/main.ts --profile local
+```
+
 A-AT15 の backup/restore は verify-stack 構成に限り harness 内蔵経路
 (pg_dump → 別 compose project への isolated restore → readback) を使う。
 それ以外の stack では `TASTILE_ACCEPTANCE_OPS_CMD` の runbook が必要。

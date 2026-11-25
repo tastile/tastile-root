@@ -57,14 +57,16 @@ export async function at05(ctx: RunContext): Promise<void> {
   });
   ctx.step("POST /v1/tiles (muse token)", res);
   ctx.check("mint-scoped-token", !!muse.id, `token prefix ${muse.prefix}`);
-  ctx.check("direct-crud", res.status === 200 || res.status === 201, `status ${res.status}`);
+  const created = res.status === 200 || res.status === 201;
 
   const body = res.json as { aggregate?: { id?: string } } | null;
   const tileId = body?.aggregate?.id;
   if (!tileId) throw new BlockedError("create via muse token missing aggregate.id");
   const read = await ctx.api.get(`/v1/tiles/${tileId}`, { bearer: muse.token });
   ctx.step("GET /v1/tiles/{id} (muse token)", read);
-  ctx.check("direct-crud", read.status === 200, `readback status ${read.status}`);
+  // Emit once: create AND readback must both succeed (ctx.check replaces,
+  // so two calls would let the second mask the first).
+  ctx.check("direct-crud", created && read.status === 200, `create=${res.status} readback=${read.status}`);
   ctx.state.set("at05.tileId", tileId);
 
   // no-browser-dep: a cookie-free client must complete the same CRUD using
@@ -156,15 +158,21 @@ export async function at07(ctx: RunContext): Promise<void> {
       payload: { tile_id: tileA.tileId, title: `acc-at07-hijack-${ctx.runId}` },
     },
   });
+  const patchDenied = patchB.status === 403 || patchB.status === 404;
   ctx.step("B patches A tile", patchB);
-  ctx.check("cross-write-denied", patchB.status === 403 || patchB.status === 404, `status ${patchB.status}`);
 
   const delB = await ctx.api.delete(`/v1/tiles/${tileA.tileId}`, {
     bearer: ownerB.bearer,
     body: { idempotency_key: idem(), payload: { tile_id: tileA.tileId } },
   });
+  const delDenied = delB.status === 403 || delB.status === 404;
   ctx.step("B deletes A tile", delB);
-  ctx.check("cross-write-denied", delB.status === 403 || delB.status === 404, `delete status ${delB.status}`);
+  // Both mutations must be denied; emit once so neither can mask the other.
+  ctx.check(
+    "cross-write-denied",
+    patchDenied && delDenied,
+    `patch=${patchB.status} delete=${delB.status}`,
+  );
 
   const listB = await ctx.api.get("/v1/tiles", { bearer: ownerB.bearer });
   const listText = listB.text;
@@ -209,11 +217,9 @@ export async function at08(ctx: RunContext): Promise<void> {
   const read = await ctx.api.get(`/v1/tiles/${tileId}`, { bearer: owner.bearer });
   const view = read.json as { title?: string; kind?: number; owner_id?: string; revision?: number } | null;
   ctx.step("GET /v1/tiles/{id}", read);
-  ctx.check(
-    "readback-match",
-    read.status === 200 && view?.title === title && typeof view?.owner_id === "string",
-    `title=${view?.title} owner=${view?.owner_id}`,
-  );
+  const viewOk =
+    read.status === 200 && view?.title === title && typeof view?.owner_id === "string";
+  const viewDetail = `title=${view?.title} owner=${view?.owner_id}`;
   if (view?.owner_id && !owner.ownerId) owner.ownerId = view.owner_id;
 
   // idempotent replay: same key + same body must not create a second tile.
@@ -266,7 +272,13 @@ export async function at08(ctx: RunContext): Promise<void> {
   );
 
   const list = await ctx.api.get("/v1/tiles?limit=200", { bearer: owner.bearer });
-  ctx.check("readback-match", list.status === 200 && list.text.includes(tileId), "tile not in owner list");
+  const listOk = list.status === 200 && list.text.includes(tileId);
+  // Single emission: view content AND list membership must both hold.
+  ctx.check(
+    "readback-match",
+    viewOk && listOk,
+    `${viewDetail}; list=${list.status} contains=${listOk}`,
+  );
 
   ctx.state.set("at08.tileId", tileId);
   ctx.state.set("ownerA", owner);
