@@ -82,10 +82,29 @@ service ごとの上書きは `TASTILE_<SERVICE>_CPUS` / `TASTILE_<SERVICE>_MEMO
      DB の work item が claim されないこと。
    - 値を戻すと書き込みが復帰すること（正本を壊さず可逆であること）。
 
+## 実測記録
+
+2026-11-25、prod-equivalent stack（compose project `tastile-prod-acc`、
+core image `tastile-core:87271a29`、Mac host + colima VM）で全項目を
+否定試験済み。証跡は `acceptance/.tmp/acceptance/at17-neg-verify2/`。
+
+| 項目 | 方法 | 結果 |
+| --- | --- | --- |
+| cgroup CPU | api に 4 本の busy loop を投入 | `cpu.max=125000/100000`、`docker stats` で約 124% に頭打ち、他 container は無影響 |
+| cgroup RAM | worker（上限 768MiB）に約 950MiB を確保する負荷 | cgroup `memory.events` で `oom_kill=1`、offender のみ kill、service は継続 |
+| PG 接続数 | `max_connections=60` に対し 70 並列 session | 16 session が `FATAL: sorry, too many clients` |
+| edge 同時接続 | `unhealthy_request_count` を一時的に 1 に変更し SSE で slot 占有 | 占有中の api request は全て 503 で fail-fast。Caddyfile 復元後 200 に回復 |
+| disk floor | `TASTILE_DISK_MIN_FREE_BYTES` を巨大値にして api/worker 再起動 | `POST /v1/tiles` → 503 + `Retry-After: 30`（kind=7）、`GET /v1/tiles`・`/v1/health` → 200、worker drain は `Deferred` で反復。web bridge の token 発行も同じく拒否。閾値復元で書き込み復帰（POST が handler の 422 まで到達） |
+
+補足: pin image `tastile-core:87271a29` は disk floor（root#145）に加えて
+session SQL deadlines（core#561/#579）と `GET /v1/sync/snapshot`
+（core#558 系）を含むことを `git merge-base` で確認済み。
+
 ## 既知の gap
 
-- prod-acc stack の pin image（`tastile-core:440c926f`）は本変更を含まない。
-  prod 相当での実測には新 image の build/pin 更新（NF04-R03/R04）が必要。
+- prod-acc stack の pin image は `tastile-core:87271a29`（#145 branch build）に
+  更新済みで disk floor を含む。最終 RC で release head の image に pin を
+  更新して再実測する（NF04-R03/R04）。
 - Caddy 公式 image には rate_limit plugin が無いため、edge の「同時接続」
   上限は concurrency cap であり、req/min の厳密な rate limit ではない。
   必要になれば自前 build または plugin 付き image を検討する。
