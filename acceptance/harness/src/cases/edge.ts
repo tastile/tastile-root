@@ -268,6 +268,44 @@ export async function at16(ctx: RunContext): Promise<void> {
     ctx.check("origin-bypass-denied", true, "web_base not configured; api-side checks cover the boundary");
   }
 
+  // A valid Better Auth web session must not double as a Core credential.
+  // Replay only the session cookie (no bearer / bridge headers) directly
+  // against the API for both a read and a mutation: the API must reject
+  // both, proving the authenticated web path cannot be bypassed by
+  // presenting web-layer session material to Core.
+  if (ctx.profile.webBase) {
+    const sessionToken =
+      ctx.web.getCookie("__Secure-better-auth.session_token") ??
+      ctx.web.getCookie("better-auth.session_token");
+    if (sessionToken) {
+      const cookieHeader = `__Secure-better-auth.session_token=${sessionToken}`;
+      const sessRead = await ctx.api.get("/v1/tiles", { headers: { cookie: cookieHeader } });
+      const sessWrite = await ctx.api.post("/v1/tiles", {
+        headers: { cookie: cookieHeader },
+        body: { ...tilePayload, idempotency_key: crypto.randomUUID() },
+      });
+      ctx.step("GET /v1/tiles web-session-cookie-only", sessRead);
+      ctx.step("POST /v1/tiles web-session-cookie-only", sessWrite);
+      ctx.check(
+        "session-cookie-not-api-credential",
+        [sessRead.status, sessWrite.status].every((s) => s === 401 || s === 403),
+        `read=${sessRead.status} write=${sessWrite.status}`,
+      );
+    } else {
+      ctx.check(
+        "session-cookie-not-api-credential",
+        true,
+        "no better-auth session cookie in jar; probe not applicable",
+      );
+    }
+  } else {
+    ctx.check(
+      "session-cookie-not-api-credential",
+      true,
+      "web_base not configured; api-side checks cover the boundary",
+    );
+  }
+
   // Internal service ports must not be reachable from outside. When the
   // ops channel names a compose project (prod-equivalent runbook), audit the
   // project's actual published ports: TCP-probing a loopback api_base would

@@ -1,6 +1,6 @@
 {
   "schema": "tastile/acceptance-contract/v1",
-  "contract_version": "0.1.2",
+  "contract_version": "0.1.3",
   "status": "draft-baseline",
   "canonical_issue": "tastile/tastile-root#165",
   "contract_issue": "tastile/tastile-root#166",
@@ -527,12 +527,13 @@
         {"type": "stack", "detail": "compose の port 公開設定を検査可能"}
       ],
       "fixture": "公開 host に対し DB port・内部 port・管理経路・偽 origin で probe",
-      "oracle": "DB/Worker/内部経路は外部から接続不可。Host/X-Forwarded-* 偽装や直接 IP での origin bypass が成立しない。",
+      "oracle": "DB/Worker/内部経路は外部から接続不可。Host/X-Forwarded-* 偽装や直接 IP での origin bypass が成立しない。Web session cookie を Core credential として直接 replay しても read/write とも拒否される。",
       "checks": [
         {"id": "db-not-public", "description": "DB port への外部接続が拒否"},
         {"id": "worker-not-public", "description": "worker/内部管理経路が外部から不達"},
         {"id": "origin-bypass-denied", "description": "偽 Host/Origin header での bypass が拒否または無効"},
-        {"id": "internal-headers-blocked", "description": "x-tastile-web-bridge-secret 等の内部 header を外部から注入しても認証にならない。protected 環境では x-owner-id fallback も拒否。local (TASTILE_ENV=development) では x-owner-id/x-actor-id header pair は仕様上の bootstrap fallback として有効であり、その場合は証跡に明記する"}
+        {"id": "internal-headers-blocked", "description": "x-tastile-web-bridge-secret 等の内部 header を外部から注入しても認証にならない。protected 環境では x-owner-id fallback も拒否。local (TASTILE_ENV=development) では x-owner-id/x-actor-id header pair は仕様上の bootstrap fallback として有効であり、その場合は証跡に明記する"},
+        {"id": "session-cookie-not-api-credential", "description": "Better Auth session cookie のみを api へ直接 replay した GET/POST が 401/403 で拒否 (web 認証済み経路の Core credential 迂回不可)"}
       ],
       "steps": [
         "公開 base に対し未認証・内部 header 付き・偽 origin で request",
