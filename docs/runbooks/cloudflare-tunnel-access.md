@@ -22,6 +22,8 @@ Tastile の Caddy、Cloudflare Tunnel、Access、DNS を構成する運用者向
 | R2 配布 | `tastile-prod / prod / /tastile/desktop` の R2 S3 資格情報。Desktop のリリース workflow が既存バケットへの配布に使う。通常の S3 互換ツールが読む `AWS_*` はこの経路では R2 の値を指す。 |
 | 製品サイトと既存 Workers | Pages は静的サイト用。既存 Workers の配備・メディア・R2 は個別に管理する。Pages と Workers の資格情報をエッジ管理プロジェクトに共用しない。 |
 
+2026-11-25 に Cloudflare の請求画面を確認した。対象アカウントは Zero Trust が `Teams Free Base`、`tastile.app` が `Free Plan` で、既存の `Workers Paid` と `R2 Paid` も同居している。ADR-0025 の独立無料環境の成立は未確認。公開前に Phase A の経路を対象に、有料サービスとの分離と追加課金ゼロを確認する。既存のデプロイ、配布、請求契約は各所有者が管理する。
+
 `TUNNEL_TOKEN` と `CF_ACCESS_CLIENT_*` は、それぞれの実行主体とアクセス境界を確認して保管先を決める。コネクターとサービスクライアントの取得は、発行後に実行主体ごとに検証する。
 
 ## 取得と検証

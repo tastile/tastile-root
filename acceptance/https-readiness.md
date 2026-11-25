@@ -93,13 +93,13 @@ bun src/main.ts --profile https \
 | Resend (mail) | 任意・上限付き | `TASTILE_MAIL_PROVIDER=auto` は `RESEND_API_KEY` 未設定時 noop 相当。設定する場合も hourly 20 / daily 90 の quota が Resend Free (~100/day, ~3,000/month、自動有料化なし) 内に収まる設計 (web#262) |
 | R2 (`tastile-desktop-releases`) | **維持** | desktop 配布の既存用途。Phase A で新規利用しないが、既存配布を破壊しない |
 | Hyperdrive | 不使用 | `wrangler.jsonc` の Workers deploy 経路のみ。Phase A は compose 配備のため binding 自体が生成されない |
-| Cloudflare Tunnel / Access | 無料枠 | Argo Tunnel / Access service token は Cloudflare Free プランの範囲。使用量課金の自動昇格設定は行わない |
+| Cloudflare Tunnel / Access | 無料枠を使用 | Zero Trust は `Teams Free Base`。同じアカウントに `Workers Paid` と `R2 Paid` があるため、Phase A の実経路について有料経路からの分離と追加課金ゼロを公開前に確認する |
 | AWS / SES / Cognito / SOPS / KMS | 除去済み | web#262 (PR #271, release-1-1-0 merge 済み) で SES mailer を provider-agnostic mail boundary へ置換、Cognito 参照を除去。root#174 (PR #176) で SOPS/KMS 経路を退役 |
 
 - `.env.example` の paid-path key (`STRIPE_*`, `AWS_*`, `GOOGLE_CLIENT_SECRET`) は
   すべて空が契約 (A-AT17 `no-paid-defaults` check が監査)。
-- 無料枠超過時に自動有料化する構成は採用しない (Resend quota・CF Free プランとも
-  上限到達時は送信/接続が止まるだけで課金は発生しない)。
+- 上限到達時の挙動、課金契約、配備に使う権限を公開前に確認する。既存の有料サービスを
+  Phase A のフォールバックとして使う構成は対象外。
 
 ## prod-equivalent で得た知見 (https でも再利用)
 
