@@ -192,6 +192,14 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     restart: unless-stopped
+    # Edge connection ceiling (root#177): stock Caddy cannot cap total inbound
+    # TCP connections, so the fd limit is the effective ceiling — each client
+    # connection costs ~1 fd. 1024 leaves headroom for listeners/files/DNS
+    # while bounding concurrent edge connections to ~1k. See Caddyfile header.
+    ulimits:
+      nofile:
+        soft: 1024
+        hard: 1024
     deploy:
       resources:
         limits:
