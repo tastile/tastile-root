@@ -19,24 +19,19 @@ N-A、その他 case は prod-equivalent で代替検証済み。本書は `http
 
 ### 1. Cloudflare / Tunnel
 
-- [ ] Cloudflare account への管理権限を保有していること。
-      2026-11-25 の実証 (root#179 read-only + write-probe) で account
-      `c6ab6651…` と `CLOUDFLARE_API_TOKEN` (staging `/tastile/edge`) の
-      権限範囲を確定済み: zones / DNS records / tunnels / access apps /
-      workers の read は可、**DNS record の create/delete も可**
-      (TXT probe で実測)。一方 `POST /cfd_tunnel` と
-      `POST /access/service_tokens` は 403 で、Zero Trust write scope
-      (Tunnel:Edit / Access service token 発行) のみが不足。
-      最小要求は `docs/runbooks/cloudflare-tunnel-access.md` §4 を参照
-      (DNS:Edit は既保有のため要求から除外済み)。
+- [x] Tunnel、Access アプリ・ポリシー、Access Service Token 管理の 3 本を
+      `tastile-edge-admin / prod / /provisioning` に登録。Infisical から取得し、
+      Cloudflare の有効性検証と対応する一覧 API が全件 `200` であることを確認。
+      既存トークンの DNS 書き込み実績、管理スコープ、利用方法は
+      [Cloudflare エッジ基盤 runbook](../docs/runbooks/cloudflare-tunnel-access.md) を参照。
+- [ ] 公開作業を担当する実行主体で、必要な管理資格情報の取得範囲を検証済みであること。
 - [ ] `cloudflared` tunnel を作成し `TUNNEL_TOKEN` を取得済みであること。
       compose 上は `cloudflared` service (`tunnel --no-autoupdate run`) が存在するが、
       token 未設定では起動しない。
-- [ ] tunnel の public hostname が `api.<domain>` → `api:31400`、
-      `app.<domain>` (apex) → `web:3000` に route されていること。
-- [ ] Cloudflare Access (service token) の要否を判断済みであること。
-      有効化する場合は harness からの probe 用 service token
-      (`CF-Access-Client-Id` / `CF-Access-Client-Secret`) を Infisical に登録する。
+- [ ] Tunnel が Caddy 経由で `api.<domain>` → `api:31400`、
+      `app.<domain>` → `web:3000` に到達し、未定義ホストを拒否すること。
+- [ ] Cloudflare Access の Service Auth を構成し、Muse と受入プローブに必要な資格情報を
+      対象実行主体へ供給できること。`https` ハーネスの Access ヘッダー注入は #168 で検証する。
 
 ### 2. DNS / 公開経路
 
@@ -54,16 +49,14 @@ N-A、その他 case は prod-equivalent で代替検証済み。本書は `http
 
 ### 3. Secrets (Infisical)
 
-- [ ] `/tastile/*` に Cloudflare / Tunnel / Access 関連 secret の schema が
-      追加されていること (現状: `CLOUDFLARE_API_TOKEN` と R2 S3 credential のみ登録済み。
-      `TUNNEL_TOKEN` / Access service token は未登録。配置案は
-      `docs/runbooks/cloudflare-tunnel-access.md` §5.5 を参照)。
+- [ ] 発行後、`TUNNEL_TOKEN` と Access クライアント資格情報を用途別の Infisical 保管先に登録し、
+      コネクター・Muse・受入プローブが必要なキーだけ取得できること。
 - [ ] `TUNNEL_TOKEN`、Access service token、`BETTER_AUTH_SECRET`、
       `TASTILE_WEB_BRIDGE_SECRET` が対象 environment で解決できること。
 - [ ] `STRIPE_*` は **設定しない** (Phase A は課金経路を使わない。
       空のままなら web の billing route は fail-closed で無効化される。
       下記「費用境界」を参照)。
-- [ ] secret 値を本 repository / `.tmp/` 以外へ commit しないこと。
+- [ ] secret 値の編集は Infisical で管理し、実行プロセスへの注入と値を含まない証跡を確認する。
 
 ### 4. 実行時の確認
 

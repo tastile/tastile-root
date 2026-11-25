@@ -278,7 +278,8 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
   製品サイトは Cloudflare Pages Free の静的配信
 - **配布**: Windows = Microsoft Store / MSIX、CLI = GitHub Releases。
   インストーラーを Tunnel/API で中継しない
-- **Secret**: Infisical を編集正本、実行時は最小権限供給 (常時接続を必須にしない)
+- **Secret**: Infisical を編集正本、実行時は最小権限供給 (常時接続を必須にしない)。
+  [Infisical 運用](runbooks/infisical.md) と [Cloudflare エッジ基盤](runbooks/cloudflare-tunnel-access.md) を参照。
 - **Backup**: 既存の別物理 Mac へ SSH 転送 + age 暗号化。別障害ドメインで復元実証
 - **費用境界**: 追加クラウド料金 0 円。Oracle Cloud は採用・調査・代替・
   fallback のすべてから除外。有料経路の再開・新規課金契約・外部公開・
