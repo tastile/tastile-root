@@ -1,0 +1,63 @@
+# Acceptance (本番基盤先行稼働の受入ハーネス)
+
+正本: GitHub Issue `tastile/tastile-root#165`（受入条件 A-AT01–A-AT17 + 中核 E2E）、
+実行タスク `#166`（契約先行・ハーネス・baseline・未達マッピング）。
+
+## 構成
+
+- `contract/acceptance-contract.json` — 版管理された受入契約。各 case の id、環境適用範囲
+  (`local` / `prod-equivalent` / `https`)、前提条件、timeout、チェック項目を定義する。
+  実装はこの契約を読み、registry が contract と完全一致しない限り実行しない。
+- `harness/` — Bun/TypeScript 製ハーネス。HTTP client、ブラウザ (Playwright)、
+  fixture bootstrap、ops 注入チャネル、証跡 writer、runner を持つ。
+- `muse-access.md` — Muse 実行環境からの直接 HTTP probe と資格情報供給経路の設計
+  (#150 が実施、A-AT05/A-AT06/A-AT16 に対応)。
+- `review/` — 実装レビュー記録。
+
+## 実行
+
+```bash
+cd acceptance/harness
+bun install
+bunx tsc --noEmit                 # 型検査
+bun src/main.ts --list            # contract の全 case 一覧
+bun src/main.ts --profile local   # local プロファイルで全 case
+bun src/main.ts --profile local --only A-AT01,A-AT05
+```
+
+環境プロファイルは `src/profile.ts` が解決する。対象 origin は
+`TASTILE_ACCEPTANCE_API_BASE` / `TASTILE_ACCEPTANCE_WEB_BASE` で上書きできる。
+
+ops 注入 (A-AT13–A-AT15) は `TASTILE_ACCEPTANCE_OPS` / `TASTILE_ACCEPTANCE_OPS_CMD` /
+`TASTILE_ACCEPTANCE_COMPOSE_*` で有効化する。`local` は既定で `deploy/verify-stack` への
+compose ops を使う。`prod-equivalent` は `TASTILE_ACCEPTANCE_OPS_CMD` (shell runbook) または
+`TASTILE_ACCEPTANCE_OPS=compose` の明示指定がない限り ops なし (fail-closed)。`https`
+プロファイルでは ops 注入を行わない (承認境界)。
+
+verify-stack の compose は `TASTILE_WEB_BRIDGE_SECRET` 等を `${VAR:?}` で必須化するため、
+ops が interpolation できるよう env file を用意して `TASTILE_ACCEPTANCE_COMPOSE_ENV_FILE`
+に渡す (値は gitignore 済みの `.tmp/` 配下に置き、commit しない):
+
+```bash
+# 例: .tmp/acceptance/verify-stack.env (gitignored)
+#   TASTILE_VERIFY_PREFIX=tastile-acc
+#   TASTILE_API_PORT=31430
+#   TASTILE_VERIFY_PG_PORT=<db host port>
+#   TASTILE_WEB_BRIDGE_SECRET=<stack と同一値>
+TASTILE_ACCEPTANCE_COMPOSE_ENV_FILE=$PWD/../../.tmp/acceptance/verify-stack.env \
+  bun src/main.ts --profile local
+```
+
+A-AT15 の backup/restore は verify-stack 構成に限り harness 内蔵経路
+(pg_dump → 別 compose project への isolated restore → readback) を使う。
+それ以外の stack では `TASTILE_ACCEPTANCE_OPS_CMD` の runbook が必要。
+
+## 判定
+
+各 case は `PASS` / `FAIL` / `BLOCKED` / `N-A` / `NOT-RUN` のいずれかで終わる。
+`BLOCKED` は環境・前提・資格情報の不足で判定不能を意味し、FAIL とは区別する。
+証跡は `.tmp/acceptance/<run-id>-<profile>/` に case ごとの check/step JSON と
+summary を書き出す。
+
+終了コード: `0` = FAIL/BLOCKED なし、`1` = 1 件以上の FAIL、`2` = FAIL なしで
+BLOCKED あり (または profile 設定エラー)。
