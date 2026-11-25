@@ -44,6 +44,11 @@ services:
     volumes:
       - prod-pgdata:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d:ro
+    # Connection ceiling sized to the workload (NF04-R05 / root#145):
+    # api pool 10 + worker pool 10 + web Better-Auth pool + migration /
+    # admin headroom.  60 leaves margin without letting a leak exhaust
+    # the VM; the per-process pools are the real budget.
+    command: ["postgres", "-c", "max_connections=60"]
     # No host port: the database is reachable only on the internal network.
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d postgres"]
@@ -51,6 +56,13 @@ services:
       timeout: 5s
       retries: 20
     restart: unless-stopped
+    # cgroup ceilings for the 4 vCPU / 8 GiB VM (NF04-R05 / root#145).
+    # Overridable per service via TASTILE_*_CPUS / TASTILE_*_MEMORY.
+    deploy:
+      resources:
+        limits:
+          cpus: ${TASTILE_DB_CPUS:-1.0}
+          memory: ${TASTILE_DB_MEMORY:-2G}
 
   api:
     image: ${TASTILE_CORE_IMAGE:-tastile-core:${TASTILE_CORE_TAG:-latest}}
@@ -74,10 +86,19 @@ services:
       TASTILE_DELIVERY_PROVIDER: ${TASTILE_DELIVERY_PROVIDER:-fake}
       TASTILE_MAX_REQUEST_BODY_BYTES: "2097152"
       TASTILE_REQUEST_TIMEOUT_SECONDS: "30"
+      # Disk capacity floor (NF04-R05 / root#145): mutating requests get
+      # 503 + Retry-After while the filesystem drops below this floor.
+      TASTILE_DISK_GUARD_PATH: /
+      TASTILE_DISK_MIN_FREE_BYTES: ${TASTILE_DISK_MIN_FREE_BYTES:-4294967296}
       AWS_EC2_METADATA_DISABLED: "true"
       RUST_LOG: ${RUST_LOG:-info}
     # No host port: reached only via the internal network / caddy.
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: ${TASTILE_API_CPUS:-1.25}
+          memory: ${TASTILE_API_MEMORY:-2G}
 
   worker:
     image: ${TASTILE_CORE_IMAGE:-tastile-core:${TASTILE_CORE_TAG:-latest}}
@@ -93,10 +114,20 @@ services:
       DATABASE_URL: postgres://${TASTILE_CORE_DB_USER:-tastile_core}:${TASTILE_CORE_DB_PASSWORD}@db:5432/${TASTILE_CORE_DB:-tastile}
       TASTILE_DATABASE__MAX_CONNECTIONS: ${TASTILE_DATABASE__MAX_CONNECTIONS:-10}
       TASTILE_DELIVERY_PROVIDER: ${TASTILE_DELIVERY_PROVIDER:-fake}
+      # Same disk floor as api: the daemon defers every drain while the
+      # filesystem is below it, so scheduling writes cannot worsen a
+      # filling volume (NF04-R05 / root#145).
+      TASTILE_DISK_GUARD_PATH: /
+      TASTILE_DISK_MIN_FREE_BYTES: ${TASTILE_DISK_MIN_FREE_BYTES:-4294967296}
       AWS_EC2_METADATA_DISABLED: "true"
       RUST_LOG: ${RUST_LOG:-info}
     command: ["/app/worker"]
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: ${TASTILE_WORKER_CPUS:-0.75}
+          memory: ${TASTILE_WORKER_MEMORY:-768M}
 
   web:
     image: ${TASTILE_WEB_IMAGE:-tastile-web:${TASTILE_WEB_TAG:-latest}}
@@ -136,6 +167,11 @@ services:
       STRIPE_PRO_YEARLY_PRICE_ID: ${STRIPE_PRO_YEARLY_PRICE_ID:-}
     # No host port: reached only via caddy.
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: ${TASTILE_WEB_CPUS:-0.5}
+          memory: ${TASTILE_WEB_MEMORY:-1G}
 
   caddy:
     image: caddy:2-alpine
@@ -156,6 +192,11 @@ services:
       - caddy-data:/data
       - caddy-config:/config
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: ${TASTILE_CADDY_CPUS:-0.25}
+          memory: ${TASTILE_CADDY_MEMORY:-128M}
 
   # Optional: Cloudflare Tunnel connector (free tier). Runs only under
   # `--profile tunnel`; the tunnel token is a secret from Infisical.
@@ -172,6 +213,11 @@ services:
       TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
     command: tunnel --no-autoupdate run
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: ${TASTILE_CLOUDFLARED_CPUS:-0.25}
+          memory: ${TASTILE_CLOUDFLARED_MEMORY:-128M}
 
 volumes:
   prod-pgdata:

@@ -75,6 +75,17 @@ bun run next dev
 
 Sign-up → `/api/auth/bridge`（`tastile_api_token` 取得）→ `/dashboard/timeline/month` に到達。proxy 経由の `/api/proxy/v1/*` が `TASTILE_WEB_BRIDGE_SECRET` と `x-tastile-web-session-user` を用いた Bridge 認証で Core に到達する。
 
+## 資源上限（NF04-R05 / root#145）
+
+本番相当の上限を小さい値で再現し、ローカルで強制動作を検証できる。
+
+- cgroup: db 0.5 CPU/512M、api 1.0/1G、worker 0.5/512M
+  （`TASTILE_VERIFY_*_CPUS` / `TASTILE_VERIFY_*_MEMORY` で上書き可）
+- PostgreSQL: `max_connections=40`
+- ディスク floor: `TASTILE_DISK_MIN_FREE_BYTES`（既定 1 GiB）。実際の空きより
+  大きい値を与えると api の書き込みが 503、worker drain が `deferred` になる。
+- 上限値一覧と検証手順の正本: `docs/runbooks/resource-limits.md`
+
 ## 並行インスタンス（複数の検証スタックを同時に起ける）
 
 1 タスク 1 スタックで隔離する場合は、**prefix・compose project 名・host port・image tag の 4 つをすべて**既定値から変える。1 つでも既定のままだと既存インスタンスと衝突する（`container_name` と volume name は compose project 名で自動的に分散しないため `-p` だけでは足りない。共通の image tag は互いに image を置き換える）。

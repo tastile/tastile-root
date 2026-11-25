@@ -24,6 +24,9 @@ services:
       # Verification role is local-only; intentionally weak password.
     volumes:
       - tastile-verify-pgdata:/var/lib/postgresql/data
+    # Smaller connection ceiling for the two-pool verification workload
+    # (NF04-R05 / root#145): api 10 + worker 10 + headroom.
+    command: ["postgres", "-c", "max_connections=40"]
     ports:
       # Loopback-only host port; preflight rejects operational PostgreSQL ports.
       - "127.0.0.1:${TASTILE_VERIFY_PG_PORT:-55432}:5432"
@@ -33,6 +36,13 @@ services:
       timeout: 5s
       retries: 20
     restart: unless-stopped
+    # Smaller cgroup ceilings than prod; still enforced so limit behavior
+    # can be exercised locally (NF04-R05 / root#145).
+    deploy:
+      resources:
+        limits:
+          cpus: ${TASTILE_VERIFY_DB_CPUS:-0.5}
+          memory: ${TASTILE_VERIFY_DB_MEMORY:-512M}
 
   api:
     build:
@@ -62,10 +72,19 @@ services:
       TASTILE_DELIVERY_PROVIDER: fake
       TASTILE_MAX_REQUEST_BODY_BYTES: "2097152"
       TASTILE_REQUEST_TIMEOUT_SECONDS: "30"
+      # Disk capacity floor (NF04-R05 / root#145): writes get 503 +
+      # Retry-After below this floor; default suits a dev workstation.
+      TASTILE_DISK_GUARD_PATH: /
+      TASTILE_DISK_MIN_FREE_BYTES: ${TASTILE_DISK_MIN_FREE_BYTES:-1073741824}
       AWS_EC2_METADATA_DISABLED: "true"
     ports:
       - "127.0.0.1:${TASTILE_API_PORT:-31410}:31400"
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: ${TASTILE_VERIFY_API_CPUS:-1.0}
+          memory: ${TASTILE_VERIFY_API_MEMORY:-1G}
 
   worker:
     image: tastile-core-verify:${TASTILE_CORE_TAG:-local}
@@ -80,9 +99,18 @@ services:
       # api と同様。release-1-1-0 の storage::pool は未設定を拒否する。
       TASTILE_DATABASE__MAX_CONNECTIONS: ${TASTILE_DATABASE__MAX_CONNECTIONS:-10}
       TASTILE_DELIVERY_PROVIDER: fake
+      # Same disk floor as api: drains are deferred while the filesystem
+      # is below it (NF04-R05 / root#145).
+      TASTILE_DISK_GUARD_PATH: /
+      TASTILE_DISK_MIN_FREE_BYTES: ${TASTILE_DISK_MIN_FREE_BYTES:-1073741824}
       AWS_EC2_METADATA_DISABLED: "true"
     command: ["/app/worker"]
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: ${TASTILE_VERIFY_WORKER_CPUS:-0.5}
+          memory: ${TASTILE_VERIFY_WORKER_MEMORY:-512M}
 
 volumes:
   tastile-verify-pgdata:
