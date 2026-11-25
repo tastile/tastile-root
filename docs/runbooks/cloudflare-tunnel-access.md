@@ -37,7 +37,7 @@ infisical run --domain=https://secrets.rebuildup.dev \
 
 3 本取得する上記コマンドは運用者の管理プロセス用。通常の CI、アプリ runtime、エージェントへの一括注入は避ける。Devin を含む委譲先の取得は、承認された実行主体で `prod /provisioning` の読み取りと対象外へのアクセス拒否を実測してから引き渡す。値をチャット、環境設定の複製、作業ログへ渡す手順は設けない。
 
-2026-11-25 に Infisical から 3 キーを取得し、Cloudflare の `GET /accounts/{account_id}/tokens/verify` で全件 `active` (`200`) を確認した。各トークンの対象一覧 (`/cfd_tunnel`、`/access/apps`、`/access/service_tokens`) はそれぞれ `200`。書き込みは Cloudflare の発行設定で確認した。実リソースを作成する試験は公開作業の承認後に行う。既存 DNS トークンの書き込み証跡は [root #144 の調査](https://github.com/tastile/tastile-root/issues/144#issuecomment-7157284771) を参照する。
+2026-11-25 に Infisical から 3 キーを取得した。Cloudflare の token verify で、互いに異なる 3 本が `active` であることを確認した。用途ごとの一覧 API は `200`。R2 バケット一覧とアカウント API トークン一覧は全件 `403` だった。一部の Tunnel・Access 一覧は異なる用途のトークンでも `200` を返すため、書き込みの分離は発行設定を確認した。実リソースを作成する試験は公開作業の承認後に行う。既存 DNS トークンの書き込み実績は [root #144 の調査](https://github.com/tastile/tastile-root/issues/144#issuecomment-7157284771) を参照する。
 
 ## 公開作業
 

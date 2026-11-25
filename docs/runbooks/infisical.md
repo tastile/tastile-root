@@ -21,6 +21,16 @@
 
 標準 `viewer` はプロジェクト内の値を読むことができ、`member` は値の作成・変更・削除も可能。フォルダーや CLI 引数は利用経路を指定する。権限はロールで確認する。既存の広いロールを狭める場合は、対象の実行主体で新しい取得を実測し、他環境へのアクセス拒否を確認してから切り替える。
 
+## staging の既存参照
+
+`tastile-staging / staging` では次のキーを参照元として維持する。
+
+| 元のパスとキー | 参照先 |
+| --- | --- |
+| `/tastile/core/shared` の `TASTILE_DATABASE_URL`、`TASTILE_DELIVERY_KEY` | `/tastile/core/api`、`/tastile/core/worker` |
+| `/tastile/core` の `TASTILE_WEB_BRIDGE_SECRET` | `/tastile/core/api`、`/tastile/web/runtime` |
+| `/tastile/edge` の `TASTILE_EDGE_ASSERTION` | `/tastile/core/api`、`/tastile/web/runtime` |
+
 ## 移行、復旧、廃止候補
 
 1. 切替前にキー名、参照元、環境、担当、発行元、権限、失効・復旧の手順を記録する。稼働中の取得経路は別のリリースや外部設定も照合する。
