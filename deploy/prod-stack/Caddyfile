@@ -5,16 +5,32 @@
 # when the domains resolve; behind cloudflared the tunnel terminates public
 # TLS and caddy may serve plain HTTP internally.
 #
-# Edge ceilings (NF04-R05 / root#145): official Caddy has no request-rate
-# plugin, so enforcement is (a) server timeouts that bound slow clients and
-# (b) per-upstream concurrency caps via passive health checks
-# (`unhealthy_request_count`): once an upstream is already serving that many
-# simultaneous requests it is treated as down and excess requests fail fast
-# instead of queueing without bound.  `max_conns_per_host` bounds the TCP
-# fan-out to each backend.  No `write` timeout is set: long-lived sync
-# streams must not be cut.
+# Resource ceilings (NF04-R05 / root#145, root#177) — two distinct layers:
+#
+# EDGE (this file's `servers` block + compose `ulimits`): bounds what external
+# clients can make Caddy itself consume.
+#   - `timeouts` bound slow clients in TIME (slowloris): a connection that
+#     stalls before/during a request is reaped. `write` stays unset so
+#     long-lived sync streams are not cut.
+#   - `max_header_size` bounds per-request header memory regardless of
+#     concurrency.
+#   - `request_body max_size` bounds per-request body memory per site.
+#   - Stock Caddy has NO option for a total inbound TCP connection count;
+#     that ceiling is enforced by the container `nofile` ulimit in
+#     compose.yaml (each connection costs ~1 fd). HTTP/2 concurrent streams
+#     per connection are bounded by the Go http2 server default
+#     (MAX_CONCURRENT_STREAMS).
+#
+# UPSTREAM (per `reverse_proxy` block): bounds load placed on backends.
+#   - `unhealthy_request_count` marks an upstream down after that many
+#     simultaneous in-flight requests; with one upstream per site the proxy
+#     fails fast once `unhealthy_request_count` requests are already being
+#     served, so excess requests error instead of queueing without bound.
+#   - `max_conns_per_host` bounds the TCP fan-out to each backend.
+#   These do NOT limit edge connections that never complete a request.
 {
 	servers {
+		max_header_size 64KB
 		timeouts {
 			read_header 10s
 			read_body 30s
@@ -24,6 +40,9 @@
 }
 
 {$APP_DOMAIN} {
+	request_body {
+		max_size 32MB
+	}
 	reverse_proxy web:3000 {
 		transport http {
 			max_conns_per_host 256
@@ -35,6 +54,9 @@
 }
 
 {$API_DOMAIN} {
+	request_body {
+		max_size 32MB
+	}
 	reverse_proxy api:31400 {
 		transport http {
 			max_conns_per_host 512

@@ -19,7 +19,9 @@ Native-first 本番スタック（`deploy/prod-stack`）の資源上限と、そ
 | request 全体 | 30s → 408 | `TimeoutLayer` | 同上 |
 | API rate limit | auth 60/min、data read 600 / write 240 / bootstrap 12 rpm → 429 | in-process fixed-window limiter | 同上 |
 | edge timeout | read_header 10s / read_body 30s / idle 2m | Caddy `servers.timeouts`（slowloris 対策。write timeout は sync stream 保護のため未設定） | `deploy/prod-stack/Caddyfile` |
-| edge 同時接続 | web upstream 256 / api upstream 512 | Caddy `unhealthy_request_count`（超過時 fail-fast）+ `max_conns_per_host` | 同上 |
+| edge header/body | header 64KB → 431 / body 32MB | Caddy `servers.max_header_size` + per-site `request_body max_size`（body は upstream が実際に読む場合に効く） | `deploy/prod-stack/Caddyfile` |
+| edge 総 TCP 接続数 | 実効上限 = caddy container `nofile`（compose で 1024） | stock Caddy に総接続数 option は無いため ulimit が実効上限。飽和時は超過接続が応答を得られず fail（無制限 queue にならない）。HTTP/2 同時 stream は Go http2 server default (MAX_CONCURRENT_STREAMS) | `deploy/prod-stack/compose.yaml` caddy service |
+| upstream 同時 request | web 256 / api 512 | Caddy `unhealthy_request_count`（upstream ごとの in-flight request 上限。1 upstream 構成では proxy 全体の同時 request 天井でもあり、超過時 fail-fast）+ `max_conns_per_host`（backend への TCP fan-out） | `deploy/prod-stack/Caddyfile` |
 | ディスク空き | 4 GiB（`TASTILE_DISK_MIN_FREE_BYTES`） | api: 非 GET/HEAD/OPTIONS を 503 + `Retry-After: 30`。worker: drain 全延期（`DrainTermination::Deferred`） | tastile-core `resource` crate、`api` middleware、`worker::drain` |
 
 service ごとの上書きは `TASTILE_<SERVICE>_CPUS` / `TASTILE_<SERVICE>_MEMORY`
@@ -58,10 +60,22 @@ service ごとの上書きは `TASTILE_<SERVICE>_CPUS` / `TASTILE_<SERVICE>_MEMO
 3. **PG 接続数**: `psql -c "show max_connections"` が設定値を返すこと。
    `pg_stat_activity` の接続数が pool 合計を超えて増えないこと。
    上限超過時は `FATAL: sorry, too many clients` が返ること。
-4. **edge 接続**: `unhealthy_request_count` を一時的に小さい値にした
-   Caddyfile で同時接続を張り、超過分が 502 で fail-fast すること
-   （本番値に戻すこと）。
-5. **disk floor**: `TASTILE_DISK_MIN_FREE_BYTES` を実際の空き容量より
+4. **edge 接続 (upstream 側)**: `unhealthy_request_count` を一時的に小さい値にした
+   Caddyfile で backend への同時 request を超過させ、超過分が fail-fast
+   すること（本番値に戻すこと）。これは upstream 保護であり edge の総
+   接続数制限ではない点に注意。
+5. **edge 総接続数 (root#177)**: caddy container の `nofile` ulimit が
+   実効上限。検証は使い捨て container で行う（本番 stack を止めない）:
+   `docker run -d --ulimit nofile=<N>:<N> -p 127.0.0.1:<port>:80 <test Caddyfile>`
+   の後、TCP 接続をデータ未送信のまま多数保持し、`/proc/1/fd` が N で
+   飽和すること・超過接続が応答を得られないことを確認する。実測例
+   (2026-11-25, Docker Desktop + vpnkit 経由): nofile=1024 で 1200 接続中
+   ~767-803 が確立・残りは RST/timeout、caddy fd 数は上限に張り付き。
+   nofile=300 で 600 接続試行 → 472 確立・147 error・飽和中の HTTP 応答 0
+   （upstream dial 用の fd も枯渇するため proxy も fail する = 無制限
+   queue にならない）。
+   `max_header_size` は 64KB 超の header で 431 を返すことを curl で確認。
+6. **disk floor**: `TASTILE_DISK_MIN_FREE_BYTES` を実際の空き容量より
    大きい値（例: `u64` 相当の巨大値）にして api/worker を再起動。
    - api: `curl -X POST` が 503 + `Retry-After: 30`、`curl /v1/health` が 200。
    - worker: `worker drain` が `"termination":"deferred"` を返し、
