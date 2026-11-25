@@ -117,35 +117,61 @@ export async function at01(ctx: RunContext): Promise<void> {
 export async function at16(ctx: RunContext): Promise<void> {
   const api = new URL(ctx.profile.apiBase);
   const web = ctx.profile.webBase ? new URL(ctx.profile.webBase) : null;
+  const tilePayload = {
+    idempotency_key: crypto.randomUUID(),
+    payload: {
+      kind: 1,
+      title: `acc-at16-inject-${ctx.runId}`,
+      description: null,
+      color: null,
+      icon: null,
+      external_id: null,
+      plan_role: 0,
+      owner_subject_id: null,
+    },
+  };
 
-  // unauthenticated + internal-header injection attempts against public edge
-  const injected = await ctx.api.post("/v1/tiles", {
+  // Probe 1 (all profiles): forged bridge headers WITHOUT any owner
+  // fallback header. A wrong bridge secret must never authenticate,
+  // regardless of environment.
+  const bridgeForged = await ctx.api.post("/v1/tiles", {
     headers: {
       "x-tastile-web-bridge-secret": "attacker-guess",
       "x-tastile-web-session-user": "00000000-0000-0000-0000-000000000001",
-      "x-owner-id": "00000000-0000-0000-0000-000000000001",
       "x-forwarded-host": "evil.example",
       "x-forwarded-proto": "https",
     },
-    body: {
-      idempotency_key: crypto.randomUUID(),
-      payload: {
-        kind: 1,
-        title: `acc-at16-inject-${ctx.runId}`,
-        description: null,
-        color: null,
-        icon: null,
-        external_id: null,
-        plan_role: 0,
-        owner_subject_id: null,
-      },
-    },
+    body: tilePayload,
   });
-  ctx.step("POST /v1/tiles with forged internal headers", injected);
+  ctx.step("POST /v1/tiles forged bridge headers (no owner fallback)", bridgeForged);
+
+  // Probe 2: forged x-owner-id bootstrap header. In protected
+  // environments (TASTILE_ENV=production/staging) the API must reject it;
+  // in non-protected development environments the header pair is the
+  // documented local bootstrap fallback, so a 2xx there is expected and
+  // is recorded, not failed.
+  const ownerForged = await ctx.api.post("/v1/tiles", {
+    headers: {
+      "x-owner-id": "00000000-0000-0000-0000-000000000001",
+      "x-actor-id": "00000000-0000-0000-0000-000000000001",
+    },
+    body: { ...tilePayload, idempotency_key: crypto.randomUUID() },
+  });
+  ctx.step("POST /v1/tiles forged x-owner-id", ownerForged);
+  const protectedEnv = ctx.profile.name !== "local";
+  const ownerHeaderOk =
+    ownerForged.status === 401 ||
+    ownerForged.status === 403 ||
+    (!protectedEnv && ownerForged.status < 300);
+  ctx.note(
+    `x-owner-id probe: status=${ownerForged.status} profile=${ctx.profile.name}` +
+      (protectedEnv ? " (protected env: must reject)" : " (dev fallback is spec-legal on local)"),
+  );
+
   ctx.check(
     "internal-headers-blocked",
-    injected.status === 401 || injected.status === 403,
-    `status ${injected.status}`,
+    (bridgeForged.status === 401 || bridgeForged.status === 403) && ownerHeaderOk,
+    `bridge=${bridgeForged.status} ownerId=${ownerForged.status}`,
   );
 
   // forged Host/Origin on web proxy path
@@ -163,8 +189,13 @@ export async function at16(ctx: RunContext): Promise<void> {
     ctx.check("origin-bypass-denied", true, "web_base not configured; api-side checks cover the boundary");
   }
 
-  // internal service ports must not be reachable from outside.
-  const internalPorts = [5432, 3000];
+  // Internal service ports must not be reachable from outside. Live TCP
+  // probes are only meaningful on prod-equivalent/https profiles: on the
+  // local profile the API base is loopback, so probing it measures the
+  // developer host, not the stack boundary. The loopback binding itself is
+  // verified by the compose scan below.
+  const liveProbe = ctx.profile.name !== "local";
+  const internalPorts = liveProbe ? [5432, 3000] : [];
   const probes: string[] = [];
   let allClosed = true;
   for (const port of internalPorts) {
@@ -172,17 +203,19 @@ export async function at16(ctx: RunContext): Promise<void> {
     probes.push(`${api.hostname}:${port}=${open ? "OPEN" : "closed"}`);
     if (open) allClosed = false;
   }
-  if (web) {
+  if (liveProbe && web) {
     for (const port of [5432]) {
       const open = await tcpProbe(web.hostname, port, 4_000);
       probes.push(`${web.hostname}:${port}=${open ? "OPEN" : "closed"}`);
       if (open) allClosed = false;
     }
   }
+  if (!liveProbe) probes.push("live probes skipped on local profile (loopback host)");
   ctx.check("db-not-public", allClosed, probes.join(" "));
   ctx.check("worker-not-public", allClosed, probes.join(" "));
 
-  // static check: compose files must not publish db/worker ports publicly.
+  // Static check: in each compose file, backend services (db/api/worker)
+  // must not publish a host port, or must bind it to loopback only.
   const { readFileSync, existsSync } = await import("node:fs");
   const { resolve } = await import("node:path");
   const { ACCEPTANCE_ROOT } = await import("../contract.ts");
@@ -190,13 +223,71 @@ export async function at16(ctx: RunContext): Promise<void> {
     resolve(ACCEPTANCE_ROOT, "..", "deploy/prod-stack/compose.yaml"),
     resolve(ACCEPTANCE_ROOT, "..", "deploy/verify-stack/compose.yaml"),
   ];
+  const loopbackBind = /^(127\.0\.0\.1|localhost|\[::1\]):/;
   const findings: string[] = [];
+  let staticOk = true;
   for (const f of candidates) {
-    if (!existsSync(f)) continue;
-    const text = readFileSync(f, "utf8");
-    // crude guard: db service must not map a host port other than loopback
+    if (!existsSync(f)) {
+      findings.push(`${f}: missing`);
+      staticOk = false;
+      continue;
+    }
+    const lines = readFileSync(f, "utf8").split("\n");
+    let inServices = false;
+    let currentService = "";
+    let currentIsBackend = false;
+    let inPorts = false;
+    let portsIndent = -1;
+    const evalPorts = (ports: string[]) => {
+      for (const mapping of ports) {
+        // An env-var host side (e.g. ${CADDY_HTTP_PORT:-80}) or a bare port
+        // is a public bind unless it carries an explicit loopback prefix.
+        const isLoopback = loopbackBind.test(mapping);
+        findings.push(
+          `${f} ${currentService}: port "${mapping}" ${isLoopback ? "loopback" : "PUBLIC"}`,
+        );
+        if (!isLoopback) staticOk = false;
+      }
+    };
+    let pendingPorts: string[] = [];
+    const flushPorts = () => {
+      if (currentIsBackend) evalPorts(pendingPorts);
+      pendingPorts = [];
+      inPorts = false;
+    };
+    for (const line of lines) {
+      if (/^services:/.test(line)) {
+        inServices = true;
+        continue;
+      }
+      if (!inServices) continue;
+      if (/^[a-zA-Z]/.test(line)) break; // left the services block
+      const svcMatch = line.match(/^  ([a-zA-Z0-9_-]+):\s*$/);
+      if (svcMatch) {
+        flushPorts();
+        currentService = svcMatch[1]!;
+        currentIsBackend = ["db", "api", "worker"].includes(currentService);
+        continue;
+      }
+      if (!currentService) continue;
+      const indent = line.match(/^ */)?.[0].length ?? 0;
+      if (inPorts) {
+        if (indent <= portsIndent) flushPorts();
+        else {
+          const item = line.trim().replace(/^-\s*/, "").replace(/^["']|["']$/g, "");
+          if (item && !item.startsWith("#")) pendingPorts.push(item);
+          continue;
+        }
+      }
+      if (currentIsBackend && /^\s+ports:\s*$/.test(line)) {
+        inPorts = true;
+        portsIndent = indent;
+        continue;
+      }
+    }
+    flushPorts();
     findings.push(`${f}: scanned`);
-    void text;
   }
-  ctx.check("worker-not-public", true, findings.join("; "));
+  ctx.check("db-not-public", staticOk, findings.join("; "));
+  ctx.check("worker-not-public", staticOk, findings.join("; "));
 }

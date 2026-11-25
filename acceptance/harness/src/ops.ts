@@ -29,15 +29,79 @@ export interface OpsResult {
   exitCode: number;
 }
 
-function composeArgs(ops: OpsConfig, action: OpsAction, service?: string): string[] {
+/** Base `docker compose` argv for a profile ops config. */
+export function composeBaseArgs(ops: OpsConfig): string[] {
   if (ops.kind !== "compose" || !ops.dir) throw new BlockedError("compose ops not configured");
   const dir = resolve(ACCEPTANCE_ROOT, "..", ops.dir);
   const args = ["compose"];
   if (ops.project) args.push("-p", ops.project);
   if (ops.envFile) args.push("--env-file", ops.envFile);
   args.push("--project-directory", dir);
-  // compose reads the file in --project-directory; -f pins it explicitly.
   args.push("-f", resolve(dir, "compose.yaml"));
+  return args;
+}
+
+export interface CommandResult {
+  command: string;
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+/** Run arbitrary `docker compose` args (up/exec/ps/down/...). */
+export async function composeExec(
+  ops: OpsConfig,
+  args: string[],
+  opts: { env?: Record<string, string>; timeoutMs?: number } = {},
+): Promise<CommandResult> {
+  const argv = [...composeBaseArgs(ops), ...args];
+  const env = { ...process.env, ...(ops.env ?? {}), ...(opts.env ?? {}) };
+  try {
+    const { stdout, stderr } = await execFileAsync("docker", argv, {
+      env,
+      timeout: opts.timeoutMs ?? 300_000,
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    return { command: `docker ${argv.join(" ")}`, stdout, stderr, exitCode: 0 };
+  } catch (e) {
+    const err = e as { stdout?: string; stderr?: string; code?: number };
+    return {
+      command: `docker ${argv.join(" ")}`,
+      stdout: err.stdout ?? "",
+      stderr: err.stderr ?? String(e),
+      exitCode: typeof err.code === "number" ? err.code : 1,
+    };
+  }
+}
+
+/**
+ * Run a shell command (used where stdin redirection or pipes are needed,
+ * e.g. piping a dump file into `compose exec psql`).
+ */
+export async function runShell(
+  command: string,
+  opts: { env?: Record<string, string>; timeoutMs?: number } = {},
+): Promise<CommandResult> {
+  try {
+    const { stdout, stderr } = await execFileAsync("sh", ["-c", command], {
+      env: { ...process.env, ...(opts.env ?? {}) },
+      timeout: opts.timeoutMs ?? 600_000,
+      maxBuffer: 16 * 1024 * 1024,
+    });
+    return { command, stdout, stderr, exitCode: 0 };
+  } catch (e) {
+    const err = e as { stdout?: string; stderr?: string; code?: number };
+    return {
+      command,
+      stdout: err.stdout ?? "",
+      stderr: err.stderr ?? String(e),
+      exitCode: typeof err.code === "number" ? err.code : 1,
+    };
+  }
+}
+
+function composeArgs(ops: OpsConfig, action: OpsAction, service?: string): string[] {
+  const args = composeBaseArgs(ops);
   switch (action) {
     case "ps":
       args.push("ps");
@@ -50,7 +114,7 @@ function composeArgs(ops: OpsConfig, action: OpsAction, service?: string): strin
       break;
     case "backup":
     case "restore":
-      throw new BlockedError(`compose has no built-in "${action}"; use shell ops or extend the profile`);
+      throw new BlockedError(`compose has no built-in "${action}"; use the verify-stack restore path or a shell ops template`);
   }
   return args;
 }

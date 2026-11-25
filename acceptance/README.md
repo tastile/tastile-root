@@ -26,8 +26,14 @@ bun src/main.ts --profile local --only A-AT01,A-AT05
 `TASTILE_ACCEPTANCE_API_BASE` / `TASTILE_ACCEPTANCE_WEB_BASE` で上書きできる。
 
 ops 注入 (A-AT13–A-AT15) は `TASTILE_ACCEPTANCE_OPS` / `TASTILE_ACCEPTANCE_OPS_CMD` /
-`TASTILE_ACCEPTANCE_COMPOSE_*` で有効化する。`https` プロファイルでは ops 注入を行わない
-(承認境界)。
+`TASTILE_ACCEPTANCE_COMPOSE_*` で有効化する。`local` は既定で `deploy/verify-stack` への
+compose ops を使う。`prod-equivalent` は `TASTILE_ACCEPTANCE_OPS_CMD` (shell runbook) または
+`TASTILE_ACCEPTANCE_OPS=compose` の明示指定がない限り ops なし (fail-closed)。`https`
+プロファイルでは ops 注入を行わない (承認境界)。
+
+A-AT15 の backup/restore は verify-stack 構成に限り harness 内蔵経路
+(pg_dump → 別 compose project への isolated restore → readback) を使う。
+それ以外の stack では `TASTILE_ACCEPTANCE_OPS_CMD` の runbook が必要。
 
 ## 判定
 
@@ -35,3 +41,6 @@ ops 注入 (A-AT13–A-AT15) は `TASTILE_ACCEPTANCE_OPS` / `TASTILE_ACCEPTANCE_
 `BLOCKED` は環境・前提・資格情報の不足で判定不能を意味し、FAIL とは区別する。
 証跡は `.tmp/acceptance/<run-id>-<profile>/` に case ごとの check/step JSON と
 summary を書き出す。
+
+終了コード: `0` = FAIL/BLOCKED なし、`1` = 1 件以上の FAIL、`2` = FAIL なしで
+BLOCKED あり (または profile 設定エラー)。

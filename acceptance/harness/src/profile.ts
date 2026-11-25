@@ -2,6 +2,8 @@
 // A profile decides which base URLs are legal; a mismatch is a BLOCKED
 // configuration error, never a silent fallback to localhost.
 
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import type { EnvironmentName } from "./contract.ts";
 
 export interface OpsConfig {
@@ -41,7 +43,38 @@ function isLoopbackHost(hostname: string): boolean {
 }
 
 function isIpLiteral(hostname: string): boolean {
-  return /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname) || hostname.includes(":");
+  return isIP(hostname) !== 0;
+}
+
+function isPrivateIpv4(host: string): boolean {
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(host);
+  if (!m) return false;
+  const [a, b] = [Number(m[1]), Number(m[2])];
+  return (
+    a === 10 ||
+    a === 127 ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 169 && b === 254)
+  );
+}
+
+/** True when the host is loopback or resolves exclusively to private/loopback addresses. */
+async function isPrivateOrLoopbackHost(hostname: string): Promise<boolean> {
+  const h = hostname.toLowerCase();
+  if (isLoopbackHost(h)) return true;
+  if (isIP(h) !== 0) return isPrivateIpv4(h) || h === "::1" || h.startsWith("fc") || h.startsWith("fd") || h.startsWith("fe80");
+  try {
+    const res = await lookup(h, { all: true });
+    if (res.length === 0) return false;
+    return res.every((a) => isPrivateOrLoopbackLiteral(a.address));
+  } catch {
+    return false;
+  }
+}
+
+function isPrivateOrLoopbackLiteral(addr: string): boolean {
+  return isLoopbackHost(addr) || isPrivateIpv4(addr) || addr === "::1" || /^f[cd]/.test(addr) || addr.startsWith("fe80");
 }
 
 function parseHttpUrl(raw: string, what: string): URL {
@@ -57,7 +90,7 @@ function parseHttpUrl(raw: string, what: string): URL {
   return url;
 }
 
-export function resolveProfile(name: EnvironmentName, env: NodeJS.ProcessEnv = process.env): ResolvedProfile {
+export async function resolveProfile(name: EnvironmentName, env: NodeJS.ProcessEnv = process.env): Promise<ResolvedProfile> {
   const notes: string[] = [];
   const apiEnv = env.TASTILE_ACCEPTANCE_API_BASE;
   const webEnv = env.TASTILE_ACCEPTANCE_WEB_BASE;
@@ -91,7 +124,14 @@ export function resolveProfile(name: EnvironmentName, env: NodeJS.ProcessEnv = p
             dir: env.TASTILE_ACCEPTANCE_COMPOSE_DIR ?? "deploy/verify-stack",
             project: env.TASTILE_ACCEPTANCE_COMPOSE_PROJECT ?? "verify-stack",
             envFile: env.TASTILE_ACCEPTANCE_COMPOSE_ENV_FILE,
-            env: pickPrefixEnv(env, "TASTILE_VERIFY_"),
+            env: pickEnvPrefixes(env, [
+              "TASTILE_VERIFY_",
+              "TASTILE_API_",
+              "TASTILE_CORE_",
+              "TASTILE_WEB_BRIDGE_",
+              "TASTILE_DATABASE__",
+              "TASTILE_ALLOWED_",
+            ]),
           };
     return { name, apiBase, webBase, ops, notes };
   }
@@ -108,14 +148,29 @@ export function resolveProfile(name: EnvironmentName, env: NodeJS.ProcessEnv = p
       ["api", apiUrl],
       ["web", webUrl],
     ] as const) {
-      if (u.protocol === "http:" && !isLoopbackHost(u.hostname) && isIpLiteral(u.hostname)) {
-        throw new ProfileError(`${label} base must be https or loopback/private host, got ${u}`);
+      // http is only acceptable on loopback/private hosts; a public DNS
+      // name over plaintext would expose credentials and tokens.
+      if (u.protocol === "http:" && !(await isPrivateOrLoopbackHost(u.hostname))) {
+        throw new ProfileError(`${label} base must be https or a loopback/private host, got ${u}`);
       }
     }
+    // Ops injection is fail-closed: it must be explicitly requested via
+    // TASTILE_ACCEPTANCE_OPS_CMD (shell) or TASTILE_ACCEPTANCE_OPS=compose.
+    // Never default to the production compose project implicitly.
     const template = env.TASTILE_ACCEPTANCE_OPS_CMD;
     const ops: OpsConfig = template
       ? { kind: "shell", template }
-      : { kind: "compose", dir: env.TASTILE_ACCEPTANCE_COMPOSE_DIR ?? "deploy/prod-stack", project: env.TASTILE_ACCEPTANCE_COMPOSE_PROJECT ?? "tastile-prod", envFile: env.TASTILE_ACCEPTANCE_COMPOSE_ENV_FILE };
+      : env.TASTILE_ACCEPTANCE_OPS === "compose"
+        ? {
+            kind: "compose",
+            dir: env.TASTILE_ACCEPTANCE_COMPOSE_DIR ?? "deploy/prod-stack",
+            project: env.TASTILE_ACCEPTANCE_COMPOSE_PROJECT ?? "tastile-prod",
+            envFile: env.TASTILE_ACCEPTANCE_COMPOSE_ENV_FILE,
+          }
+        : { kind: "none" };
+    if (ops.kind === "none") {
+      notes.push("no ops channel configured; A-AT13/14/15 will be BLOCKED (set TASTILE_ACCEPTANCE_OPS_CMD or TASTILE_ACCEPTANCE_OPS=compose)");
+    }
     return {
       name,
       apiBase: apiEnv.replace(/\/+$/, ""),
@@ -154,10 +209,10 @@ export function resolveProfile(name: EnvironmentName, env: NodeJS.ProcessEnv = p
   };
 }
 
-function pickPrefixEnv(env: NodeJS.ProcessEnv, prefix: string): Record<string, string> {
+function pickEnvPrefixes(env: NodeJS.ProcessEnv, prefixes: string[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(env)) {
-    if (k.startsWith(prefix) && v !== undefined) out[k] = v;
+    if (v !== undefined && prefixes.some((p) => k.startsWith(p))) out[k] = v;
   }
   return out;
 }

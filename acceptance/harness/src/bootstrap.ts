@@ -2,10 +2,10 @@
 // All credentials belong to dedicated `acc-<runId>-*` owners created for
 // the run; nothing here touches operational data.
 
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Credential, RunContext } from "./ctx.ts";
 import { BlockedError } from "./ctx.ts";
-import type { HttpResponse } from "./http.ts";
+import { redact, type HttpResponse } from "./http.ts";
 
 export function idem(): string {
   return randomUUID();
@@ -17,8 +17,9 @@ export interface SignupInput {
   name?: string;
 }
 
+/** Evidence-safe token reference: sha256 prefix per contract common_rules. */
 function tokenPrefix(token: string): string {
-  return token.slice(0, 12);
+  return createHash("sha256").update(token).digest("hex").slice(0, 8);
 }
 
 /**
@@ -38,6 +39,7 @@ export async function signupViaWeb(
     timeoutMs: 30_000,
   });
   ctx.step(`signup.web ${name}`, res);
+  ctx.state.set(`signup.${name}`, res.status);
   if (res.status !== 200) {
     throw new BlockedError(`web sign-up failed for ${name}: status ${res.status}`);
   }
@@ -75,6 +77,7 @@ export async function signupViaCore(
     timeoutMs: 30_000,
   });
   ctx.step(`signup.core ${name}`, res);
+  ctx.state.set(`signup.${name}`, res.status);
   if (res.status !== 200 && res.status !== 201) {
     throw new BlockedError(
       `core sign-up unavailable for ${name} (status ${res.status}); production profiles must bootstrap via web`,
@@ -127,16 +130,26 @@ export async function mintApiToken(
   });
   ctx.step(`mint token ${opts.label}`, res);
   if (res.status !== 200 && res.status !== 201) {
-    throw new BlockedError(`mint api token failed: ${res.status} ${res.text.slice(0, 200)}`);
+    throw new BlockedError(`mint api token failed: ${res.status} ${redact(res.text).slice(0, 200)}`);
   }
   const view = res.json as { id?: string; token?: string; prefix?: string; scopes?: string };
   if (!view?.token) throw new BlockedError("api-token response missing raw token");
-  return { id: view.id ?? "", token: view.token, prefix: view.prefix ?? "", scopes: view.scopes ?? opts.scopes };
+  return { id: view.id ?? "", token: view.token, prefix: tokenPrefix(view.token), scopes: view.scopes ?? opts.scopes };
 }
 
 /** Discover the Core owner UUID for a credential (needed by changeset payloads). */
 export async function ensureOwnerId(ctx: RunContext, cred: Credential): Promise<string> {
   if (cred.ownerId) return cred.ownerId;
+  // Preferred probe: the session endpoint resolves owner_id without
+  // creating fixture rows. Works for session-shaped bearer tokens.
+  const sess = await ctx.api.get("/v1/auth/session", { bearer: cred.bearer });
+  if (sess.status === 200) {
+    const s = sess.json as { owner_id?: string; authenticated?: boolean } | null;
+    if (s?.authenticated && typeof s.owner_id === "string") {
+      cred.ownerId = s.owner_id;
+      return s.owner_id;
+    }
+  }
   const res = await ctx.api.get("/v1/tiles?limit=1", { bearer: cred.bearer });
   if (res.status === 200) {
     const body = res.json as { items?: { owner_id?: string }[] } | { owner_id?: string }[] | null;
@@ -182,13 +195,12 @@ export async function createTile(
         icon: input.icon ?? "check-circle",
         external_id: null,
         plan_role: 0,
-        owner_subject_id: null,
       },
     },
   });
   ctx.step(`create tile "${input.title}"`, res);
   if (res.status >= 300) {
-    throw new BlockedError(`create tile failed: ${res.status} ${res.text.slice(0, 200)}`);
+    throw new BlockedError(`create tile failed: ${res.status} ${redact(res.text).slice(0, 200)}`);
   }
   const body = res.json as {
     aggregate?: { id?: string };
@@ -240,7 +252,7 @@ export async function createPlacement(
   });
   ctx.step(`create placement ${input.tileId}`, res);
   if (res.status >= 300) {
-    throw new BlockedError(`create placement failed: ${res.status} ${res.text.slice(0, 200)}`);
+    throw new BlockedError(`create placement failed: ${res.status} ${redact(res.text).slice(0, 200)}`);
   }
   const body = res.json as { aggregate?: { id?: string } } | null;
   const placementId = body?.aggregate?.id;
@@ -250,4 +262,14 @@ export async function createPlacement(
 
 export async function getJson(ctx: RunContext, cred: Credential | null, path: string) {
   return ctx.api.get(path, cred ? { bearer: cred.bearer } : {});
+}
+
+/**
+ * Fixed-shape fixture window anchored to a future UTC date. Deterministic
+ * per run but never in the past, so `past_span_guard` cannot reject the
+ * fixture regardless of when the baseline executes.
+ */
+export function fixtureWindow(): { day: string; start: string; end: string } {
+  const day = new Date(Date.now() + 14 * 86_400_000).toISOString().slice(0, 10);
+  return { day, start: `${day}T09:00:00.000Z`, end: `${day}T10:00:00.000Z` };
 }

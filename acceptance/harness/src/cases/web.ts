@@ -51,10 +51,15 @@ export async function at02(ctx: RunContext): Promise<void> {
     ]);
     const page = await context.newPage();
     const apiHits: string[] = [];
+    const consoleErrors: string[] = [];
     page.on("response", (res) => {
       const u = res.url();
       if (u.includes("/api/proxy/v1/") || u.includes("/v1/")) apiHits.push(`${res.status()} ${u}`);
     });
+    page.on("console", (msg) => {
+      if (msg.type() === "error") consoleErrors.push(msg.text().slice(0, 200));
+    });
+    page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${String(err).slice(0, 200)}`));
 
     const resp = await page.goto(`${ctx.profile.webBase}/dashboard`, {
       waitUntil: "domcontentloaded",
@@ -65,6 +70,9 @@ export async function at02(ctx: RunContext): Promise<void> {
     await page.waitForTimeout(5_000);
     const bodyText = await page.locator("body").innerText().catch(() => "");
     const hasTile = bodyText.includes(title) || bodyText.includes("acc-at02");
+    // A proxy read that returned real data is the network-level oracle;
+    // any 2xx on the tiles collection specifically.
+    const proxyTilesOk = apiHits.some((h) => h.startsWith("2") && h.includes("/v1/tiles"));
     ctx.check(
       "login-render",
       !!resp && resp.status() < 400 && bodyText.trim().length > 0,
@@ -72,12 +80,20 @@ export async function at02(ctx: RunContext): Promise<void> {
     );
     ctx.check(
       "real-backend-data",
-      hasTile || apiHits.some((h) => h.startsWith("2")),
-      `tileVisible=${hasTile} apiHits=${apiHits.length}`,
+      hasTile || proxyTilesOk,
+      `tileVisible=${hasTile} proxyTiles2xx=${proxyTilesOk} apiHits=${apiHits.length}`,
     );
     const mockSignals = apiHits.filter((h) => /mock|fixture|serviceWorker/i.test(h));
     ctx.check("no-mock", mockSignals.length === 0, mockSignals.join("; ") || "no mock signals");
     ctx.state.set("at02.apiHits", apiHits);
+    ctx.state.set("at02.consoleErrors", consoleErrors.slice(0, 20));
+    ctx.note(`browser console errors: ${consoleErrors.length}`);
+    if (ctx.evidenceDir) {
+      const { mkdirSync } = await import("node:fs");
+      const { join } = await import("node:path");
+      mkdirSync(join(ctx.evidenceDir, "cases"), { recursive: true });
+      await page.screenshot({ path: join(ctx.evidenceDir, "cases", "A-AT02.png"), fullPage: true });
+    }
     void tile;
   } finally {
     await browser.close();

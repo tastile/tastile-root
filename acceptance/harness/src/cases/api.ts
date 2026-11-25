@@ -9,6 +9,7 @@ import {
   createTile,
   ensureOwner,
   ensureOwnerId,
+  fixtureWindow,
   idem,
   mintApiToken,
 } from "../bootstrap.ts";
@@ -65,6 +66,14 @@ export async function at05(ctx: RunContext): Promise<void> {
   ctx.step("GET /v1/tiles/{id} (muse token)", read);
   ctx.check("direct-crud", read.status === 200, `readback status ${read.status}`);
   ctx.state.set("at05.tileId", tileId);
+
+  // no-browser-dep: a cookie-free client must complete the same CRUD using
+  // only the scoped Bearer token (no session cookie, no bridge header).
+  const { ApiClient } = await import("../http.ts");
+  const bare = new ApiClient(ctx.profile.apiBase);
+  const bareRead = await bare.get(`/v1/tiles/${tileId}`, { bearer: muse.token });
+  ctx.step("GET /v1/tiles/{id} (fresh client, bearer only)", bareRead);
+  ctx.check("no-browser-dep", bareRead.status === 200, `status ${bareRead.status}`);
   void owner;
 }
 
@@ -150,7 +159,10 @@ export async function at07(ctx: RunContext): Promise<void> {
   ctx.step("B patches A tile", patchB);
   ctx.check("cross-write-denied", patchB.status === 403 || patchB.status === 404, `status ${patchB.status}`);
 
-  const delB = await ctx.api.delete(`/v1/tiles/${tileA.tileId}`, { bearer: ownerB.bearer });
+  const delB = await ctx.api.delete(`/v1/tiles/${tileA.tileId}`, {
+    bearer: ownerB.bearer,
+    body: { idempotency_key: idem(), payload: { tile_id: tileA.tileId } },
+  });
   ctx.step("B deletes A tile", delB);
   ctx.check("cross-write-denied", delB.status === 403 || delB.status === 404, `delete status ${delB.status}`);
 
@@ -231,6 +243,28 @@ export async function at08(ctx: RunContext): Promise<void> {
   ctx.step("idempotent replay #2", r2);
   ctx.check("idempotent-replay", !!id1 && id1 === id2, `ids ${id1}/${id2}`);
 
+  // revision-monotonic: an accepted mutation must advance the revision.
+  const before = await ctx.api.get(`/v1/tiles/${tileId}`, { bearer: owner.bearer });
+  const revBefore = (before.json as { revision?: number } | null)?.revision;
+  const upd = await ctx.api.post(`/v1/tiles/${tileId}/update`, {
+    bearer: owner.bearer,
+    body: {
+      idempotency_key: idem(),
+      payload: { tile_id: tileId, title: `${title}-rev` },
+    },
+  });
+  ctx.step("POST /v1/tiles/{id}/update (revision probe)", upd);
+  const after = await ctx.api.get(`/v1/tiles/${tileId}`, { bearer: owner.bearer });
+  const revAfter = (after.json as { revision?: number } | null)?.revision;
+  ctx.check(
+    "revision-monotonic",
+    upd.status < 300 &&
+      typeof revBefore === "number" &&
+      typeof revAfter === "number" &&
+      revAfter > revBefore,
+    `rev ${revBefore} -> ${revAfter} (update=${upd.status})`,
+  );
+
   const list = await ctx.api.get("/v1/tiles?limit=200", { bearer: owner.bearer });
   ctx.check("readback-match", list.status === 200 && list.text.includes(tileId), "tile not in owner list");
 
@@ -253,9 +287,7 @@ export async function ensurePlacementFixture(ctx: RunContext): Promise<Placement
   const cached = ctx.state.get("placementFixture") as PlacementFixture | undefined;
   if (cached) return cached;
   const owner = await ownerA(ctx);
-  const day = "2026-12-01";
-  const start = `${day}T09:00:00.000Z`;
-  const end = `${day}T10:00:00.000Z`;
+  const { start, end } = fixtureWindow();
   const tile = await createTile(ctx, owner, { title: `acc-fixture-${ctx.runId}` });
   if (!tile.planId) throw new BlockedError("fixture tile has no plan_id");
   const placement = await createPlacement(ctx, owner, {
@@ -298,8 +330,10 @@ export async function at11(ctx: RunContext): Promise<void> {
     `status ${patch.status}/${after.status} title=${view?.title}`,
   );
 
-  // re-place: append a placement-layer ChangeSet moving span_start.
-  const newStart = "2026-12-01T11:00:00.000Z";
+  // re-place: append a placement-layer ChangeSet extending span_end
+  // (part 1). Moving span_start risks an inverted span; extending the
+  // end keeps the fixture valid while still proving re-placement.
+  const newEnd = `${fx.start.slice(0, 10)}T11:00:00.000Z`;
   const changeset = {
     id: idem(),
     owner_id: ownerId,
@@ -309,9 +343,9 @@ export async function at11(ctx: RunContext): Promise<void> {
     changes: [
       {
         id: idem(),
-        key: { group: 5, item: null, part: 0 },
-        kind: 2,
-        value: { Instant: newStart },
+        key: { group: 5, item: null, part: 1 },
+        kind: 0,
+        value: { Instant: newEnd },
         merge: 0,
         source: 2,
         source_ref: null,
@@ -330,13 +364,23 @@ export async function at11(ctx: RunContext): Promise<void> {
     body: { idempotency_key: idem(), payload: { placement_id: fx.placementId, changeset } },
   });
   ctx.step("POST /v1/placements/{id}/changes", ch);
-  const placementView = await ctx.api.get(`/v1/placements/${fx.placementId}`, { bearer: owner.bearer });
-  const pv = placementView.json as { span?: { start?: string; end?: string } } | null;
-  const moved = pv?.span?.start === newStart || pv?.span?.start === `${newStart.replace(".000Z", "Z")}`;
+  // GET /v1/placements/{id} returns the baseline span; the resolved
+  // (ChangeSet-applied) span is only materialized by /v1/timeline.
+  const tl = await ctx.api.get(
+    `/v1/timeline?start=${encodeURIComponent(`${fx.start.slice(0, 10)}T00:00:00.000Z`)}&end=${encodeURIComponent(`${fx.start.slice(0, 10)}T23:59:59.999Z`)}`,
+    { bearer: owner.bearer },
+  );
+  const items = Array.isArray(tl.json) ? (tl.json as Record<string, unknown>[]) : [];
+  const item = items.find((i) => i.placement_id === fx.placementId) as
+    | { span?: { start?: string; end?: string } }
+    | undefined;
+  const resolvedEnd = item?.span?.end;
+  const norm = (s?: string) => (s ?? "").replace(".000Z", "Z");
+  const moved = norm(resolvedEnd) === norm(newEnd);
   ctx.check(
     "re-place",
-    ch.status < 300 && placementView.status === 200 && moved,
-    `changes=${ch.status} span=${JSON.stringify(pv?.span)}`,
+    ch.status < 300 && tl.status === 200 && moved,
+    `changes=${ch.status} timeline=${tl.status} span_end=${resolvedEnd ?? "?"} expected=${newEnd}`,
   );
 
   // no-loss: another fixture tile remains intact
@@ -350,7 +394,10 @@ export async function at11(ctx: RunContext): Promise<void> {
 
   // delete/archive: archive the fixture tile, verify it leaves the list
   // but placement history is still readable.
-  const del = await ctx.api.delete(`/v1/tiles/${fx.tileId}`, { bearer: owner.bearer });
+  const del = await ctx.api.delete(`/v1/tiles/${fx.tileId}`, {
+    bearer: owner.bearer,
+    body: { idempotency_key: idem(), payload: { tile_id: fx.tileId } },
+  });
   ctx.step("DELETE /v1/tiles/{id} (archive)", del);
   const list = await ctx.api.get("/v1/tiles?limit=200", { bearer: owner.bearer });
   const stillListed = list.text.includes(fx.tileId);
@@ -380,16 +427,29 @@ export async function at12(ctx: RunContext): Promise<void> {
 
   const pause = await ctx.api.post(`/v1/executions/${executionId}/pause`, {
     bearer: owner.bearer,
-    body: { idempotency_key: idem(), payload: { execution_id: executionId } },
+    body: { idempotency_key: idem(), payload: null },
   });
   ctx.step("POST executions/{id}/pause", pause);
+  const pausedView = await ctx.api.get(`/v1/executions/${executionId}`, { bearer: owner.bearer });
+  const pausedState = (pausedView.json as { state?: number } | null)?.state;
 
   const resume = await ctx.api.post(`/v1/executions/${executionId}/resume`, {
     bearer: owner.bearer,
-    body: { idempotency_key: idem(), payload: { execution_id: executionId } },
+    body: { idempotency_key: idem(), payload: null },
   });
   ctx.step("POST executions/{id}/resume", resume);
-  ctx.check("pause-resume", pause.status < 300 && resume.status < 300, `pause=${pause.status} resume=${resume.status}`);
+  const resumedView = await ctx.api.get(`/v1/executions/${executionId}`, { bearer: owner.bearer });
+  const resumedState = (resumedView.json as { state?: number } | null)?.state;
+
+  // ExecutionState is numeric on the wire: 0=Active, 1=Paused.
+  ctx.check(
+    "pause-resume",
+    pause.status < 300 &&
+      resume.status < 300 &&
+      pausedState === 1 &&
+      resumedState === 0,
+    `pause=${pause.status} resume=${resume.status} state ${pausedState} -> ${resumedState}`,
+  );
 
   const finish = await ctx.api.post(`/v1/executions/${executionId}/finish`, {
     bearer: owner.bearer,
@@ -402,13 +462,27 @@ export async function at12(ctx: RunContext): Promise<void> {
   ctx.check("finish", finish.status < 300, `status ${finish.status} ${finish.text.slice(0, 200)}`);
 
   const view = await ctx.api.get(`/v1/executions/${executionId}`, { bearer: owner.bearer });
-  const viewBody = view.json as Record<string, unknown> | null;
+  const viewBody = view.json as {
+    state?: number;
+    finished_at?: string | null;
+    finish_kind?: number | null;
+    placement_id?: string | null;
+  } | null;
   ctx.step("GET /v1/executions/{id}", view);
-  ctx.check("history-kept", view.status === 200 && viewBody !== null, `status ${view.status}`);
+  const finishedOk =
+    view.status === 200 &&
+    viewBody !== null &&
+    (viewBody.state === 2 || viewBody.state === 3) &&
+    typeof viewBody.finished_at === "string";
+  ctx.check(
+    "history-kept",
+    finishedOk,
+    `status=${view.status} state=${viewBody?.state} finished_at=${viewBody?.finished_at ?? "null"} kind=${viewBody?.finish_kind}`,
+  );
 
   const badResume = await ctx.api.post(`/v1/executions/${executionId}/resume`, {
     bearer: owner.bearer,
-    body: { idempotency_key: idem(), payload: { execution_id: executionId } },
+    body: { idempotency_key: idem(), payload: null },
   });
   ctx.step("POST executions/{id}/resume after finish", badResume);
   ctx.check("invalid-transition", badResume.status >= 400, `status ${badResume.status}`);

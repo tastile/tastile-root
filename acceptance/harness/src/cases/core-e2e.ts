@@ -12,6 +12,9 @@ import { ensureOwner, ensureOwnerId, idem, mintApiToken } from "../bootstrap.ts"
 import { ensurePlacementFixture } from "./api.ts";
 
 export async function coreE2E(ctx: RunContext): Promise<void> {
+  // The scenario intrinsically starts at the web login; without a web
+  // base the whole chain is unverifiable -> BLOCKED, not partial PASS.
+  ctx.requireWeb();
   const chain: Array<[string, () => Promise<void>]> = [];
 
   // 1) web login (Better Auth signup + bridge)
@@ -131,8 +134,8 @@ export async function coreE2E(ctx: RunContext): Promise<void> {
       const execId = (start.json as { aggregate?: { id?: string } } | null)?.aggregate?.id;
       if (!execId || start.status >= 300) throw new BlockedError(`start failed: ${start.status}`);
       for (const [name, path, payload] of [
-        ["pause", `/v1/executions/${execId}/pause`, { execution_id: execId }],
-        ["resume", `/v1/executions/${execId}/resume`, { execution_id: execId }],
+        ["pause", `/v1/executions/${execId}/pause`, null],
+        ["resume", `/v1/executions/${execId}/resume`, null],
         ["finish", `/v1/executions/${execId}/finish`, { execution_id: execId, kind: 0, note: "e2e" }],
       ] as const) {
         const r = await ctx.api.post(path, {
@@ -171,10 +174,18 @@ export async function coreE2E(ctx: RunContext): Promise<void> {
       const fx = ctx.state.get("placementFixture") as { tileId: string; placementId: string };
       const t = await ctx.api.get(`/v1/tiles/${fx.tileId}`, { bearer: owner.bearer });
       const p = await ctx.api.get(`/v1/placements/${fx.placementId}`, { bearer: owner.bearer });
+      const e = ctx.state.get("e2e.executionId") as string | undefined;
+      const ev = e ? await ctx.api.get(`/v1/executions/${e}`, { bearer: owner.bearer }) : null;
       ctx.step("e2e post-restart tile", t);
       ctx.step("e2e post-restart placement", p);
-      if (t.status !== 200 || p.status !== 200) {
-        throw new BlockedError(`post-restart readback failed: tile=${t.status} placement=${p.status}`);
+      ctx.step("e2e post-restart execution", ev);
+      const ok =
+        t.status === 200 &&
+        p.status === 200 &&
+        (ev === null || ev.status === 200);
+      ctx.state.set("e2e.postRestartOk", ok);
+      if (!ok) {
+        throw new BlockedError(`post-restart readback failed: tile=${t.status} placement=${p.status} exec=${ev?.status}`);
       }
     },
   ]);
@@ -195,26 +206,38 @@ export async function coreE2E(ctx: RunContext): Promise<void> {
 
   // cross-surface consistency was asserted inside stages; final aggregate check
   const owner = ctx.creds.get("ownerA");
-  if (owner && ctx.state.get("e2e.tileId")) {
+  if (owner && ctx.state.get("e2e.tileId") && ctx.profile.webBase) {
     const tileId = ctx.state.get("e2e.tileId") as string;
     const viaApi = await ctx.api.get(`/v1/tiles/${tileId}`, { bearer: owner.bearer });
-    let viaWebStatus: number | null = null;
-    if (ctx.profile.webBase) {
-      const viaWeb = await ctx.web.get(`/api/proxy/v1/tiles/${tileId}`);
-      viaWebStatus = viaWeb.status;
-    }
+    const viaWeb = await ctx.web.get(`/api/proxy/v1/tiles/${tileId}`);
+    const aview = viaApi.json as { title?: string; revision?: number } | null;
+    const wview = viaWeb.json as { title?: string; revision?: number } | null;
+    ctx.step("e2e cross-surface api read", viaApi);
+    ctx.step("e2e cross-surface web read", viaWeb);
     ctx.check(
       "cross-surface-consistency",
-      viaApi.status === 200 && (viaWebStatus === null || viaWebStatus === 200),
-      `api=${viaApi.status} web=${viaWebStatus ?? "n/a"}`,
+      viaApi.status === 200 &&
+        viaWeb.status === 200 &&
+        aview?.title === wview?.title &&
+        aview?.revision === wview?.revision,
+      `api=${viaApi.status} web=${viaWeb.status} apiRev=${aview?.revision} webRev=${wview?.revision}`,
     );
   } else {
-    ctx.check("cross-surface-consistency", false, "fixture missing");
+    ctx.check(
+      "cross-surface-consistency",
+      false,
+      owner && ctx.state.get("e2e.tileId")
+        ? "web_base not configured; cross-surface readback impossible"
+        : "fixture missing",
+    );
   }
 
+  const restartExpected = ctx.profile.ops.kind !== "none";
   ctx.check(
     "post-restart-state",
-    ctx.profile.ops.kind === "none" ? true : ctx.state.get("e2e.postRestartOk") !== false,
-    ctx.profile.ops.kind === "none" ? "https profile: restart persistence covered by prod-equivalent run" : "verified inline",
+    !restartExpected || ctx.state.get("e2e.postRestartOk") === true,
+    restartExpected
+      ? `postRestartOk=${ctx.state.get("e2e.postRestartOk")}`
+      : "https profile: restart persistence covered by prod-equivalent run",
   );
 }

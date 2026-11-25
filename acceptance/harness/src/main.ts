@@ -79,7 +79,7 @@ async function main(): Promise<number> {
 
   let profile: ResolvedProfile;
   try {
-    profile = resolveProfile(args.profile);
+    profile = await resolveProfile(args.profile);
   } catch (e) {
     if (e instanceof ProfileError) {
       console.error(`profile error: ${e.message}`);
@@ -118,18 +118,19 @@ async function main(): Promise<number> {
       continue;
     }
 
-    // case prerequisites of type {"type":"case"}
+    // Case-type prerequisites enforce ordering and fixture availability,
+    // not verdict gating: each case self-bootstraps its fixtures, so a
+    // FAIL/BLOCKED dependency must not hide downstream coverage. A dep is
+    // unmet only when it did not execute at all (N-A / NOT-RUN / absent).
+    // --only runs are single-case debug sessions: prerequisites are skipped.
     const unmet: string[] = [];
-    for (const p of contractCase.prerequisites) {
-      const pr = p as { type?: string; id?: string; ids?: string[] };
-      if (pr.type === "case" && pr.id) {
-        const dep = results.find((r) => r.id === pr.id);
-        if (!dep || dep.verdict !== "PASS") unmet.push(pr.id);
-      }
-      if (pr.type === "cases" && pr.ids) {
-        for (const id of pr.ids) {
+    if (!args.only) {
+      for (const p of contractCase.prerequisites) {
+        const pr = p as { type?: string; id?: string; ids?: string[] };
+        const depIds = pr.type === "case" && pr.id ? [pr.id] : pr.type === "cases" && pr.ids ? pr.ids : [];
+        for (const id of depIds) {
           const dep = results.find((r) => r.id === id);
-          if (!dep || dep.verdict !== "PASS") unmet.push(id);
+          if (!dep || dep.verdict === "N-A" || dep.verdict === "NOT-RUN") unmet.push(id);
         }
       }
     }
@@ -190,6 +191,10 @@ async function main(): Promise<number> {
   }, {});
   console.log(`\nevidence: ${resolve(evidenceDir)}`);
   console.log(`verdicts: ${JSON.stringify(counts)}`);
+  // Exit codes mirror the workspace check convention:
+  //   0 = no FAIL/BLOCKED, 1 = at least one FAIL, 2 = BLOCKED without FAIL.
+  if ((counts.FAIL ?? 0) > 0) return 1;
+  if ((counts.BLOCKED ?? 0) > 0) return 2;
   return 0;
 }
 

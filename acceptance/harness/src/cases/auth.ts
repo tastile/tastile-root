@@ -8,7 +8,16 @@ export async function at03(ctx: RunContext): Promise<void> {
   ctx.requireWeb();
   const owner = await ensureOwner(ctx, "ownerA");
 
-  // signup already happened inside ensureOwner; verify session continuity
+  // signup already happened inside ensureOwner; the bootstrap recorded the
+  // sign-up response status on the run context.
+  const signupStatus = ctx.state.get("signup.ownerA") as number | undefined;
+  ctx.check(
+    "signup",
+    owner.createdVia === "web-bridge" && signupStatus === 200,
+    `sign-up status=${signupStatus ?? "not recorded"} via=${owner.createdVia}`,
+  );
+
+  // verify session continuity
   // by reusing the bridge-issued credential against Core.
   const tiles = await ctx.api.get("/v1/tiles", { bearer: owner.bearer });
   ctx.step("GET /v1/tiles with bridge token", tiles);

@@ -1,6 +1,6 @@
 {
   "schema": "tastile/acceptance-contract/v1",
-  "contract_version": "0.1.0",
+  "contract_version": "0.1.1",
   "status": "draft-baseline",
   "canonical_issue": "tastile/tastile-root#165",
   "contract_issue": "tastile/tastile-root#166",
@@ -532,7 +532,7 @@
         {"id": "db-not-public", "description": "DB port への外部接続が拒否"},
         {"id": "worker-not-public", "description": "worker/内部管理経路が外部から不達"},
         {"id": "origin-bypass-denied", "description": "偽 Host/Origin header での bypass が拒否または無効"},
-        {"id": "internal-headers-blocked", "description": "x-tastile-web-bridge-secret 等の内部 header を外部から注入しても認証にならない"}
+        {"id": "internal-headers-blocked", "description": "x-tastile-web-bridge-secret 等の内部 header を外部から注入しても認証にならない。protected 環境では x-owner-id fallback も拒否。local (TASTILE_ENV=development) では x-owner-id/x-actor-id header pair は仕様上の bootstrap fallback として有効であり、その場合は証跡に明記する"}
       ],
       "steps": [
         "公開 base に対し未認証・内部 header 付き・偽 origin で request",

@@ -26,6 +26,12 @@ const SECRET_PATTERNS: [RegExp, string][] = [
   [/Bearer\s+\S+/gi, "Bearer <redacted>"],
   [/"token"\s*:\s*"[^"]+"/g, '"token":"<redacted>"'],
   [/"access_token"\s*:\s*"[^"]+"/g, '"access_token":"<redacted>"'],
+  [/"refresh_token"\s*:\s*"[^"]+"/g, '"refresh_token":"<redacted>"'],
+  [/"session_token"\s*:\s*"[^"]+"/g, '"session_token":"<redacted>"'],
+  [/"api_token"\s*:\s*"[^"]+"/g, '"api_token":"<redacted>"'],
+  [/"password"\s*:\s*"[^"]+"/g, '"password":"<redacted>"'],
+  [/"secret"\s*:\s*"[^"]+"/g, '"secret":"<redacted>"'],
+  [/(set-cookie|cookie)"?\s*[:=]\s*"?[^\s";]+/gi, "$1=<redacted>"],
 ];
 
 export function redact(text: string): string {
