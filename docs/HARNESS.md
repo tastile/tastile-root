@@ -250,11 +250,19 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 - ~~すべてのデプロイが **CLI で完結**~~ → 現行の build / test / 実行検証は各リポジトリの CLI (cargo / bun / scripts) でローカル完結
 - Docker は使わない。**開発環境でも本番環境でも Linux バイナリが直接動く** (ローカル実行でも同様)
 
-### 6-4. env 管理
+### 6-4. env 管理 ※廃止済み経路の記録 (現行は §6-5 / ADR-0025)
+
+> **2026-11-25 改訂 (tastile-root#174)**: 本節の SOPS + AWS KMS + SSM 経路は
+> **適用されず廃止** された。secret の編集正本 (SoT) は **Infisical** であり、
+> 実行時は最小権限で供給する (§6-5 参照)。`infra/sops/` の Terraform は
+> 未 apply (state なし) で、apply すると KMS key が $1/key/月の課金対象に
+> なるため **apply 禁止** とする。`scripts/sops-decrypt.ts` /
+> `scripts/sops.config.ts` は placeholder ARN の dead path として削除済み。
+> 以下は歴史的経緯の記録であり、現行の手順として使わないこと。
 
 - `.env` に含まれる項目すべてを **`.env.example`** として残す (値は空)
-- canonical として **`.env.<env>.sops`** (AWS KMS で暗号化された ciphertext) を commit し、起動時に bun loader (`scripts/sops-decrypt.ts`) が KMS Decrypt で `.env.<env>` へ復号する。KMS key policy は developer SSO / GitHub Actions OIDC role / EC2 instance profile の 3 principal category を allow する (旧 `kms:ViaService` condition は SSO 直接復号を誤って遮断していたため除去済み — 経緯は `docs/adr/0006-kms-viaservice-removal.md`、設計は `docs/superpowers/specs/2026-08-27-sops-env-decryption-design.md` を参照)
-- production の hot path は **AWS SSM Parameter Store / Secrets Manager** を並列維持し、systemd `EnvironmentFile=` 経由で配信する (SOPS 復号値と衝突しないよう、infra URL 類は SSM 側 / application secret は `.sops` 側で分担)
+- (廃止) canonical として **`.env.<env>.sops`** (AWS KMS で暗号化された ciphertext) を commit し、起動時に bun loader (`scripts/sops-decrypt.ts`) が KMS Decrypt で `.env.<env>` へ復号する。KMS key policy は developer SSO / GitHub Actions OIDC role / EC2 instance profile の 3 principal category を allow する (旧 `kms:ViaService` condition は SSO 直接復号を誤って遮断していたため除去済み — 経緯は `docs/adr/0006-kms-viaservice-removal.md`、設計は `docs/superpowers/specs/2026-08-27-sops-env-decryption-design.md` を参照)
+- (廃止) production の hot path は **AWS SSM Parameter Store / Secrets Manager** を並列維持し、systemd `EnvironmentFile=` 経由で配信する (SOPS 復号値と衝突しないよう、infra URL 類は SSM 側 / application secret は `.sops` 側で分担)
 - 平文 `.env` / `.env.<env>` は `.gitignore` で除外 (loader が起動時に書き出す)
 
 ### 6-5. 採用構成 — Native-first 正式リリース (2026-11-24, ADR-0025 / #141)
@@ -415,7 +423,7 @@ Phase 5: 旧 v0 撤去 (全クライアント v1 移行後)                     
 - **コンテナ利用は ADR-0025 の採用範囲に限定**: 専用 VM の本番 Compose と隔離 verify-stack (#104) では Docker Compose を使う。それ以外の環境でのコンテナ依存追加は ADR 改訂を要する
 - **PostgreSQL の enum 型を使わない**: `smallint` + アプリ Registry
 - **JSONB を正本に保存しない**: 子テーブルへ正規化
-- **env の値をリポジトリにコミットしない**: `.env.example` に項目のみ残す (`.env.<env>.sops` は KMS で暗号化された ciphertext であり例外 — §6-4 参照)
+- **env の値をリポジトリにコミットしない**: `.env.example` に項目のみ残す。secret の SoT は Infisical (§6-5 / ADR-0025)。旧 `.env.<env>.sops` 経路は廃止 (§6-4 参照)
 - **存在しない外部ドキュメントを参照しない**: `pomodoroom/CORE_POLICY.md` / `tastile_docs_bundle/` 等の旧参照は禁止
 
 ---
