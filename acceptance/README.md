@@ -10,6 +10,9 @@
   実装はこの契約を読み、registry が contract と完全一致しない限り実行しない。
 - `harness/` — Bun/TypeScript 製ハーネス。HTTP client、ブラウザ (Playwright)、
   fixture bootstrap、ops 注入チャネル、証跡 writer、runner を持つ。
+- `muse-access.md` — Muse 実行環境からの直接 HTTP probe と資格情報供給経路の設計
+  (#150 が実施、A-AT05/A-AT06/A-AT16 に対応)。
+- `review/` — 実装レビュー記録。
 
 ## 実行
 
