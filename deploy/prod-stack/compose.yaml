@@ -202,7 +202,7 @@ services:
       APP_DOMAIN: ${APP_DOMAIN:?set APP_DOMAIN}
       API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN}
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./${CADDYFILE:-Caddyfile}:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
       - caddy-config:/config
     restart: unless-stopped

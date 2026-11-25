@@ -1,0 +1,53 @@
+# Tunnel-mode variant of Caddyfile (root#144, NF04-R04).
+#
+# Selected by setting CADDYFILE=Caddyfile.tunnel in the stack env file.
+# Use this whenever public TLS terminates at Cloudflare Tunnel: caddy then
+# serves plain HTTP inside the compose network and never attempts ACME for
+# the public hostnames (which would fail anyway — ports are loopback-only
+# or tunnel-only). cloudflared reaches `http://caddy:80`.
+#
+# The direct-ingress Caddyfile stays the default: without the tunnel
+# profile, caddy is the public edge and needs real certificates.
+#
+# Resource ceilings are identical to Caddyfile — keep the two files in sync
+# except for the TLS/auto_https differences noted below.
+
+{
+	auto_https off
+	servers {
+		max_header_size 64KB
+		timeouts {
+			read_header 10s
+			read_body 30s
+			idle 2m
+		}
+	}
+}
+
+{$APP_DOMAIN} {
+	request_body {
+		max_size 32MB
+	}
+	reverse_proxy web:3000 {
+		transport http {
+			max_conns_per_host 256
+		}
+		unhealthy_request_count 256
+		fail_duration 30s
+		max_fails 3
+	}
+}
+
+{$API_DOMAIN} {
+	request_body {
+		max_size 32MB
+	}
+	reverse_proxy api:31400 {
+		transport http {
+			max_conns_per_host 512
+		}
+		unhealthy_request_count 512
+		fail_duration 30s
+		max_fails 3
+	}
+}
