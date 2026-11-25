@@ -56,15 +56,25 @@ export async function at02(ctx: RunContext): Promise<void> {
     });
     page.on("pageerror", (err) => consoleErrors.push(`pageerror: ${String(err).slice(0, 200)}`));
 
-    const resp = await page.goto(`${ctx.profile.webBase}/dashboard`, {
-      waitUntil: "domcontentloaded",
-      timeout: 60_000,
-    });
+    // Warm the route server-side first: `next dev` compiles on first hit and
+    // a cold compile can exceed the browser navigation timeout.
+    await ctx.web.get("/dashboard").catch(() => null);
+    let resp: Awaited<ReturnType<typeof page.goto>> = null;
+    for (let attempt = 0; attempt < 2 && !resp; attempt++) {
+      try {
+        resp = await page.goto(`${ctx.profile.webBase}/dashboard`, {
+          waitUntil: "domcontentloaded",
+          timeout: 90_000,
+        });
+      } catch {
+        await page.waitForTimeout(2_000);
+      }
+    }
     ctx.step("browser GET /dashboard", null, `status=${resp?.status()}`);
     // Dev-mode Next compiles routes on first hit; poll until the page
     // has real content instead of sampling once.
     let bodyText = "";
-    const contentDeadline = Date.now() + 45_000;
+    const contentDeadline = Date.now() + 90_000;
     while (Date.now() < contentDeadline) {
       bodyText = await page.locator("body").innerText().catch(() => "");
       if (bodyText.trim().length > 200 || bodyText.includes(title)) break;
@@ -109,7 +119,11 @@ export async function at02(ctx: RunContext): Promise<void> {
       const { mkdirSync } = await import("node:fs");
       const { join } = await import("node:path");
       mkdirSync(join(ctx.evidenceDir, "cases"), { recursive: true });
-      await page.screenshot({ path: join(ctx.evidenceDir, "cases", "A-AT02.png"), fullPage: true });
+      // Evidence capture is best-effort: a busy dev-mode page must not
+      // turn a passed case into a FAIL.
+      await page
+        .screenshot({ path: join(ctx.evidenceDir, "cases", "A-AT02.png"), fullPage: true, timeout: 20_000 })
+        .catch(() => {});
     }
     void tile;
   } finally {

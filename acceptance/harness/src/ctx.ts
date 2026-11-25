@@ -51,6 +51,10 @@ export interface Credential {
   ownerId?: string;
   /** token prefix only — never the raw secret. */
   tokenPrefix: string;
+  /** Signup coordinates kept in memory so a case can re-authenticate the
+   *  same owner after a deliberate sign-out. Never written to evidence. */
+  email?: string;
+  password?: string;
   createdVia: "core-signup" | "web-bridge" | "api-token";
 }
 

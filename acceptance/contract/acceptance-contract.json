@@ -1,6 +1,6 @@
 {
   "schema": "tastile/acceptance-contract/v1",
-  "contract_version": "0.1.1",
+  "contract_version": "0.1.2",
   "status": "draft-baseline",
   "canonical_issue": "tastile/tastile-root#165",
   "contract_issue": "tastile/tastile-root#166",
@@ -109,7 +109,7 @@
       "environments": ["local", "prod-equivalent", "https"],
       "kind": "browser",
       "destructive": false,
-      "timeout_seconds": 180,
+      "timeout_seconds": 360,
       "owner_issues": ["tastile/tastile-web#252", "tastile/tastile-web#253", "tastile/tastile-web#200"],
       "prerequisites": [
         {"type": "profile", "profile": "*", "detail": "web_base が設定済みで到達可能"},
