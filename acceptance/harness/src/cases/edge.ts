@@ -105,7 +105,17 @@ export async function at01(ctx: RunContext): Promise<void> {
     try {
       const cert = await tlsPeerCert(u.toString());
       const notAfter = new Date(cert.valid_to);
-      const hostnameOk = cert.san.some((s) => s.replace(/^DNS:/, "") === u.hostname) || cert.subject === u.hostname;
+      // SAN matching must honor wildcard entries: `*.tastile.app` covers
+      // `acc-api.tastile.app` (single left-most label only, per RFC 6125).
+      const hostnameOk = cert.san.some((s) => {
+        const name = s.replace(/^DNS:/, "");
+        if (name === u.hostname) return true;
+        if (name.startsWith("*.")) {
+          const suffix = name.slice(1); // ".tastile.app"
+          return u.hostname.endsWith(suffix) && !u.hostname.slice(0, -suffix.length).includes(".");
+        }
+        return false;
+      }) || cert.subject === u.hostname;
       const ok = notAfter.getTime() > Date.now() && hostnameOk && cert.issuer.length > 0;
       tlsOk = tlsOk && ok;
       tlsDetails.push(`${label}: issuer=${cert.issuer} notAfter=${cert.valid_to} hostnameOk=${hostnameOk} san=${cert.san.join(",")}`);
