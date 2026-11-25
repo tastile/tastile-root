@@ -59,7 +59,10 @@ N-A、その他 case は prod-equivalent で代替検証済み。本書は `http
       `TUNNEL_TOKEN` / Access service token は未登録。配置案は
       `docs/runbooks/cloudflare-tunnel-access.md` §5.5 を参照)。
 - [ ] `TUNNEL_TOKEN`、Access service token、`BETTER_AUTH_SECRET`、
-      `TASTILE_WEB_BRIDGE_SECRET`、Stripe 系が対象 environment で解決できること。
+      `TASTILE_WEB_BRIDGE_SECRET` が対象 environment で解決できること。
+- [ ] `STRIPE_*` は **設定しない** (Phase A は課金経路を使わない。
+      空のままなら web の billing route は fail-closed で無効化される。
+      下記「費用境界」を参照)。
 - [ ] secret 値を本 repository / `.tmp/` 以外へ commit しないこと。
 
 ### 4. 実行時の確認
@@ -88,6 +91,22 @@ bun src/main.ts --profile https \
   `no-plain-http-bypass` / `no-direct-backend`) が PASS。
 - 残り全 case が `https` プロファイルで PASS (ops 依存 case は
   契約上 prod-equivalent/local 側の証跡を参照する)。
+
+## 費用境界 (Phase A での経路別判定、2026-11-25 時点)
+
+| 経路 | Phase A 判定 | 状態 |
+|---|---|---|
+| Stripe | **無効化** | prod env で `STRIPE_*` を未設定にする。compose は `:-` 既定で空を注入し、web の `getStripe()` は "Missing STRIPE_SECRET_KEY" で fail-closed。稼働中の既存 prod (app.tastile.app) が使う Infisical prod `/tastile/web` の値は**変更しない** — Phase A 用 env は別途 render する |
+| Resend (mail) | 任意・上限付き | `TASTILE_MAIL_PROVIDER=auto` は `RESEND_API_KEY` 未設定時 noop 相当。設定する場合も hourly 20 / daily 90 の quota が Resend Free (~100/day, ~3,000/month、自動有料化なし) 内に収まる設計 (web#262) |
+| R2 (`tastile-desktop-releases`) | **維持** | desktop 配布の既存用途。Phase A で新規利用しないが、既存配布を破壊しない |
+| Hyperdrive | 不使用 | `wrangler.jsonc` の Workers deploy 経路のみ。Phase A は compose 配備のため binding 自体が生成されない |
+| Cloudflare Tunnel / Access | 無料枠 | Argo Tunnel / Access service token は Cloudflare Free プランの範囲。使用量課金の自動昇格設定は行わない |
+| AWS / SES / Cognito / SOPS / KMS | 除去済み | web#262 (PR #271, release-1-1-0 merge 済み) で SES mailer を provider-agnostic mail boundary へ置換、Cognito 参照を除去。root#174 (PR #176) で SOPS/KMS 経路を退役 |
+
+- `.env.example` の paid-path key (`STRIPE_*`, `AWS_*`, `GOOGLE_CLIENT_SECRET`) は
+  すべて空が契約 (A-AT17 `no-paid-defaults` check が監査)。
+- 無料枠超過時に自動有料化する構成は採用しない (Resend quota・CF Free プランとも
+  上限到達時は送信/接続が止まるだけで課金は発生しない)。
 
 ## prod-equivalent で得た知見 (https でも再利用)
 

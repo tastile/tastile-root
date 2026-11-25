@@ -85,6 +85,10 @@ A-AT01 (`https` プロファイル) が要求する公開経路:
 
 ## 4. 不足権限の最小要求 (user 判断)
 
+**推奨は案 B**: 既存 `CLOUDFLARE_API_TOKEN` は edge worker deploy 用途で既に
+広い read scope を持つため、そこへの権限追加 (案 A) は過剰権限の集中を招く。
+不足分のみを持つ専用 token を新規発行し、用途と失効を独立させる。
+
 次のいずれか。値の登録は Infisical のみで行い、GitHub Secret / repo への commit はしない。
 
 - **案 A**: 既存 `CLOUDFLARE_API_TOKEN` (staging `/tastile/edge`) に以下を追加付与
@@ -93,9 +97,22 @@ A-AT01 (`https` プロファイル) が要求する公開経路:
     (service token 発行権限を含む。Muse probe 用に必須)
   - ~~Zone → DNS: Edit~~ → **write-probe で既保有を実測済みのため不要**
   - rotation は root#99 の手順に従う。
-- **案 B**: 上記 scope の専用 Account API Token を新規発行し、Infisical prod project の
-  `/tastile/edge` (新規 path) に `CLOUDFLARE_TUNNEL_API_TOKEN` として登録。
-  prod 側に `/tastile/edge` がないため、deploy 用途なら prod project への配置が自然。
+- **案 B (推奨)**: 不足 scope のみを持つ専用 Account API Token を新規発行し、
+  Infisical prod project (`ab532e90-…`) の `/tastile/edge` (新規 path) に
+  `CLOUDFLARE_TUNNEL_API_TOKEN` として登録。prod 側に `/tastile/edge` がないため、
+  deploy 用途なら prod project への配置が自然。
+  - 発行手順 (Cloudflare dashboard → My Profile → API Tokens → Create Token → Custom token):
+    - Account Resources: `Rebuild.up.up@gmail.com's Account` (c6ab6651…)
+    - Permissions: Account → **Cloudflare Tunnel: Edit**
+    - Permissions: Account → **Access: Apps and Policies: Edit**
+      (service token 発行を含む。Muse probe 用に必須)
+    - Zone Resources / Zone permissions: **不要** (remotely-managed tunnel の
+      public hostname は tunnel config API 側で管理され、既存 token の DNS:Edit で
+      別途 route を張る場合のみ DNS 権限が要る)
+    - TTL / client IP filter は任意 (推奨: TTL 90 日 + rotation を root#99 手順に従う)
+  - remotely-managed tunnel では ingress の public hostname は
+    `PUT /accounts/{id}/cfd_tunnel/{tid}/configurations` で設定し、
+    DNS record は Cloudflare が自動作成するため Zone DNS:Edit は本 token に不要。
 - **案 C (権限付与なし)**: tunnel と Access service token を CF dashboard で手動作成し、
   token / client id+secret を Infisical へ直接登録する。agent は DNS route・
   cloudflared・Caddy/env 整備を既存 DNS:Edit 権限で実行する。
