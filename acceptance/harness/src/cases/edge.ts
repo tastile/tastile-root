@@ -274,11 +274,16 @@ export async function at16(ctx: RunContext): Promise<void> {
   // both, proving the authenticated web path cannot be bypassed by
   // presenting web-layer session material to Core.
   if (ctx.profile.webBase) {
-    const sessionToken =
-      ctx.web.getCookie("__Secure-better-auth.session_token") ??
-      ctx.web.getCookie("better-auth.session_token");
-    if (sessionToken) {
-      const cookieHeader = `__Secure-better-auth.session_token=${sessionToken}`;
+    const secureName = "__Secure-better-auth.session_token";
+    const plainName = "better-auth.session_token";
+    const sessionEntry =
+      ctx.web.getCookie(secureName) !== undefined
+        ? { name: secureName, value: ctx.web.getCookie(secureName)! }
+        : ctx.web.getCookie(plainName) !== undefined
+          ? { name: plainName, value: ctx.web.getCookie(plainName)! }
+          : null;
+    if (sessionEntry) {
+      const cookieHeader = `${sessionEntry.name}=${sessionEntry.value}`;
       const sessRead = await ctx.api.get("/v1/tiles", { headers: { cookie: cookieHeader } });
       const sessWrite = await ctx.api.post("/v1/tiles", {
         headers: { cookie: cookieHeader },
