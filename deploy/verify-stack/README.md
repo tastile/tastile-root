@@ -2,6 +2,11 @@
 
 独立開発検証用のローカルスタック。**運用（production）環境の代替ではなく、常に非本番**として扱う。本番の DB・volume・network・credential・port を一切使い回さない。
 
+> **stack 操作は必ず `../../scripts/stack.sh` 経由で行う**（root#183）。
+> project 名・port・volume・image の事前照合と allowlist は wrapper の preflight が
+> 強制する。bare `docker compose` は project 名既定値による他 stack の誤爆を
+> 起こし得るため使わない。正規手順は `docs/runbooks/stack-operations.md` を参照。
+
 ## 前提
 
 - 兄弟 checkout（`tastile-root` を基準ディレクトリとする）:
@@ -24,18 +29,25 @@ git clone --branch main https://github.com/tastile/tastile-core      # または
 git clone --depth 1 --branch release-1-1-0 --recurse-submodules \
           https://github.com/tastile/tastile-web                      # Web 検証する場合
 
-cd tastile-root/deploy/verify-stack
+cd tastile-root
 
-# Compose の隔離設定とディスク残量を事前確認（build 前に必須）
-bash preflight.sh
+# secret は .tmp/verify.env 等の gitignore 済み env file に保存する
+# （TASTILE_WEB_BRIDGE_SECRET 必須。registry の env_file 列を参照）
 
-export TASTILE_WEB_BRIDGE_SECRET="$(openssl rand -hex 24)"
-docker compose up --build -d
+export TASTILE_STACK_ENV_FILE=$PWD/.tmp/verify.env
+scripts/stack.sh verify doctor                 # preflight（up 相当の全検査）
+
+# ディスク残量・Compose 設定の事前確認（build 前に必須。stack.sh の
+# preflight とは別物で、こちらは容量と設定値の attestation を行う）
+set -a; . .tmp/verify.env; set +a
+(cd deploy/verify-stack && bash preflight.sh)
+
+scripts/stack.sh verify up --build -d
 
 # 健全性確認（migration は初回起動時に自動適用される）
 curl -s http://127.0.0.1:31410/v1/health
-docker compose ps          # db = healthy、api/worker = running
-docker compose logs --tail=50 api worker
+scripts/stack.sh verify ps                     # db = healthy、api/worker = running
+scripts/stack.sh verify logs --tail=50 api worker
 ```
 
 preflight は実際に解決された Compose 設定を読み取り、API host port が `31400` / `31401`、DB host port が `5432` / `5433` でないこと、両サービスが `TASTILE_DELIVERY_PROVIDER=fake` を使うこと、API / worker の DB URL が compose network の `db:5432` を指すことを確認する。API と DB の host 公開先が `127.0.0.1` であることも検証する。条件に合わなければ stack の起動前に失敗し、合格時は検証専用の attestation 行を出力する。`docker compose up` に使う環境変数や `COMPOSE_FILE` を変える場合は、同じ設定で preflight を実行する。
@@ -90,30 +102,32 @@ Sign-up → `/api/auth/bridge`（`tastile_api_token` 取得）→ `/dashboard/ti
 
 1 タスク 1 スタックで隔離する場合は、**prefix・compose project 名・host port・image tag の 4 つをすべて**既定値から変える。1 つでも既定のままだと既存インスタンスと衝突する（`container_name` と volume name は compose project 名で自動的に分散しないため `-p` だけでは足りない。共通の image tag は互いに image を置き換える）。
 
+並行 instance を立てる前に **`deploy/stacks.tsv` へ新しい stack id を登録する**
+（project・env_file・ports・images を明示）。登録後は `scripts/stack.sh <id>` で
+操作する。registry に無い ad-hoc な `docker compose -p` 起動は preflight を
+通らないため行わない。
+
 ```bash
-cd <workspace>/tastile-root/deploy/verify-stack   # compose ファイルのあるディレクトリ
+cd <workspace>/tastile-root
 
-# secret は生成してファイルに保存し、Compose と Web の両方で同じ値を使う
+# secret は生成して .tmp/ 配下の env file に保存する
 openssl rand -hex 24 > /tmp/verify-b-bridge-secret.txt
-
-TASTILE_VERIFY_PREFIX=tastile-verify-b \
-TASTILE_CORE_TAG=verify-b \
-TASTILE_API_PORT=31420 \
-TASTILE_VERIFY_PG_PORT=55433 \
-bash preflight.sh
-
-TASTILE_VERIFY_PREFIX=tastile-verify-b \
-TASTILE_CORE_TAG=verify-b \
-TASTILE_API_PORT=31420 \
-TASTILE_VERIFY_PG_PORT=55433 \
-TASTILE_WEB_BRIDGE_SECRET="$(cat /tmp/verify-b-bridge-secret.txt)" \
-docker compose -p tastile-verify-b up --build -d
+cat > .tmp/verify-b.env <<EOF
+TASTILE_VERIFY_PREFIX=tastile-verify-b
+TASTILE_CORE_TAG=verify-b
+TASTILE_API_PORT=31420
+TASTILE_VERIFY_PG_PORT=55433
+TASTILE_WEB_BRIDGE_SECRET=$(cat /tmp/verify-b-bridge-secret.txt)
+EOF
+# .tmp/verify-b.env を stacks.tsv の新規行 env_file に登録してから:
+scripts/stack.sh verify-b doctor
+scripts/stack.sh verify-b up --build -d
 ```
 
 | 変数 | 効果 |
 | --- | --- |
 | `TASTILE_VERIFY_PREFIX` | container 名（`<prefix>-db/api/worker`）と DB volume 名（`<prefix>-pgdata`） |
-| `-p <project>` | compose project 名 → network `<project>_default`（volume key とは独立） |
+| stacks.tsv の `project` 列 | compose project 名 → network `<project>_default`（volume key とは独立）。wrapper が `-p` を自動付与 |
 | `TASTILE_CORE_TAG` | image 名 `tastile-core-verify:<tag>`。**インスタンスごとに一意にする**（共通 tag は一方の build が他方の image を置き換える） |
 | `TASTILE_API_PORT` / `TASTILE_VERIFY_PG_PORT` | host 側 loopback port（この例では API `31420` / DB `55433`） |
 | `TASTILE_WEB_BRIDGE_SECRET` | インスタンス専用の検証 secret（既定は必須。上記のようにファイルへ保存して Web にも渡す） |
@@ -128,13 +142,12 @@ Web dev server も同じインスタンスの port を指す（上の例の値�
 | `TASTILE_WEB_BRIDGE_SECRET` | 保存した secret ファイルの値 |
 
 - Better Auth 初期化は `TASTILE_VERIFY_PREFIX=<prefix> bash bootstrap-web-auth.sh`（container を直接指定したい場合のみ `TASTILE_PG_CONTAINER` を使う）。
-- 停止は**同じ環境変数と `-p` を付けて**行う。既定値のまま `docker compose down` を実行すると既定インスタンスの container を対象にし、`-v` を付けると `tastile-verify-pgdata` まで消える:
+- 停止は registry 登録済みの stack id で `scripts/stack.sh <id> down` を使う。
+  `down -v` は volume 完全削除なので証跡確定後のみ:
 
   ```bash
-  TASTILE_VERIFY_PREFIX=tastile-verify-b \
-  TASTILE_API_PORT=31420 TASTILE_VERIFY_PG_PORT=55433 \
-  TASTILE_WEB_BRIDGE_SECRET="$(cat /tmp/verify-b-bridge-secret.txt)" \
-  docker compose -p tastile-verify-b down    # -v は volume 完全削除。要件のときだけ使う
+  scripts/stack.sh verify-b down              # 停止（volume 保持）
+  scripts/stack.sh verify-b down -v           # 停止＋volume 削除。要件のときだけ
   ```
 
 - 各インスタンスは専用 DB・volume・port・secret を持ち、互いに、また運用とも接続しない。証跡には起動コマンドと prefix を記録する。
@@ -153,16 +166,17 @@ Web dev server も同じインスタンスの port を指す（上の例の値�
 ## 停止・復元
 
 ```bash
-docker compose down          # 停止（DB volume は保持）
-docker compose down -v       # 停止＋テスト DB volume 完全削除
-docker compose up --build -d # 緊急再構成（volume があれば復元を検証できる）
+cd <workspace>/tastile-root
+scripts/stack.sh verify down           # 停止（DB volume は保持）
+scripts/stack.sh verify down -v        # 停止＋テスト DB volume 完全削除
+scripts/stack.sh verify up --build -d  # 緊急再構成（volume があれば復元を検証できる）
 ```
 
 事故時（検証 DB 破損・不正 write の疑い）の手順:
 
-1. `docker compose stop api worker`
+1. `scripts/stack.sh verify stop api worker`
 2. `psql "postgres://tastile:tastile-verify-only@127.0.0.1:55432/tastile_verify"` で状態を確認（書き込み禁止）
-3. 必要なら `docker compose down -v` で破棄し、`up --build -d` で再構成
+3. 必要なら `scripts/stack.sh verify down -v` で破棄し、`up --build -d` で再構成
 4. 運用へは一切触れない
 
 ## 隔離の構造
@@ -191,8 +205,8 @@ docker compose up --build -d # 緊急再構成（volume があれば復元を検
 
 ## 検証チェックリスト
 
-- [ ] `docker compose ps` で db が `healthy`、api/worker が `running` であることを確認
-- [ ] migration 適用を `docker compose logs api` と `v1_migration` 件数で確認
+- [ ] `scripts/stack.sh verify ps` で db が `healthy`、api/worker が `running` であることを確認
+- [ ] migration 適用を `scripts/stack.sh verify logs api` と `v1_migration` 件数で確認
 - [ ] API 再起動後も DB の行が保持される（volume 永続性）
-- [ ] `docker compose down -v && up --build -d` で再構成できる
+- [ ] `scripts/stack.sh verify down -v && scripts/stack.sh verify up --build -d` で再構成できる
 - [ ] 運用の DB への write 経路が存在しない（URL・port・credential のいずれも検証専用）

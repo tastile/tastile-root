@@ -1,0 +1,40 @@
+# Canonical registry of compose stacks (root#183).
+#
+# Every stack operation MUST go through scripts/stack.sh, which reads this
+# file to resolve the compose project name, working directory, env file,
+# expected host ports, expected image refs and the risk class. Direct
+# `docker compose` invocations bypass preflight (project/port/volume/image
+# identity checks) and allowlist enforcement — do not use them for stack
+# operations covered by this registry.
+#
+# Columns (tab-separated, one stack per line, '#' starts a comment):
+#   id            short stack identifier used as `stack.sh <id> <cmd>`
+#   dir           compose working directory, relative to repository root
+#   project       canonical compose project name (-p). Must be unique per
+#                 stack; the directory default is NOT acceptable because it
+#                 collides across stacks that share a compose file.
+#   env_file      --env-file path relative to repository root, or '-' for none.
+#                 The file is gitignored (.tmp/) and holds secrets; the
+#                 wrapper never prints it.
+#   class         verify | prod-equiv | prod
+#                   verify     = disposable verification instance
+#                   prod-equiv = production-equivalent acceptance stack
+#                   prod       = real production target
+#                 Destructive ops on prod-equiv/prod require
+#                 TASTILE_STACK_DESTRUCTIVE_OK=<id> (see stack.sh).
+#   prefix        container name prefix (<prefix>-api/-worker/-db/...)
+#   ports         comma-separated expected published host ports (loopback).
+#                 Preflight refuses `up` if any is bound by another project.
+#   images        comma-separated expected image refs from `compose config`.
+#                 `repo` matches any tag of that repo; `repo:tag` must match
+#                 exactly. Update this column deliberately when re-pinning.
+#   compose_files comma-separated compose file names relative to dir
+#   notes         free text (may contain spaces; must be last column)
+#
+# id	dir	project	env_file	class	prefix	ports	images	compose_files	notes
+verify	deploy/verify-stack	tastile-verify	-	verify	tastile-verify	31410,55432	tastile-core-verify	compose.yaml	Default local verification instance (README "起動").
+acc	deploy/verify-stack	tastile-acc	.tmp/acceptance/verify-stack.env	verify	tastile-acc	31430,55442	tastile-core-verify:acc-533bcbec	compose.yaml	Acceptance harness instance (acceptance/README.md). Restore evidence pinned this tag.
+verify-145	deploy/verify-stack	verify-stack	.tmp/verify-145.env	verify	tastile-verify-145	31460,55472	tastile-core-verify:verify-145	compose.yaml	NF04-R05 resource-limit verification (root#145). NOTE: live containers carry the compose dir-default project label "verify-stack" (no -p was used at bring-up). Registry pins that reality so wrapper ops work without recreating the stack; never run bare `docker compose` in this dir — it targets this same project. Canonical rename to a unique -p is a separate, disruptive change.
+w03	deploy/verify-stack	tastile-w03	.tmp/w03.env	verify	tastile-w03	31450,55460	tastile-core-verify:w03	compose.yaml	Worktree-03 verification instance.
+prod-acc	deploy/prod-stack	tastile-prod-acc	.tmp/prod-equivalent/prod.env	prod-equiv	tastile-prod-acc	31440,3100,80,443	tastile-core:87271a29,tastile-web:prod-equiv-acceptance	compose.yaml,compose.acceptance.yaml	Prod-equivalent acceptance stack (root#168). Re-pin images => update `images` column. Destructive ops gated.
+prod	deploy/prod-stack	tastile-prod	-	prod	tastile-prod	-	-	compose.yaml	Real production target on the dedicated VM (NF04). Secrets via Infisical at deploy time; destructive ops gated.

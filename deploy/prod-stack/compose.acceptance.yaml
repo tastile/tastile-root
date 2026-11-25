@@ -3,8 +3,7 @@
 # publishes api/web on 127.0.0.1 and rewrites the public-origin env to
 # *.localhost names. Canonical compose.yaml is not modified.
 #
-#   docker compose --env-file <rendered.env> \
-#     -f compose.yaml -f compose.acceptance.yaml up -d db api worker caddy web
+#   scripts/stack.sh prod-acc up -d db api worker caddy web
 #
 # Rendered env must set APP_DOMAIN=app.localhost API_DOMAIN=api.localhost
 # (see deploy/prod-stack/.env.example for the full schema).
