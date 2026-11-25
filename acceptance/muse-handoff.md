@@ -84,10 +84,11 @@ Muse は以下の 2 段階のうち **アプリ認可（必須）のみ** を使
 
 ### 保管・供給
 
-- 正本の保管場所は Infisical。**新規 path `/tastile/muse`** に
-  `TASTILE_MUSE_API_BASE` / `TASTILE_MUSE_API_TOKEN`（必要なら
-  `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`）を置く計画。
-  path 作成と secret 投入は operator 作業であり、現時点では **未作成（blocker）**。
+- 正本の保管場所は Infisical。`tastile-staging / staging / /tastile/muse` に
+  `TASTILE_MUSE_API_BASE` / `TASTILE_MUSE_API_TOKEN` / owner credential を
+  登録済み（2026-11-25）。キー一覧・取得/更新/失効手順の正本は
+  [`muse-credentials.md`](./muse-credentials.md)。`CF_ACCESS_CLIENT_*` は
+  専用 Access Service Token の発行承認後に追加する（同書 §7）。
 - Muse 側は Infisical の machine identity で取得するか、承認済み手順での
   一時配布とする。配布・取得のいずれでも GitHub Issue/PR・ログ・証跡への
   平文出力を禁止する。
@@ -201,7 +202,7 @@ curl -fsS -X DELETE "$API/v1/tiles/{tile_id}" -H "$AUTH" -H 'Content-Type: appli
 | 項目 | 状態 | 担当 |
 | --- | --- | --- |
 | 実公開 API ドメインと外部到達（A-AT01） | 未確定。DNS/Tunnel/Access は #144/#66・承認境界 | root#144, #66 |
-| Infisical `/tastile/muse` path と secret 投入 | 未作成（operator 作業） | #150 handoff 実施時 |
-| Cloudflare Access Service Token の要否 | https profile 確定後に判断 | #144/#66 |
-| handoff 用 token の有効期限・ローテーション周期 | 未決定（#150 で運用値を確定） | #150 |
+| Infisical `/tastile/muse` path と secret 投入 | staging に作成・投入済み（`muse-credentials.md`）。Muse 取得用 Machine Identity は未発行 | #150 |
+| Cloudflare Access Service Token の要否 | 専用 `tastile-acc-muse` 発行を推奨。CF write の承認待ち（`muse-credentials.md` §7） | #144/#66, #150 |
+| handoff 用 token の有効期限・ローテーション周期 | `muse-staging-202611` は 2027-02-23 失効・14 日前更新ルールで運用（`muse-credentials.md` §4） | #150 |
 | 実 Muse 環境からの probe 実行 | 承認境界。承認後に `muse-access.md` §4 の手順で実施 | #150 |
