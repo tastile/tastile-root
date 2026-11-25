@@ -8,9 +8,9 @@ export async function at03(ctx: RunContext): Promise<void> {
   ctx.requireWeb();
   const owner = await ensureOwner(ctx, "ownerA");
 
-  // signup already happened inside ensureOwner; the bootstrap recorded the
-  // sign-up response status on the run context.
-  const signupStatus = ctx.state.get("signup.ownerA") as number | undefined;
+  // Credentials are shared run-wide, so the sign-up may have happened in an
+  // earlier case; the status recorded on the credential is authoritative.
+  const signupStatus = owner.signupStatus ?? (ctx.state.get("signup.ownerA") as number | undefined);
   ctx.check(
     "signup",
     owner.createdVia === "web-bridge" && signupStatus === 200,
@@ -69,6 +69,7 @@ export async function at03(ctx: RunContext): Promise<void> {
   // run-global, so a real sign-out must be followed by a real sign-in.
   if (owner.email && owner.password) {
     const signIn = await ctx.web.post("/api/auth/sign-in/email", {
+      headers: { origin: ctx.profile.webBase! },
       body: { email: owner.email, password: owner.password },
     });
     ctx.step("POST /api/auth/sign-in/email (re-auth)", signIn);

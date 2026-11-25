@@ -14,8 +14,23 @@ export async function at10(ctx: RunContext): Promise<void> {
   const tile = await createTile(ctx, owner, { title });
 
   // Web-side read of the same aggregate through the proxy (session cookies
-  // in ctx.web carry the bridge identity).
-  const viaWeb = await ctx.web.get(`/api/proxy/v1/tiles/${tile.tileId}`);
+  // in ctx.web carry the bridge identity). The proxy read model can lag the
+  // command write by a few ms; poll briefly before declaring divergence.
+  const cookieToken = ctx.web.getCookie("tastile_api_token");
+  ctx.note(
+    `proxy identity: cookieMatchesBearer=${cookieToken === owner.bearer} ` +
+      `hasApiTokenCookie=${cookieToken !== null} hasUid=${ctx.web.getCookie("tastile_uid") !== null}`,
+  );
+  let viaWeb = await ctx.web.get(`/api/proxy/v1/tiles/${tile.tileId}`);
+  const readDeadline = Date.now() + 15_000;
+  while (
+    (viaWeb.status !== 200 ||
+      (viaWeb.json as { id?: string } | null)?.id !== tile.tileId) &&
+    Date.now() < readDeadline
+  ) {
+    await new Promise((r) => setTimeout(r, 500));
+    viaWeb = await ctx.web.get(`/api/proxy/v1/tiles/${tile.tileId}`);
+  }
   ctx.step("GET /api/proxy/v1/tiles/{id}", viaWeb);
   const wview = viaWeb.json as { id?: string; title?: string; revision?: number } | null;
   ctx.check(

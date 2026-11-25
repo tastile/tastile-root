@@ -33,8 +33,15 @@ export async function signupViaWeb(
   input: SignupInput,
 ): Promise<Credential> {
   ctx.requireWeb();
-  const web = ctx.web;
+  // The shared `web` client holds the run's primary session (ownerA).
+  // sign-up auto-signs-in, so a second owner must use its own client or it
+  // would silently take over the session every later web check relies on.
+  const adoptSession = !ctx.web.getCookie("tastile_api_token");
+  const web = adoptSession ? ctx.web : ctx.clientFor(`web-${name}`, ctx.profile.webBase!);
+  // Better Auth enforces an Origin header on credential POSTs once a
+  // session exists; send the public origin like a browser would.
   const res = await web.post("/api/auth/sign-up/email", {
+    headers: { origin: ctx.profile.webBase! },
     body: { email: input.email, password: input.password, name: input.name ?? input.email },
     timeoutMs: 30_000,
   });
@@ -59,6 +66,7 @@ export async function signupViaWeb(
     tokenPrefix: tokenPrefix(apiToken),
     email: input.email,
     password: input.password,
+    signupStatus: res.status,
     createdVia: "web-bridge",
   };
   ctx.creds.set(name, cred);
@@ -94,6 +102,7 @@ export async function signupViaCore(
     tokenPrefix: tokenPrefix(view.token),
     email: input.email,
     password: input.password,
+    signupStatus: res.status,
     createdVia: "core-signup",
   };
   ctx.creds.set(name, cred);
@@ -107,7 +116,14 @@ export async function signupViaCore(
  */
 export async function ensureOwner(ctx: RunContext, name: string): Promise<Credential> {
   const existing = ctx.creds.get(name);
-  if (existing) return existing;
+  if (existing) {
+    // Replay the recorded bootstrap outcome so per-case assertions on
+    // `signup.<name>` still observe this run's signup result.
+    if (existing.signupStatus !== undefined) {
+      ctx.state.set(`signup.${name}`, existing.signupStatus);
+    }
+    return existing;
+  }
   const email = ctx.envEmail(`acc-${name}`);
   const password = `Acc!${randomUUID().slice(0, 8)}xY9`;
   if (ctx.profile.webBase) {

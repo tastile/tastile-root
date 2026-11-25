@@ -25,23 +25,46 @@ export async function at02(ctx: RunContext): Promise<void> {
   const title = `acc-at02-${ctx.runId}`;
   const tile = await createTile(ctx, owner, { title });
 
+  // The browser may need a different origin than the harness HTTP client:
+  // Better Auth issues `__Secure-` prefixed cookies which CDP refuses to
+  // inject on plain http, so prod-equivalent runs can point the browser at
+  // the stack's TLS-terminating ingress (e.g. caddy) via
+  // TASTILE_ACCEPTANCE_WEB_BROWSER_BASE while API-level checks stay on the
+  // profile web_base. Cookies are host-scoped, so the same session applies.
+  const browserBase =
+    process.env.TASTILE_ACCEPTANCE_WEB_BROWSER_BASE?.replace(/\/+$/, "") ??
+    ctx.profile.webBase ??
+    undefined;
+  const browserOrigin = browserBase ? new URL(browserBase).origin : undefined;
+
   const browser = await playwright.chromium.launch();
   try {
-    const context = await browser.newContext({ baseURL: ctx.profile.webBase ?? undefined });
+    const context = await browser.newContext({
+      baseURL: browserBase,
+      // Loopback prod-equivalent stacks terminate TLS with a private CA the
+      // browser cannot verify. Strict validation stays the default; opt in
+      // explicitly for those environments only.
+      ignoreHTTPSErrors: process.env.TASTILE_ACCEPTANCE_TLS_INSECURE === "1",
+    });
     // Inject the full web session state captured during bootstrap
     // (better-auth session cookie + bridge-issued tastile_* cookies);
     // the app authorizes proxy calls from these server-side.
     const webUrl = new URL(ctx.profile.webBase!);
+    const cookieOrigin = browserOrigin ?? webUrl.origin;
+    // Playwright rejects `domain` values like "app.localhost" (non-public
+    // suffix); scoping by `url` applies the cookie to the exact origin and
+    // works for loopback, *.localhost and public hosts alike. `__Secure-`
+    // prefixed cookies additionally require an https url — that is what the
+    // browser-base override is for.
     const jarCookies = ctx.web.allCookies().map((c) => ({
       name: c.name,
       value: c.value,
-      domain: webUrl.hostname,
-      path: "/",
+      url: cookieOrigin,
     }));
     const fallback = [
       { name: "tastile_api_token", value: owner.bearer },
       ...(owner.userSub ? [{ name: "tastile_uid", value: owner.userSub }] : []),
-    ].map((c) => ({ ...c, domain: webUrl.hostname, path: "/" }));
+    ].map((c) => ({ ...c, url: cookieOrigin }));
     const names = new Set(jarCookies.map((c) => c.name));
     await context.addCookies([...jarCookies, ...fallback.filter((c) => !names.has(c.name))]);
     const page = await context.newPage();
@@ -62,7 +85,7 @@ export async function at02(ctx: RunContext): Promise<void> {
     let resp: Awaited<ReturnType<typeof page.goto>> = null;
     for (let attempt = 0; attempt < 2 && !resp; attempt++) {
       try {
-        resp = await page.goto(`${ctx.profile.webBase}/dashboard`, {
+        resp = await page.goto(`${browserBase}/dashboard`, {
           waitUntil: "domcontentloaded",
           timeout: 90_000,
         });
