@@ -19,8 +19,10 @@ import {
   FailFastError,
   RunContext,
   type CaseResult,
+  type Credential,
   type Verdict,
 } from "./ctx.ts";
+import { ApiClient } from "./http.ts";
 import { CASES } from "./cases/index.ts";
 
 interface CliArgs {
@@ -104,13 +106,19 @@ async function main(): Promise<number> {
 
   const results: CaseResult[] = [];
   const selected = args.only ? new Set(args.only) : null;
+  // Run-scoped credential + client stores: dedicated acc-<runId>-* owners are
+  // created once per run and reused, which keeps production rate limits happy
+  // and matches the run-global web session the cases assume.
+  const sharedCreds = new Map<string, Credential>();
+  const sharedClients = new Map<string, ApiClient>();
+  const shared = { creds: sharedCreds, clients: sharedClients };
 
   for (const contractCase of contract.cases) {
     if (selected && !selected.has(contractCase.id)) continue;
 
     // environment applicability
     if (!contractCase.environments.includes(args.profile)) {
-      const ctx = new RunContext(args.runId, profile, contract, contractCase);
+      const ctx = new RunContext(args.runId, profile, contract, contractCase, shared);
       ctx.evidenceDir = evidenceDir;
       results.push(
         ctx.finalize("N-A", `profile "${args.profile}" not in contract environments [${contractCase.environments.join(", ")}]`),
@@ -135,7 +143,7 @@ async function main(): Promise<number> {
       }
     }
     if (unmet.length) {
-      const ctx = new RunContext(args.runId, profile, contract, contractCase);
+      const ctx = new RunContext(args.runId, profile, contract, contractCase, shared);
       ctx.evidenceDir = evidenceDir;
       results.push(ctx.finalize("NOT-RUN", `unmet case prerequisites: ${unmet.join(", ")}`));
       continue;
@@ -143,12 +151,12 @@ async function main(): Promise<number> {
 
     const impl = CASES[contractCase.id];
     if (!impl) {
-      const ctx = new RunContext(args.runId, profile, contract, contractCase);
+      const ctx = new RunContext(args.runId, profile, contract, contractCase, shared);
       results.push(ctx.finalize("BLOCKED", "no harness implementation registered"));
       continue;
     }
 
-    const ctx = new RunContext(args.runId, profile, contract, contractCase);
+    const ctx = new RunContext(args.runId, profile, contract, contractCase, shared);
     ctx.evidenceDir = evidenceDir;
     const started = Date.now();
     let result: CaseResult;

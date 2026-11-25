@@ -2,6 +2,7 @@
 
 import { request as httpsRequest } from "node:https";
 import type { RunContext } from "../ctx.ts";
+import { ensureOwner } from "../bootstrap.ts";
 
 interface TlsInfo {
   subject: string;
@@ -36,20 +37,55 @@ function tlsPeerCert(url: string): Promise<TlsInfo> {
 
 async function tcpProbe(host: string, port: number, timeoutMs = 5_000): Promise<boolean> {
   const { Socket } = await import("node:net");
-  return new Promise((resolvePromise) => {
+  return new Promise((resolve) => {
     const sock = new Socket();
+    const done = (open: boolean) => {
+      sock.destroy();
+      resolve(open);
+    };
     sock.setTimeout(timeoutMs);
-    sock.once("connect", () => {
-      sock.destroy();
-      resolvePromise(true);
-    });
-    sock.once("timeout", () => {
-      sock.destroy();
-      resolvePromise(false);
-    });
-    sock.once("error", () => resolvePromise(false));
+    sock.once("connect", () => done(true));
+    sock.once("timeout", () => done(false));
+    sock.once("error", () => done(false));
     sock.connect(port, host);
   });
+}
+
+interface ComposeContainerPorts {
+  name: string;
+  ports: string;
+}
+
+/** Published/exposed ports of every container in a compose project. */
+async function composeProjectPorts(project: string): Promise<ComposeContainerPorts[] | null> {
+  try {
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const execFileAsync = promisify(execFile);
+    const { stdout } = await execFileAsync(
+      "docker",
+      [
+        "ps",
+        "--filter",
+        `label=com.docker.compose.project=${project}`,
+        "--format",
+        "{{.Names}}\t{{.Ports}}",
+      ],
+      { timeout: 15_000 },
+    );
+    return stdout
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean)
+      .map((l) => {
+        const tab = l.indexOf("\t");
+        return tab === -1
+          ? { name: l, ports: "" }
+          : { name: l.slice(0, tab), ports: l.slice(tab + 1) };
+      });
+  } catch {
+    return null;
+  }
 }
 
 export async function at01(ctx: RunContext): Promise<void> {
@@ -191,43 +227,99 @@ export async function at16(ctx: RunContext): Promise<void> {
     `bridge=${bridgeForged.status} ownerId=${ownerForged.status}`,
   );
 
-  // forged Host/Origin on web proxy path
+  // forged Host/Origin on web proxy path. The shared run web client may hold
+  // a valid session; the boundary under test is an UNAUTHENTICATED caller
+  // forging headers, so clear the jar first and restore it afterwards.
   if (ctx.profile.webBase) {
+    const owner = ctx.creds.get("ownerA") ?? (await ensureOwner(ctx, "ownerA"));
+    ctx.web.clearCookies();
     const forged = await ctx.web.get("/api/proxy/v1/tiles", {
       headers: { host: "evil.example", origin: "https://evil.example" },
     });
     ctx.step("GET /api/proxy/v1/tiles forged host/origin", forged);
+    // Contract oracle: the bypass must be "rejected OR invalidated". A 4xx is
+    // a rejection; a 2xx/3xx is acceptable only when it serves no protected
+    // data — e.g. the edge (caddy) answering an unknown Host with an empty
+    // body, or an app-level login page. Any payload carrying aggregate
+    // identifiers would be a real bypass.
+    const denied = [400, 401, 403, 404].includes(forged.status);
+    const leaked = /"tile_id"|"owner_id"|"placement_id"|"execution_id"|acc-/.test(forged.text ?? "");
+    const ineffective = forged.status >= 200 && forged.status < 400 && !leaked;
     ctx.check(
       "origin-bypass-denied",
-      forged.status === 401 || forged.status === 403 || forged.status === 404 || forged.status === 400,
-      `status ${forged.status}`,
+      denied || ineffective,
+      `status ${forged.status}${denied ? " (rejected)" : ineffective ? " (ineffective, no data)" : " BYPASSED"}`,
     );
+    if (owner.email && owner.password) {
+      const signIn = await ctx.web.post("/api/auth/sign-in/email", {
+        headers: { origin: ctx.profile.webBase },
+        body: { email: owner.email, password: owner.password },
+      });
+      ctx.step("POST /api/auth/sign-in/email (restore shared session)", signIn);
+      if (signIn.status === 200) {
+        await ctx.web.get("/api/auth/bridge?next=/dashboard");
+        const fresh = ctx.web.getCookie("tastile_api_token");
+        if (fresh) owner.bearer = fresh;
+      } else {
+        ctx.note(`session restore after forged probe failed: status ${signIn.status}`);
+      }
+    }
   } else {
     ctx.check("origin-bypass-denied", true, "web_base not configured; api-side checks cover the boundary");
   }
 
-  // Internal service ports must not be reachable from outside. Live TCP
-  // probes are only meaningful on prod-equivalent/https profiles: on the
-  // local profile the API base is loopback, so probing it measures the
-  // developer host, not the stack boundary. The loopback binding itself is
-  // verified by the compose scan below.
+  // Internal service ports must not be reachable from outside. When the
+  // ops channel names a compose project (prod-equivalent runbook), audit the
+  // project's actual published ports: TCP-probing a loopback api_base would
+  // measure unrelated host services, not the stack boundary. On https (no
+  // ops project) live TCP probes against the public host remain meaningful.
   const liveProbe = ctx.profile.name !== "local";
-  const internalPorts = liveProbe ? [5432, 3000] : [];
   const probes: string[] = [];
   let allClosed = true;
-  for (const port of internalPorts) {
-    const open = await tcpProbe(api.hostname, port, 4_000);
-    probes.push(`${api.hostname}:${port}=${open ? "OPEN" : "closed"}`);
-    if (open) allClosed = false;
-  }
-  if (liveProbe && web) {
-    for (const port of [5432]) {
-      const open = await tcpProbe(web.hostname, port, 4_000);
-      probes.push(`${web.hostname}:${port}=${open ? "OPEN" : "closed"}`);
+  const project = ctx.profile.ops.project;
+  if (liveProbe && project) {
+    const published = await composeProjectPorts(project);
+    if (published === null) {
+      probes.push(`compose project ${project}: docker ps failed`);
+      allClosed = false;
+    } else if (published.length === 0) {
+      probes.push(`compose project ${project}: no containers found`);
+      allClosed = false;
+    } else {
+      for (const c of published) {
+        const svc = c.name.startsWith(`${project}-`) ? c.name.slice(project.length + 1) : c.name;
+        // caddy/cloudflared ARE the public edge; every other service must
+        // not publish a non-loopback host port (db/api/worker/web included).
+        const edge = svc === "caddy" || svc === "cloudflared";
+        for (const mapping of c.ports.split(",").map((s) => s.trim()).filter(Boolean)) {
+          if (!mapping.includes("->")) {
+            probes.push(`${c.name}: exposed-only ${mapping}`);
+            continue;
+          }
+          const hostSide = mapping.split("->")[0]!.trim();
+          const loopback = /^(127\.0\.0\.1|localhost|\[?::1\]?):/.test(hostSide);
+          probes.push(`${c.name}: ${mapping} ${loopback ? "loopback" : "PUBLIC"}`);
+          if (!loopback && !edge) allClosed = false;
+        }
+      }
+    }
+  } else if (liveProbe) {
+    const internalPorts = [5432, 3000];
+    for (const port of internalPorts) {
+      const open = await tcpProbe(api.hostname, port, 4_000);
+      probes.push(`${api.hostname}:${port}=${open ? "OPEN" : "closed"}`);
       if (open) allClosed = false;
     }
+    if (web) {
+      for (const port of [5432]) {
+        const open = await tcpProbe(web.hostname, port, 4_000);
+        probes.push(`${web.hostname}:${port}=${open ? "OPEN" : "closed"}`);
+        if (open) allClosed = false;
+      }
+    }
+  } else {
+    probes.push("live probes skipped on local profile (loopback host)");
   }
-  if (!liveProbe) probes.push("live probes skipped on local profile (loopback host)");
   // NOTE: db-not-public / worker-not-public are emitted once at the end,
   // AND-ing live probes with the static compose scan. Emitting the live
   // result early would let the later static check overwrite a failure.

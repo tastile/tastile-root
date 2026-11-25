@@ -55,6 +55,10 @@ export interface Credential {
    *  same owner after a deliberate sign-out. Never written to evidence. */
   email?: string;
   password?: string;
+  /** HTTP status recorded when this credential was bootstrapped. Shared
+   *  run-scoped credentials replay it into `ctx.state` so cases can still
+   *  assert the signup outcome without a second sign-up. */
+  signupStatus?: number;
   createdVia: "core-signup" | "web-bridge" | "api-token";
 }
 
@@ -72,14 +76,26 @@ export class RunContext {
   readonly steps: StepRecord[] = [];
   readonly notes: string[] = [];
   readonly state = new Map<string, unknown>();
-  readonly creds = new Map<string, Credential>();
-  readonly clients = new Map<string, ApiClient>();
+  readonly creds: Map<string, Credential>;
+  readonly clients: Map<string, ApiClient>;
 
-  constructor(runId: string, profile: ResolvedProfile, contract: AcceptanceContract, contractCase: ContractCase) {
+  constructor(
+    runId: string,
+    profile: ResolvedProfile,
+    contract: AcceptanceContract,
+    contractCase: ContractCase,
+    shared?: { creds?: Map<string, Credential>; clients?: Map<string, ApiClient> },
+  ) {
     this.runId = runId;
     this.profile = profile;
     this.contract = contract;
     this.contractCase = contractCase;
+    // Credentials and HTTP clients (cookie jars) are shared across the cases
+    // of a single run: the contract requires dedicated `acc-<runId>-*` owners,
+    // and reusing them avoids tripping production rate limits on sign-up.
+    // `state` stays per-case so fixtures cannot leak between cases.
+    this.creds = shared?.creds ?? new Map<string, Credential>();
+    this.clients = shared?.clients ?? new Map<string, ApiClient>();
     this.checkIds = new Set(contractCase.checks.map((c) => c.id));
     for (const c of contractCase.checks) this.results.set(c.id, { id: c.id, ok: null });
   }

@@ -1,0 +1,73 @@
+# Acceptance overlay for deploy/prod-stack (root#168).
+# Used ONLY for the prod-equivalent acceptance profile on a loopback host:
+# publishes api/web on 127.0.0.1 and rewrites the public-origin env to
+# *.localhost names. Canonical compose.yaml is not modified.
+#
+#   docker compose --env-file <rendered.env> \
+#     -f compose.yaml -f compose.acceptance.yaml up -d db api worker caddy web
+#
+# Rendered env must set APP_DOMAIN=app.localhost API_DOMAIN=api.localhost
+# (see deploy/prod-stack/.env.example for the full schema).
+#
+# web -> api connectivity: the web image runs with a protected runtime
+# (TASTILE_ENV unset), which rejects plain http core URLs. The production
+# path is web -> caddy -> api over TLS; this overlay reproduces that inside
+# the compose network: caddy gets the network alias `api.localhost`, serves
+# the API_DOMAIN site with its internal CA, and web trusts that CA via
+# NODE_EXTRA_CA_CERTS. Ordering: start caddy first so the root cert exists
+# before web boots, then `up -d web` (compose has no depends_on edge because
+# caddy already depends_on web in the canonical file).
+
+services:
+  api:
+    ports:
+      - "127.0.0.1:${TASTILE_API_HOST_PORT:-31440}:31400"
+    environment:
+      TASTILE_ALLOWED_ORIGINS: https://app.localhost
+
+  caddy:
+    # Public binds are controlled by CADDY_HTTP_PORT / CADDY_HTTPS_PORT in the
+    # rendered env: set them to 127.0.0.1:<port> so nothing is published on
+    # the VM's external interfaces. Compose merges port lists, so the loopback
+    # binding must come from the env vars, not from entries added here.
+    networks:
+      default:
+        aliases:
+          # Lets web resolve the public API hostname to caddy inside the
+          # compose network, mirroring prod DNS -> tunnel -> caddy.
+          - api.localhost
+          - app.localhost
+
+  worker:
+    environment:
+      # `fake` is rejected under TASTILE_ENV=production, which left every
+      # drain failing with DeliveryFailureCode::Configuration and throttled
+      # the queue to one pass per interval. Point the HTTP provider at the
+      # stack's own API origin; per-item send failures do not fail the drain.
+      TASTILE_DELIVERY_PROVIDER: http
+      TASTILE_DELIVERY_BASE_URL: https://api.localhost
+      TASTILE_DELIVERY_PROVIDER_TOKEN: acceptance-local-provider
+
+  web:
+    ports:
+      - "127.0.0.1:${TASTILE_WEB_HOST_PORT:-3100}:3000"
+    # Runtime NEXT_PUBLIC_*/Stripe/Better-Auth env rendered from Infisical
+    # into .tmp/prod-equivalent/web.env (gitignored; never committed).
+    env_file:
+      - ../../.tmp/prod-equivalent/web.env
+    volumes:
+      # Caddy internal CA root so server-side fetches trust https://api.localhost.
+      # Cert lives at caddy/pki/authorities/local/root.crt inside the volume.
+      - caddy-data:/etc/tastile-caddy-ca:ro
+    environment:
+      BETTER_AUTH_URL: https://app.localhost
+      # Browser-side core base: public API origin through caddy (TLS).
+      NEXT_PUBLIC_DAEMON_BASE_URL: https://api.localhost
+      NEXT_PUBLIC_APP_URL: https://app.localhost
+      NEXT_PUBLIC_APP_HOST: app.localhost
+      NEXT_PUBLIC_APEX_HOST: localhost
+      # Server-side core base: internal TLS via caddy (prod-equivalent path).
+      CLOUD_API_BASE: https://api.localhost
+      TASTILE_RUST_API_URL: https://api.localhost
+      TASTILE_CORE_URL: https://api.localhost
+      NODE_EXTRA_CA_CERTS: /etc/tastile-caddy-ca/caddy/pki/authorities/local/root.crt

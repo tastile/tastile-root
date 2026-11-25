@@ -136,6 +136,22 @@ export async function at06(ctx: RunContext): Promise<void> {
       `status ${proxy.status}${leaked ? " LEAKED fixture data" : ""}`,
     );
     if (leaked) ctx.check("web-unauth", false, "protected data leaked to unauthenticated web request");
+    // The web client is shared run-wide: restore the owner session cleared
+    // above so later cases keep their authenticated cookie jar.
+    if (owner.email && owner.password) {
+      const signIn = await ctx.web.post("/api/auth/sign-in/email", {
+        headers: { origin: ctx.profile.webBase! },
+        body: { email: owner.email, password: owner.password },
+      });
+      ctx.step("POST /api/auth/sign-in/email (restore shared session)", signIn);
+      if (signIn.status === 200) {
+        await ctx.web.get("/api/auth/bridge?next=/dashboard");
+        const fresh = ctx.web.getCookie("tastile_api_token");
+        if (fresh) owner.bearer = fresh;
+      } else {
+        ctx.note(`session restore after unauth probe failed: status ${signIn.status}`);
+      }
+    }
   } else {
     ctx.check("web-unauth", true, "web_base not configured; covered by core-side checks");
   }

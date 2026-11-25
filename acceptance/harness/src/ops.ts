@@ -38,6 +38,9 @@ export function composeBaseArgs(ops: OpsConfig): string[] {
   if (ops.envFile) args.push("--env-file", ops.envFile);
   args.push("--project-directory", dir);
   args.push("-f", resolve(dir, "compose.yaml"));
+  for (const f of ops.files ?? []) {
+    args.push("-f", resolve(dir, f));
+  }
   return args;
 }
 

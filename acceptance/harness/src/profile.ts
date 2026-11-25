@@ -16,6 +16,9 @@ export interface OpsConfig {
   envFile?: string;
   /** Extra env applied to compose invocations. */
   env?: Record<string, string>;
+  /** Additional compose files merged after compose.yaml
+   *  (e.g. deploy/prod-stack/compose.acceptance.yaml). */
+  files?: string[];
   /** shell: command template; {action} and {service} are substituted. */
   template?: string;
 }
@@ -159,13 +162,20 @@ export async function resolveProfile(name: EnvironmentName, env: NodeJS.ProcessE
     // Never default to the production compose project implicitly.
     const template = env.TASTILE_ACCEPTANCE_OPS_CMD;
     const ops: OpsConfig = template
-      ? { kind: "shell", template }
+      ? {
+          kind: "shell",
+          template,
+          // Optional: lets evidence checks inspect the compose project's
+          // published ports even when fault injection goes through a runbook.
+          project: env.TASTILE_ACCEPTANCE_COMPOSE_PROJECT,
+        }
       : env.TASTILE_ACCEPTANCE_OPS === "compose"
         ? {
             kind: "compose",
             dir: env.TASTILE_ACCEPTANCE_COMPOSE_DIR ?? "deploy/prod-stack",
             project: env.TASTILE_ACCEPTANCE_COMPOSE_PROJECT ?? "tastile-prod",
             envFile: env.TASTILE_ACCEPTANCE_COMPOSE_ENV_FILE,
+            files: env.TASTILE_ACCEPTANCE_COMPOSE_FILES?.split(":").map((s) => s.trim()).filter(Boolean),
           }
         : { kind: "none" };
     if (ops.kind === "none") {
