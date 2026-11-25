@@ -8,7 +8,9 @@
 #
 # Rendered env (.tmp/https/prod.env) must set:
 #   APP_DOMAIN=acc-app.tastile.app API_DOMAIN=acc-api.tastile.app
-#   CADDYFILE=Caddyfile.tunnel  (plain HTTP inside; TLS terminates at CF)
+#   CADDYFILE=Caddyfile.tunnel  (public sites plain HTTP inside; public TLS
+#                                terminates at CF, plus an internal-TLS hop
+#                                https://api.internal for web/worker -> api)
 #   CADDY_HTTP_PORT=127.0.0.1:<port>  (host cloudflared or published bind)
 #
 # web -> api connectivity: the canonical compose points server-side core

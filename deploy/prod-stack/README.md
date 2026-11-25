@@ -25,6 +25,16 @@ Muse 運用 SoT とは DB・port・credential・volume をすべて分離する�
 初回 init 時に専用の database / role / volume を作成し、既存運用データへは
 接続経路を持たない。
 
+`initdb/00-provision.sh` は初回 initdb で Core 用 `tastile` / Better Auth 用
+`tastile_auth` の database・role を作成し、続けて
+`initdb/better-auth/better-auth-schema.sql`（`deploy/verify-stack/` の
+`better-auth-schema.sql` と同一 schema、header comment のみ差分）を `tastile_auth` DB へ `tastile_auth`
+role として適用する。Better Auth 側に migration runner は無いため、この
+provisioning が sign-up 可能な schema の唯一の供給経路である（root#165
+https profile B2: 未適用だと sign-up が 503 になる）。initdb は空の data
+directory でのみ走るので、既存 volume への後付けは `psql` で同ファイルを
+手動適用する。
+
 ## 前提
 
 - Docker + Compose v2 が動く Ubuntu LTS VM（ADR-0025 の隔用 VM）

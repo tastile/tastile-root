@@ -142,21 +142,33 @@ export async function at01(ctx: RunContext): Promise<void> {
 
   // http -> https enforcement. The contract oracle requires the plain-HTTP
   // origin to redirect or deny; a 200 over http is a plaintext bypass and
-  // must FAIL, not pass.
+  // must FAIL, not pass. The api probe uses /v1/health (a real endpoint);
+  // the web probe uses / because /v1/health does not exist on the Next.js
+  // origin and would 404 even over https. 404 counts as denied: the edge
+  // is not serving that origin on plaintext at all (e.g. Cloudflare
+  // returns 404 for an http:// probe of a tunnel-only hostname).
   let httpOk = true;
   const httpDetails: string[] = [];
-  for (const u of [api, ...(web ? [web] : [])]) {
+  const httpTargets: [string, URL, string][] = [
+    ["api", api, "/v1/health"],
+    ...(web ? ([["web", web, "/"]] as [string, URL, string][]) : []),
+  ];
+  for (const [label, u, path] of httpTargets) {
     try {
-      const res = await fetch(`http://${u.host}/v1/health`, {
+      const res = await fetch(`http://${u.host}${path}`, {
         redirect: "manual",
         signal: AbortSignal.timeout(10_000),
       });
       const redirected = res.status >= 300 && res.status < 400;
-      const denied = res.status === 400 || res.status === 403 || res.status === 421;
+      const denied =
+        res.status === 400 ||
+        res.status === 403 ||
+        res.status === 404 ||
+        res.status === 421;
       const ok = redirected || denied;
       httpOk = httpOk && ok;
-      httpDetails.push(`${u.host}: status=${res.status}`);
-      ctx.step(`http probe ${u.host}`, null, `status=${res.status}`);
+      httpDetails.push(`${label} ${u.host}: status=${res.status}`);
+      ctx.step(`http probe ${label} ${u.host}`, null, `status=${res.status}`);
     } catch (e) {
       httpDetails.push(`${u.host}: unreachable (fail-closed) ${String(e).slice(0, 120)}`);
       ctx.step(`http probe ${u.host}`, null, `unreachable ${String(e).slice(0, 120)}`);
