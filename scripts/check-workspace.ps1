@@ -8,7 +8,11 @@ param(
     [switch]$KeepGoing,
     [switch]$ListOnly,
     [string]$ResultPath,
-    [string]$WorkspaceRoot = (Split-Path -Parent $PSScriptRoot)
+    [string]$WorkspaceRoot = (Split-Path -Parent $PSScriptRoot),
+    # Hard floor for free space on the workspace volume. 0 disables the
+    # preflight. Default: $env:TASTILE_MIN_FREE_GB or 2 GiB. See
+    # docs/runbooks/disk-resource-management.md (root#170).
+    [int]$MinFreeGB = $(if ($env:TASTILE_MIN_FREE_GB) { [int]$env:TASTILE_MIN_FREE_GB } else { 2 })
 )
 
 Set-StrictMode -Version Latest
@@ -114,6 +118,32 @@ $catalog = @($selected | ForEach-Object { Get-Steps $_ $Profile })
 if ($ListOnly) {
     $catalog | ConvertTo-Json -Depth 4
     exit 0
+}
+
+if ($MinFreeGB -gt 0) {
+    $vol = $WorkspaceRoot.Substring(0, 1)
+    $freeBytes = $null
+    $psDrive = Get-PSDrive -Name $vol -ErrorAction SilentlyContinue
+    if ($psDrive) {
+        $freeBytes = $psDrive.Free
+    } elseif ($WorkspaceRoot.StartsWith("/")) {
+        # POSIX host: DriveInfo reports the boot volume's free space.
+        $freeBytes = ([System.IO.DriveInfo]::new("/")).AvailableFreeSpace
+    }
+    if ($null -ne $freeBytes -and $freeBytes -lt ($MinFreeGB * 1GB)) {
+        $freeGiB = [math]::Round($freeBytes / 1GB, 1)
+        $summary = [pscustomobject]@{
+            profile = $Profile; maxAttempts = $MaxAttempts
+            generatedAt = (Get-Date).ToUniversalTime().ToString("o")
+            results = @()
+            final = @($selected | ForEach-Object {
+                [pscustomobject]@{ repository = $_; status = "blocked"; exitCode = 2
+                    reason = "Insufficient free space: $freeGiB GiB < $MinFreeGB GiB on the workspace volume. Run scripts/disk-hygiene.sh (POSIX) or free space manually; see docs/runbooks/disk-resource-management.md" }
+            })
+        }
+        $summary | ConvertTo-Json -Depth 6
+        exit 2
+    }
 }
 
 $results = [System.Collections.Generic.List[object]]::new()

@@ -75,6 +75,10 @@ Manual: `systemctl start ci-hygiene.service`; logs `journalctl -u
 ci-hygiene.service`. `_work` totals ~27 GB across the six runners
 (Rust `target/` dirs dominate; core alone ~7 GB).
 
+Mac-side equivalent (cargo fingerprint leaks, `.tmp` exports, pre-build
+capacity checks) lives in `disk-resource-management.md` +
+`scripts/disk-hygiene.sh` (root#170).
+
 ## Secret separation — known residual risks
 
 - All six WSL runners execute repo CI code as user `basic`, which has
@@ -132,6 +136,31 @@ use ephemeral ports (`ports: ["<container-port>"]`) or job-private networks.
   runner `run.cmd` as `rebuildup`.
 - Keep Windows runner `.credentials` ACL'd to `rebuildup`; do not place
   runner dirs in synced/backup paths.
+- Work-dir capacity: `C:\actions-runner-{core,desktop,root}\_work` totaled
+  ~0.8 GB on 2026-11-25 (small; WSL `_work` dominates at ~51 GB). There is
+  NO `ci-hygiene` equivalent on Windows — reclaim manually when runners
+  are idle (`Get-Process Runner.Worker` absent), deleting `target/`,
+  `node_modules/`, `.next/` older than 7 days under `_work`. See
+  `disk-resource-management.md` for the full procedure.
+
+## C: drive pressure / WSL vhdx compact
+
+Windows C: hit ~0.9 GiB free on 2026-11-25. The dominant reclaimable item
+is the Ubuntu `ext4.vhdx`
+(`C:\Users\rebui\AppData\Local\wsl\{f6874aea-e002-4f78-8111-380999753689}\ext4.vhdx`,
+158 GiB allocated vs 110 GiB used inside → ~48 GiB reclaimable via compact).
+A prior move attempt left only `D:\wsl\move.log`; do NOT assume D: as a
+recovery path.
+
+Safe window — ALL must hold:
+
+1. No `in_progress`/`queued` workflow runs on any tastile repo
+   (`gh api "repos/tastile/<repo>/actions/runs?status=in_progress"`).
+2. No `Runner.Worker` inside WSL (`pgrep -af Runner.Worker` empty).
+3. `wsl.exe --shutdown` completed before compacting.
+
+Then `Optimize-VHD -Mode Full` (or `diskpart compact vdisk`) on the vhdx.
+Full details: `disk-resource-management.md`.
 
 ## Reinstalling a WSL runner
 
