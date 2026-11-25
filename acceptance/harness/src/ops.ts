@@ -41,6 +41,24 @@ export function composeBaseArgs(ops: OpsConfig): string[] {
   return args;
 }
 
+/**
+ * Compose interpolates `${VAR:?}` even for `restart`/`stop`/`ps`, so a missing
+ * required var fails the whole command. `restart` does not recreate containers,
+ * so a placeholder satisfies interpolation without changing container env.
+ * Never used for `up` (isolated restore builds its own env).
+ */
+const COMPOSE_INTERPOLATION_FALLBACKS: Record<string, string> = {
+  TASTILE_WEB_BRIDGE_SECRET: "acceptance-ops-placeholder-not-a-secret",
+};
+
+function composeEnv(ops: OpsConfig, extra?: Record<string, string>): NodeJS.ProcessEnv {
+  const env: NodeJS.ProcessEnv = { ...process.env, ...(ops.env ?? {}), ...(extra ?? {}) };
+  for (const [k, v] of Object.entries(COMPOSE_INTERPOLATION_FALLBACKS)) {
+    if (!env[k]) env[k] = v;
+  }
+  return env;
+}
+
 export interface CommandResult {
   command: string;
   stdout: string;
@@ -55,7 +73,7 @@ export async function composeExec(
   opts: { env?: Record<string, string>; timeoutMs?: number } = {},
 ): Promise<CommandResult> {
   const argv = [...composeBaseArgs(ops), ...args];
-  const env = { ...process.env, ...(ops.env ?? {}), ...(opts.env ?? {}) };
+  const env = composeEnv(ops, opts.env);
   try {
     const { stdout, stderr } = await execFileAsync("docker", argv, {
       env,
@@ -129,7 +147,7 @@ export async function runOps(
   }
   if (ops.kind === "compose") {
     const args = composeArgs(ops, action, service);
-    const env = { ...process.env, ...(ops.env ?? {}) };
+    const env = composeEnv(ops);
     try {
       const { stdout, stderr } = await execFileAsync("docker", args, {
         env,
