@@ -96,6 +96,9 @@ Sign-up → `/api/auth/bridge`（`tastile_api_token` 取得）→ `/dashboard/ti
 - PostgreSQL: `max_connections=40`
 - ディスク floor: `TASTILE_DISK_MIN_FREE_BYTES`（既定 1 GiB）。実際の空きより
   大きい値を与えると api の書き込みが 503、worker drain が `deferred` になる。
+  監視 path は `TASTILE_DISK_GUARD_PATHS=/guard/pgdata,/`（PGDATA volume を
+  read-only mount、core#586 以降の image で有効。旧 image は
+  `TASTILE_DISK_GUARD_PATH=/` のみ監視）。
 - 上限値一覧と検証手順の正本: `docs/runbooks/resource-limits.md`
 
 ## 並行インスタンス（複数の検証スタックを同時に起ける）

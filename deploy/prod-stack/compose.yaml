@@ -88,10 +88,20 @@ services:
       TASTILE_REQUEST_TIMEOUT_SECONDS: "30"
       # Disk capacity floor (NF04-R05 / root#145): mutating requests get
       # 503 + Retry-After while the filesystem drops below this floor.
+      # TASTILE_DISK_GUARD_PATH is the single-path shorthand kept for
+      # images predating core#586; PATHS is the multi-path watch list and
+      # takes precedence on new images (core resource crate).
       TASTILE_DISK_GUARD_PATH: /
+      TASTILE_DISK_GUARD_PATHS: /guard/pgdata,/
       TASTILE_DISK_MIN_FREE_BYTES: ${TASTILE_DISK_MIN_FREE_BYTES:-4294967296}
       AWS_EC2_METADATA_DISABLED: "true"
       RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      # Read-only probe mount so the disk guard watches the PGDATA
+      # filesystem even if it moves to a dedicated device (core#586).
+      # Postgres writes through the db service mount; the guard only
+      # needs statvfs visibility, so :ro is sufficient.
+      - prod-pgdata:/guard/pgdata:ro
     # No host port: reached only via the internal network / caddy.
     restart: unless-stopped
     deploy:
@@ -116,11 +126,15 @@ services:
       TASTILE_DELIVERY_PROVIDER: ${TASTILE_DELIVERY_PROVIDER:-fake}
       # Same disk floor as api: the daemon defers every drain while the
       # filesystem is below it, so scheduling writes cannot worsen a
-      # filling volume (NF04-R05 / root#145).
+      # filling volume (NF04-R05 / root#145). PATHS watches PGDATA too.
       TASTILE_DISK_GUARD_PATH: /
+      TASTILE_DISK_GUARD_PATHS: /guard/pgdata,/
       TASTILE_DISK_MIN_FREE_BYTES: ${TASTILE_DISK_MIN_FREE_BYTES:-4294967296}
       AWS_EC2_METADATA_DISABLED: "true"
       RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      # Read-only probe mount for the disk guard (see api service).
+      - prod-pgdata:/guard/pgdata:ro
     command: ["/app/worker"]
     restart: unless-stopped
     deploy:

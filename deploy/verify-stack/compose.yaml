@@ -78,9 +78,16 @@ services:
       TASTILE_REQUEST_TIMEOUT_SECONDS: "30"
       # Disk capacity floor (NF04-R05 / root#145): writes get 503 +
       # Retry-After below this floor; default suits a dev workstation.
+      # PATH is the single-path shorthand for pre-core#586 images; PATHS
+      # (multi-path, takes precedence on new images) also watches PGDATA.
       TASTILE_DISK_GUARD_PATH: /
+      TASTILE_DISK_GUARD_PATHS: /guard/pgdata,/
       TASTILE_DISK_MIN_FREE_BYTES: ${TASTILE_DISK_MIN_FREE_BYTES:-1073741824}
       AWS_EC2_METADATA_DISABLED: "true"
+    volumes:
+      # Read-only probe mount so the disk guard watches the PGDATA
+      # filesystem (core#586). The guard only needs statvfs visibility.
+      - tastile-verify-pgdata:/guard/pgdata:ro
     ports:
       - "127.0.0.1:${TASTILE_API_PORT:-31410}:31400"
     restart: unless-stopped
@@ -104,10 +111,14 @@ services:
       TASTILE_DATABASE__MAX_CONNECTIONS: ${TASTILE_DATABASE__MAX_CONNECTIONS:-10}
       TASTILE_DELIVERY_PROVIDER: fake
       # Same disk floor as api: drains are deferred while the filesystem
-      # is below it (NF04-R05 / root#145).
+      # is below it (NF04-R05 / root#145). PATHS watches PGDATA too.
       TASTILE_DISK_GUARD_PATH: /
+      TASTILE_DISK_GUARD_PATHS: /guard/pgdata,/
       TASTILE_DISK_MIN_FREE_BYTES: ${TASTILE_DISK_MIN_FREE_BYTES:-1073741824}
       AWS_EC2_METADATA_DISABLED: "true"
+    volumes:
+      # Read-only probe mount for the disk guard (see api service).
+      - tastile-verify-pgdata:/guard/pgdata:ro
     command: ["/app/worker"]
     restart: unless-stopped
     deploy:

@@ -22,7 +22,7 @@ Native-first 本番スタック（`deploy/prod-stack`）の資源上限と、そ
 | edge header/body | header 64KB → 431 / body 32MB | Caddy `servers.max_header_size` + per-site `request_body max_size`（body は upstream が実際に読む場合に効く） | `deploy/prod-stack/Caddyfile` |
 | edge 総 TCP 接続数 | 実効上限 = caddy container `nofile`（compose で 1024） | stock Caddy に総接続数 option は無いため ulimit が実効上限。飽和時は超過接続が応答を得られず fail（無制限 queue にならない）。HTTP/2 同時 stream は Go http2 server default (MAX_CONCURRENT_STREAMS) | `deploy/prod-stack/compose.yaml` caddy service |
 | upstream 同時 request | web 256 / api 512 | Caddy `unhealthy_request_count`（upstream ごとの in-flight request 上限。1 upstream 構成では proxy 全体の同時 request 天井でもあり、超過時 fail-fast）+ `max_conns_per_host`（backend への TCP fan-out） | `deploy/prod-stack/Caddyfile` |
-| ディスク空き | 4 GiB（`TASTILE_DISK_MIN_FREE_BYTES`） | api: 非 GET/HEAD/OPTIONS を 503 + `Retry-After: 30`。worker: drain 全延期（`DrainTermination::Deferred`） | tastile-core `resource` crate、`api` middleware、`worker::drain` |
+| ディスク空き | 4 GiB（`TASTILE_DISK_MIN_FREE_BYTES`） | api: 非 GET/HEAD/OPTIONS を 503 + `Retry-After: 30`、timeline 系 GET の lazy write は skip。worker: drain 全延期（`DrainTermination::Deferred`）。監視 path は `TASTILE_DISK_GUARD_PATHS`（複数） | tastile-core `resource` crate、`api` middleware、`worker::drain` |
 
 service ごとの上書きは `TASTILE_<SERVICE>_CPUS` / `TASTILE_<SERVICE>_MEMORY`
 （SERVICE = DB/API/WORKER/WEB/CADDY/CLOUDFLARED）。`deploy/verify-stack` は
@@ -31,18 +31,55 @@ service ごとの上書きは `TASTILE_<SERVICE>_CPUS` / `TASTILE_<SERVICE>_MEMO
 
 ## ディスク逼迫時の挙動
 
-- **api**: `resource::DiskGuardConfig::is_low()`（`statvfs`、`/` は container
-  では host volume と同一 filesystem）を各リクエストで評価。閾値未満の間、
-  mutating request は handler に到達せず 503 + `Retry-After: 30`。
-  GET/HEAD/OPTIONS と `/v1/health`・`/v1/ready` は継続可能。
+監視対象は `TASTILE_DISK_GUARD_PATHS`（カンマ区切りの絶対 path、複数
+filesystem のいずれかが floor 割れで発動）。`TASTILE_DISK_GUARD_PATH` は
+単一 path 略記として残っており、PATHS 未設定時の fallback になる
+（PATHS が優先）。prod/verify stack では `/guard/pgdata`（PGDATA volume
+の read-only mount）と `/` を監視する。相対 path は起動時に拒否される。
+
+- **api**: `resource::DiskGuardConfig::is_low()`（`statvfs` を各監視 path
+  に対して実行。container 内では `/` は host volume と同一 filesystem、
+  `/guard/pgdata` は PGDATA volume の device）を各リクエストで評価。
+  閾値未満の間、mutating request（非 GET/HEAD/OPTIONS）は handler に
+  到達せず 503 + `Retry-After: 30`。
+  - `GET /v1/timeline`、`/v1/timeline/today`、`/v1/calendar/{day,week,month,year}`
+    は lazy materialization（occurrence 展開・flow 評価・coverage 記録）
+    のみを skip し、materialize 済みデータをそのまま返す（read 可用性を
+    維持。core#586）。
+  - その他の GET と `/v1/health`・`/v1/ready` も継続可能。
 - **worker**: 各 drain 呼び出しの先頭で同じ判定を行い、閾値未満なら
   `DrainTermination::Deferred` で即 return（claim も pass も実行しない）。
   daemon は次の cadence tick で自動再試行する。
-- **計測失敗時は fail-open**（warn ログのみ）。`TASTILE_DISK_GUARD_PATH` は
-  実在する mount を指すこと。閾値 `0` または env 未設定で guard は無効。
+- **fail-closed**: 監視 path の `statvfs` が失敗した場合、その path は
+  「floor 割れ」として扱う（warn ログ付き）。さらに api/worker 起動時に
+  全 path を `validate` し、1 つでも測定不能なら boot 自体が失敗する
+  （typo が静かに write を止め続ける事態を防ぐ）。起動時に path ごとの
+  実測空き bytes が info ログに出る。
+- 閾値 `0` または `TASTILE_DISK_MIN_FREE_BYTES` 未設定で guard は無効。
 - cgroup の memory limit は最後の防衛線であり、超過時は OOM kill される
   （postgres のデータ破壊は volume 側の話であり、disk floor がその前に
   書き込みを止める役割を持つ）。
+
+### mount namespace 外の path（backup 出力先など）
+
+in-guest guard は container の mount namespace 内しか見えない。
+`pg_dump` 出力先のように別物理 host / 別 mount を使う場合は、host/ops 側で
+同梱の `disk_check` probe（`/app/disk_check`、core#586 で追加）を実行する。
+
+```bash
+# 稼働中の api container 経由（image 同梱の bin。namespace 内の path 用）
+docker compose -f deploy/prod-stack/compose.yaml exec api \
+  /app/disk_check --min-free-bytes 4294967296 --path /
+
+# backup 出力先を mount した使い捨て container で検査（mount namespace 外用）
+docker run --rm -v /path/to/backup-dest:/backup:ro \
+  <core-image> /app/disk_check --min-free-bytes 4294967296 --path /backup
+```
+
+exit code: `0` = 全 path が floor 上、`1` = いずれかが floor 割れ、
+`2` = 測定不能（usage error 含む）。cron / deploy gate / runbook から
+fail-fast させる。`--min-free-bytes` は env `TASTILE_DISK_MIN_FREE_BYTES`
+でも与えられる。
 
 ## 検証手順（verify-stack / prod-equivalent で実施）
 
@@ -78,9 +115,14 @@ service ごとの上書きは `TASTILE_<SERVICE>_CPUS` / `TASTILE_<SERVICE>_MEMO
 6. **disk floor**: `TASTILE_DISK_MIN_FREE_BYTES` を実際の空き容量より
    大きい値（例: `u64` 相当の巨大値）にして api/worker を再起動。
    - api: `curl -X POST` が 503 + `Retry-After: 30`、`curl /v1/health` が 200。
+   - api（core#586 以降の image）: `GET /v1/timeline`・`/v1/calendar/day`
+     等は lazy write を skip して materialize 済みデータを 200 で返す。
    - worker: `worker drain` が `"termination":"deferred"` を返し、
      DB の work item が claim されないこと。
    - 値を戻すと書き込みが復帰すること（正本を壊さず可逆であること）。
+   - `docker compose exec api /app/disk_check --path /` で probe の
+     exit code を確認できる（`/app/disk_check` は core#586 以降の image
+     に同梱）。
 
 ## 実測記録
 
@@ -103,11 +145,19 @@ session SQL deadlines（core#561/#579）と `GET /v1/sync/snapshot`
 ## 既知の gap
 
 - prod-acc stack の pin image は `tastile-core:87271a29`（#145 branch build）に
-  更新済みで disk floor を含む。最終 RC で release head の image に pin を
-  更新して再実測する（NF04-R03/R04）。
+  更新済みで初期の disk floor を含む。ただし DiskGuard 強化（core#586 の
+  `b40ae3e6`: fail-closed・`TASTILE_DISK_GUARD_PATHS`・`disk_check`・
+  timeline write-skip）はこの pin に**含まれない**。multi-path 監視と
+  `disk_check` の実測には core#586 を含む image への pin 更新と再実測が
+  必要（NF04-R03/R04）。compose 側は PATHS + `/guard/pgdata:ro` mount を
+  既に設定済みで、新旧どちらの image でも動作する（旧 image は PATH の
+  `/` のみ監視）。
 - Caddy 公式 image には rate_limit plugin が無いため、edge の「同時接続」
   上限は concurrency cap であり、req/min の厳密な rate limit ではない。
   必要になれば自前 build または plugin 付き image を検討する。
-- disk floor は単一 filesystem の `statvfs` であり、volume 単位の quota では
-  ない。PGDATA volume が別 device にある構成では `TASTILE_DISK_GUARD_PATH`
-  をその mount に向ける。
+- disk guard は watched path ごとの `statvfs` であり、volume 単位の quota
+  ではない。PGDATA volume を別 device に移す構成では、volume を api/worker
+  に `/guard/pgdata:ro` で mount して `TASTILE_DISK_GUARD_PATHS` に列挙する
+  （prod/verify stack は既にこの形）。container の mount namespace 外の
+  path（別物理 host の backup 出力先等）は `disk_check` を host/ops 側で
+  実行して検査する（上記「mount namespace 外の path」参照）。
