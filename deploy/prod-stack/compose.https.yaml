@@ -1,0 +1,34 @@
+# HTTPS acceptance overlay for deploy/prod-stack (root#165 / #144).
+# Used ONLY for the public-https acceptance stack behind the
+# tastile-acceptance Cloudflare Tunnel: acc-app/acc-api.tastile.app.
+# Canonical compose.yaml is not modified.
+#
+#   scripts/stack.sh prod-https up -d db api worker caddy web
+#   scripts/stack.sh prod-https --profile tunnel up -d   # adds cloudflared
+#
+# Rendered env (.tmp/https/prod.env) must set:
+#   APP_DOMAIN=acc-app.tastile.app API_DOMAIN=acc-api.tastile.app
+#   CADDYFILE=Caddyfile.tunnel  (plain HTTP inside; TLS terminates at CF)
+#   CADDY_HTTP_PORT=127.0.0.1:<port>  (host cloudflared or published bind)
+#
+# web -> api connectivity: canonical compose already points server-side
+# core URLs at http://api:31400 inside the compose network — the public
+# TLS edge is never on this path. Browser traffic uses the baked
+# NEXT_PUBLIC_DAEMON_BASE_URL=https://acc-api.tastile.app through
+# Cloudflare Access; the web BFF proxies carry the service token server
+# side where required.
+
+services:
+  worker:
+    environment:
+      # Same delivery double as prod-equivalent: the worker drains through
+      # the stack's own API over the internal network.
+      TASTILE_DELIVERY_PROVIDER: http
+      TASTILE_DELIVERY_BASE_URL: http://api:31400
+      TASTILE_DELIVERY_PROVIDER_TOKEN: ${TASTILE_DELIVERY_PROVIDER_TOKEN:?set TASTILE_DELIVERY_PROVIDER_TOKEN}
+
+  web:
+    # Runtime env for the public acceptance origin: acc-* URLs, signup
+    # domain allowlist, no Stripe/Cognito values (cost boundary, root#174).
+    env_file:
+      - ../../.tmp/https/web.env
