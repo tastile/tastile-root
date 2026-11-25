@@ -52,6 +52,13 @@ A-AT15 の backup/restore は verify-stack 構成に限り harness 内蔵経路
 (pg_dump → 別 compose project への isolated restore → readback) を使う。
 それ以外の stack では `TASTILE_ACCEPTANCE_OPS_CMD` の runbook が必要。
 
+> stack の手動操作（`up`/`down`/`ps`/`logs`/`exec`）は必ず
+> `<tastile-root>/scripts/stack.sh <stack-id>` 経由で行う（root#183）。
+> `acc` は registry 登録済みで env file は `.tmp/acceptance/verify-stack.env`。
+> project 名・port・volume・image の preflight と allowlist は wrapper が強制し、
+> bare `docker compose` は他 stack の誤爆を起こし得るため使わない。
+> 正規手順: `docs/runbooks/stack-operations.md`。
+
 ## 判定
 
 各 case は `PASS` / `FAIL` / `BLOCKED` / `N-A` / `NOT-RUN` のいずれかで終わる。

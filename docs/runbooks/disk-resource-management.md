@@ -130,7 +130,12 @@ launchctl unload ~/Library/LaunchAgents/com.tastile.disk-hygiene.plist # 解除
      を core / web / android / desktop / openapi / brands で確認し、queued も同様に 0。
   2. WSL runner が idle: `systemctl list-units 'actions.runner.*'` で active でも
      `Runner.Worker` が動いていないこと（`pgrep -af Runner.Worker`）。
-  3. `wsl.exe --shutdown` 後に実施（実行中ジョブがあると vhdx がロックされ失敗する）。
+  3. ローカルの acceptance / verify 実行が走っていない: `scripts/stack.sh list`
+     で稼働 stack を確認し、進行中の harness run（`acceptance/.tmp/` の最新
+     run.jsonl が更新中でないこと）と agent の stack 操作が無いこと。
+     WSL 側の docker stack（prod-acc / acc / verify-145 等）を `down` しない
+     限り vhdx には触れないが、実行中ジョブが vhdx をロックするため上記 1–2 は必須。
+  4. `wsl.exe --shutdown` 後に実施（実行中ジョブがあると vhdx がロックされ失敗する）。
 - 手順:
 
   ```powershell

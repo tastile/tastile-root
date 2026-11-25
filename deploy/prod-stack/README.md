@@ -1,5 +1,11 @@
 # Production-equivalent stack (Native-first release plan v0.4, NF04-R02)
 
+> **stack 操作は必ず `<tastile-root>/scripts/stack.sh` 経由で行う**（root#183）。
+> `prod` / `prod-acc` は registry で class `prod` / `prod-equiv` に分類され、
+> 破壊的操作（`down -v` 等）は `TASTILE_STACK_DESTRUCTIVE_OK=<id>` が必須。
+> preflight が project・port・volume・image を照合する。正規手順は
+> `docs/runbooks/stack-operations.md` を参照。
+
 ADR-0025 で採用した Native-first 構成の本番相当 Compose 定義。対象ホストは
 専用の常時稼働 Windows マシン上の隔離 Ubuntu LTS VM。追加クラウド費用ゼロ、
 Oracle Cloud は不使用。
@@ -34,13 +40,18 @@ Muse 運用 SoT とは DB・port・credential・volume をすべて分離する�
 ## 手順（承認後の VM 上で実施）
 
 ```bash
-cd deploy/prod-stack
+cd <tastile-root>
 # .env.example を元に Infisical から値を注入した env file を用意（gitignore 対象・commit 禁止）
-docker compose --env-file <rendered.env> config          # 設定検証
-docker compose --env-file <rendered.env> up -d           # 起動
-docker compose --env-file <rendered.env> ps
-docker compose --env-file <rendered.env> logs --tail=50 api worker web
+export TASTILE_STACK_ENV_FILE=<rendered.env>
+scripts/stack.sh prod doctor                        # preflight（up 相当の全検査）
+scripts/stack.sh prod up -d                         # 起動
+scripts/stack.sh prod ps
+scripts/stack.sh prod logs --tail=50 api worker web
 ```
+
+prod-equivalent 受入 stack（このホスト上の `tastile-prod-acc`）も同じ wrapper を使う:
+`scripts/stack.sh prod-acc ...`（env file は registry 登録済み
+`.tmp/prod-equivalent/prod.env`）。
 
 Cloudflare Tunnel を使う場合は `TUNNEL_TOKEN` を設定し `--profile tunnel` を付ける。
 その場合 caddy の 80/443 は loopback bind（`CADDY_HTTP_PORT` / `CADDY_HTTPS_PORT`

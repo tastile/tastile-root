@@ -8,9 +8,13 @@
 # tastile-web as siblings of the tastile-root worktree (or override
 # TASTILE_CORE_DIR / TASTILE_WEB_DIR).
 #
-# Preflight:     bash preflight.sh
-# Bring up:      docker compose up --build -d
-# Tear down:     docker compose down -v   (also wipes the test DB)
+# Preflight:     bash preflight.sh   (disk + resolved-config attestation)
+# Stack guard:   ../../scripts/stack.sh <id> ...  (project/port/volume/image
+#                preflight + allowlist; see deploy/stacks.tsv and
+#                docs/runbooks/stack-operations.md — bare `docker compose`
+#                is not the sanctioned path, root#183)
+# Bring up:      scripts/stack.sh verify up --build -d
+# Tear down:     scripts/stack.sh verify down -v   (also wipes the test DB)
 # Health:        curl http://127.0.0.1:31410/v1/health
 
 services:

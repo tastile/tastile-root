@@ -18,11 +18,11 @@
 #   APP_DOMAIN / API_DOMAIN                 public hostnames (DNS transfer is an
 #                                           approval boundary; placeholders OK)
 #
-# Bring up:   docker compose --env-file <infisical-rendered.env> up -d
-# Validate:   docker compose --env-file <env> config
-# Tear down:  docker compose --env-file <env> down        (volumes preserved)
-#             docker compose --env-file <env> down -v     (wipes ALL data —
-#                                             destructive, confirm first)
+# Bring up:   scripts/stack.sh prod up -d   (TASTILE_STACK_ENV_FILE=<rendered.env>)
+# Validate:   scripts/stack.sh prod doctor
+# Tear down:  scripts/stack.sh prod down        (volumes preserved)
+#             scripts/stack.sh prod down -v     (wipes ALL data — destructive,
+#                                             requires TASTILE_STACK_DESTRUCTIVE_OK=prod)
 
 name: ${COMPOSE_PROJECT_NAME:-tastile-prod}
 
