@@ -71,8 +71,9 @@ export async function at05(ctx: RunContext): Promise<void> {
 
   // no-browser-dep: a cookie-free client must complete the same CRUD using
   // only the scoped Bearer token (no session cookie, no bridge header).
-  const { ApiClient } = await import("../http.ts");
-  const bare = new ApiClient(ctx.profile.apiBase);
+  // clientFor still attaches CF Access edge credentials on the https
+  // profile — those are transport auth, not a browser/session dependency.
+  const bare = ctx.clientFor("muse-bare", ctx.profile.apiBase);
   const bareRead = await bare.get(`/v1/tiles/${tileId}`, { bearer: muse.token });
   ctx.step("GET /v1/tiles/{id} (fresh client, bearer only)", bareRead);
   ctx.check("no-browser-dep", bareRead.status === 200, `status ${bareRead.status}`);
