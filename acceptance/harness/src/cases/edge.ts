@@ -292,10 +292,13 @@ export async function at16(ctx: RunContext): Promise<void> {
         `read=${sessRead.status} write=${sessWrite.status}`,
       );
     } else {
+      // web_base is configured but signup/session issuance produced no
+      // cookie: the authenticated-path bypass surface cannot be probed,
+      // which must not count as a pass in any environment that runs web.
       ctx.check(
         "session-cookie-not-api-credential",
-        true,
-        "no better-auth session cookie in jar; probe not applicable",
+        false,
+        "web_base configured but no better-auth session cookie in jar; cannot prove bypass denial",
       );
     }
   } else {
