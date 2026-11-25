@@ -4,11 +4,43 @@
 # approved (approval boundary). Caddy provisions internal TLS automatically
 # when the domains resolve; behind cloudflared the tunnel terminates public
 # TLS and caddy may serve plain HTTP internally.
+#
+# Edge ceilings (NF04-R05 / root#145): official Caddy has no request-rate
+# plugin, so enforcement is (a) server timeouts that bound slow clients and
+# (b) per-upstream concurrency caps via passive health checks
+# (`unhealthy_request_count`): once an upstream is already serving that many
+# simultaneous requests it is treated as down and excess requests fail fast
+# instead of queueing without bound.  `max_conns_per_host` bounds the TCP
+# fan-out to each backend.  No `write` timeout is set: long-lived sync
+# streams must not be cut.
+{
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 30s
+			idle 2m
+		}
+	}
+}
 
 {$APP_DOMAIN} {
-	reverse_proxy web:3000
+	reverse_proxy web:3000 {
+		transport http {
+			max_conns_per_host 256
+		}
+		unhealthy_request_count 256
+		fail_duration 30s
+		max_fails 3
+	}
 }
 
 {$API_DOMAIN} {
-	reverse_proxy api:31400
+	reverse_proxy api:31400 {
+		transport http {
+			max_conns_per_host 512
+		}
+		unhealthy_request_count 512
+		fail_duration 30s
+		max_fails 3
+	}
 }

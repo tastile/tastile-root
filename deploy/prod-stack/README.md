@@ -52,10 +52,29 @@ Cloudflare Tunnel を使う場合は `TUNNEL_TOKEN` を設定し `--profile tunn
 明示承認が必要: VM への実構築（NF04-I01）、DNS 移管・外部公開（NF04-I03/I04）、
 既存本番データの切り替え（NF04-I05）、release→main 統合。
 
+## 資源上限（NF04-R05 / root#145）
+
+VM 前提 4 vCPU / 8 GiB RAM / 64 GiB ディスクに対し、以下を処理として強制する
+（監視のみではない）。上限値と検証手順の正本は
+[`docs/runbooks/resource-limits.md`](../../docs/runbooks/resource-limits.md)。
+
+| 層 | 上限 | 強制手段 |
+| --- | --- | --- |
+| CPU / RAM | service 別（下表） | compose `deploy.resources.limits`（cgroup） |
+| DB 接続数 | `max_connections=60` | `command: postgres -c` + per-process pool 10 |
+| SQL 実行時間 | 60s / idle-in-tx 300s | core `SessionLimits`（pool session 設定） |
+| request body / timeout | 2 MiB / 30s | `TASTILE_MAX_REQUEST_BODY_BYTES` / `TASTILE_REQUEST_TIMEOUT_SECONDS` |
+| API rate limit | auth 60/min, data 600r/240w/12b rpm | core in-process limiter → 429 |
+| edge 接続 | read_header 10s / read_body 30s / idle 2m、upstream 同時 256(web)/512(api) | Caddyfile `servers.timeouts` + `unhealthy_request_count` |
+| ディスク逼迫 | 空き 4 GiB 未満 | api: 書き込み 503+Retry-After、worker: drain 延期 |
+
+既定の cgroup 配分: db 1.0 CPU/2G、api 1.25/2G、worker 0.75/768M、
+web 0.5/1G、caddy 0.25/128M、cloudflared 0.25/128M（計 4.0 CPU / 約 6G、
+残りを OS と page cache に残す）。`TASTILE_*_CPUS` / `TASTILE_*_MEMORY`
+で service ごとに上書き可能。
+
 ## 未決・後続タスク
 
-- resource 上限・restart policy の確定は NF04-R05（本 compose は `unless-stopped`
-  のみ。VM の RAM/CPU に合わせて `deploy.resources` を追加する）。
 - image の build/publish 手順と digest pin の固定は NF04-R03/R04。
 - backup 連携（別物理 Mac + age 暗号）は NF04-I02。
 - `TASTILE_DELIVERY_PROVIDER` は現状 `fake` 既定。本番通知経路の決定は
