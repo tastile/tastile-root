@@ -449,9 +449,10 @@ pwsh -NoProfile -File .\scripts\check-workspace.ps1 -Profile full -KeepGoing -Ma
 
 - 終了コード `0`: 選択した gate がすべて通過
 - 終了コード `1`: コード、テスト、ビルドの失敗
-- 終了コード `2`: DB、JDK、リポジトリ欠落など外部前提による BLOCKED
+- 終了コード `2`: DB、JDK、リポジトリ欠落、ディスク空き容量不足（`-MinFreeGB`、既定 2 GiB）など外部前提による BLOCKED
 - 停止条件: 全通過、再試行上限、または外部前提の不足。BLOCKED を成功として扱わない
 - core full gate には `TASTILE_DATABASE_URL` または `DATABASE_URL` で到達可能な PostgreSQL が必要
+- ディスク資源の監視・回収は `scripts/disk-hygiene.sh`（POSIX）と `docs/runbooks/disk-resource-management.md` が正本（root#170）。重いビルド前は `disk-hygiene.sh check`（既定 15 GiB floor）を通す
 
 ### 13-3. Agent commit review loop (deprecated 2026-09-29)
 
