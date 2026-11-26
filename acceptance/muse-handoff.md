@@ -164,6 +164,106 @@ curl -fsS "${EDGE[@]}" -X DELETE "$API/v1/tiles/{tile_id}" -H "$AUTH" -H 'Conten
 `POST /v1/placements/{id}/changes`（ChangeSet）を使い、確定結果は
 `/v1/timeline` で readback する。
 
+### 5a. ChangeSet（再配置）の検証済み wire 形式（2026-11-26 prod-https 実測）
+
+`POST /v1/placements/{id}/changes` の payload は現行 OpenAPI に未記載のため、
+以下は `tastile-core@19b0e70e`（prod-https 稼働 image）に対する実測で確定した
+受理される形状である。異なる形状でも 200 を返し得るが、span endpoint として
+解釈されない変更は**受理されるだけで timeline に反映されない**（silent no-op）。
+必ず下記の形で送り、`/v1/timeline` の `span` で readback すること。
+
+```jsonc
+{
+  "idempotency_key": "<uuid>",
+  "payload": {
+    "placement_id": "<placement uuid>",
+    "changeset": {
+      "id": "<uuid>",                 // server が採番し直す
+      "owner_id": "<owner uuid>",     // 必須。GET /v1/tiles/{id} の owner_id
+      "target": { "Placement": "<placement uuid>" },
+      "layer": 1,
+      "rank": 0,
+      "changes": [
+        {
+          "id": "<uuid>",
+          "key": { "group": 5, "item": null, "part": 0 },  // 5=Placement group
+          "kind": 0,                    // 0=SET
+          "value": { "Instant": "2026-12-21T11:00:00.000Z" },
+          "merge": 0,
+          "source": 2,                  // 2=USER
+          "source_ref": null,
+          "rank": 0
+        }
+        // part: 0 = SPAN_START, 1 = SPAN_END, 2 = INSIDE_PARENT, 3 = INSIDE_SCOPE
+      ],
+      "activation": { "when": null, "until": null },
+      "revoked": null,
+      "source": 2,
+      "source_ref": null,
+      "created_at": "<rfc3339>",
+      "created_by": { "at": "<rfc3339>", "actor": "<owner uuid>", "actor_kind": 0, "command_id": "<uuid>" }
+    }
+  }
+}
+```
+
+実測（同一 build、同一 owner、同日 09:00–10:00Z baseline）:
+
+- start+end を 11:00–12:00Z へ同時変更 → 200、`/v1/timeline` の `span` が
+  `11:00..12:00` に解決される（baseline/effective/resolved の区別は §5b）。
+- end のみ 11:00Z へ延長 → `09:00..11:00`。start のみを end より後へ動かすと
+  span が反転し **timeline から項目自体が消える**（`SPAN_INVALID` violation、
+  既定では blocked/invalid を含めない）。`GET /v1/placements/{id}` は
+  baseline span を返すため、確定確認には必ず `/v1/timeline` を使う。
+- `owner_id` / `created_by.actor` を欠くと 422（平文 deserialize error）。
+  `owner_id` は `GET /v1/tiles?limit=1` の items には含まれず、
+  `GET /v1/tiles/{id}` の view にある。`/v1/auth/session` は scoped API token
+  では 401。
+
+### 5b. 読み取り面の意味論（実測）
+
+- `GET /v1/placements/{id}`: baseline（作成時）の span を返す。ChangeSet は
+  反映されない。
+- `GET /v1/timeline`: ChangeSet を解決した **effective span** を返す。
+  既定では closed / blocked / invalid（反転 span 等）を除外する。
+- `GET /v1/change-sets/{id}`: ChangeSet view（履歴・activation・revoked）。
+- `GET /v1/sync` / `GET /v1/sync/snapshot`: entity changes + state 全文。
+  差分カーソル運用は core#558 / core#578 の契約確定待ち。
+- `POST /v1/placements/{id}/close`（OpenAPI 未記載・runtime 実在、2026-11-26
+  実測）: 単一 placement の close。`payload={"placement_id":"<uuid>"}`。
+  active execution があると 409、冪等（再送は revision 不変で 200）。
+  source 管理の occurrence でも個別に閉じられ、再 materialize されない。
+  週次タイルの 1 コマ分だけを取消す現行運用の「単一 occurrence close」は
+  この endpoint が対応物。
+
+### 5c. Muse REPORT.md（2026-11-26）実測との差分と対応
+
+Muse の外部検証レポート（`REPORT.md`、Downloads 経由受領）で報告された
+「ChangeSet 受理後に timeline が baseline のまま」は、**同一 build
+（`tastile-core:19b0e70e`）に対する本書 §5a の再現実験では再現しなかった**
+（start+end 同時移動・end 延長・start のみ移動の 3 系列すべてで解決済み
+span が正しく返る）。最も可能性の高い原因は payload 形状の差異
+（例: span endpoint として解釈されない `value` variant、`activation`
+window、layer/rank の相違）による silent no-op であり、サーバ側の
+解決経路自体は正常である。契約未記載が根本原因のため、wire 形式を
+§5a に固定した。Muse 側で再検証する際は §5a の形状をそのまま使い、
+`/v1/timeline` の `span` で readback すること。payload を共有できれば
+差分をさらに絞れる。
+
+その他の REPORT 指摘と正本 Issue の対応:
+
+- 未記載 endpoint（`GET /v1/tiles/{id}`、`POST /v1/tiles/{id}/update`、
+  `DELETE /v1/tiles/{id}`、`POST /v1/placements/{id}/changes`、
+  `POST /v1/placements/{id}/close`）と
+  ChangeSet payload・エラー形式二系統・削除条件・expected_revision の
+  適用範囲 → core contract issue として起票（§8 参照）。
+- 単一 occurrence の close 相当 → **`POST /v1/placements/{id}/close` が runtime に実在**（§5b、実測済み）。契約記載は core#587。close/blocked の仕様確認は core#428、再配置再設計は core#432。
+- 再配置の構造的再設計 → core#432。
+- sync 差分カーソル → core#558 / core#578。
+- CF Access service token 必須 → 確定。§8 の「要否未確定」を更新。
+- `build_identity.commit_sha` null → OCI image build が `.git` /
+  `TASTILE_BUILD_COMMIT_SHA` を持たない既知 gap として core issue 起票。
+
 ## 6. 実測結果
 
 ### 6a. prod-equivalent stack `tastile-prod-acc`（2026-11-25）
@@ -223,4 +323,7 @@ curl -fsS "${EDGE[@]}" -X DELETE "$API/v1/tiles/{tile_id}" -H "$AUTH" -H 'Conten
 | Infisical `/tastile/muse` path と secret 投入 | 登録済み（2026-11-26、prod-https 向け再発行）。Muse 取得用 Machine Identity は未発行 | #150 |
 | Cloudflare Access Service Token | **発行済み**。Muse 専用 `tastile-acc-muse` を acc-api policy に追加済み | #144/#150 |
 | handoff 用 token の有効期限・ローテーション周期 | `muse-https-202611` は 2027-02-23 失効・14 日前更新ルールで運用（`muse-credentials.md` §4） | #150 |
-| 実 Muse 環境からの初回 probe | 資格情報は取得可能。Muse 側実行環境で `muse-access.md` §4 / 本書 §5 を実行する残作業 | #150 |
+| 実 Muse 環境からの初回 probe | **実施済み**（2026-11-26、Muse REPORT.md 受領。接続・CRUD・source-tile・execution は実証。ChangeSet readback は §5c の payload 契約差異が疑因で要再検証） | #150 |
+| CF Access Service Token の要否 | **必須と確定**（ヘッダなしは全経路 403）。handoff §3 の edge auth は必須前提として固定 | #144/#150 |
+| ChangeSet / 未記載 endpoint の OpenAPI 契約 | wire 形式は §5a に実測固定。OpenAPI への正式記載と silent no-op 防止は core contract issue で追跡 | core（§5c） |
+| `build_identity.commit_sha` が null | OCI image build が build identity を埋め込まない既知 gap。core issue で追跡 | core（§5c） |
