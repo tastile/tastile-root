@@ -261,8 +261,22 @@ window、layer/rank の相違）による silent no-op であり、サーバ側�
 - 再配置の構造的再設計 → core#432。
 - sync 差分カーソル → core#558 / core#578。
 - CF Access service token 必須 → 確定。§8 の「要否未確定」を更新。
-- `build_identity.commit_sha` null → OCI image build が `.git` /
-  `TASTILE_BUILD_COMMIT_SHA` を持たない既知 gap として core issue 起票。
+- `build_identity.commit_sha` null → **解消済み**。core#588 / PR #589 で
+  OCI build に build identity を埋め込み、`tastile-core:fb9bb58a` を
+  prod-acc / prod-https に配備。`/v1/health` が `commit_sha=fb9bb58a…`・
+  `dirty=false` を返すことを実測。
+
+### 5d. 現行 Muse 運用との対応表（残件整理、2026-11-26）
+
+| 現行運用 | 新 API での対応 | 状態 |
+| --- | --- | --- |
+| 意味的登録キー（授業 tile 等） | tile の `external_id` に意味キーを格納（`UpdateTilePayload`/`CreateTilePayload` で設定可）。command の `idempotency_key` は UUIDv5（namespace + 意味キー + 操作種別）をクライアント側で導出して冪等登録に使う。server 採番の tile UUID との対応は `external_id` で引く | 設計確定。UUIDv5 namespace の確定は root#151/#154 の移行設計で行う |
+| 差分取得（前回同期以降の変化） | `GET /v1/sync?cursor=<next_cursor>` を `next_cursor` が空になるまでページング。entity state 全文が必要なら `GET /v1/sync/snapshot`。変更通知の doorbell は `GET /v1/sync/stream`（SSE、任意）。いずれも contract v4.0.0 記載済み | 利用可 |
+| 単一 occurrence 取消 | `POST /v1/placements/{id}/close`（§5b 実測済み）。週次タイルの 1 コマだけを閉じ、source 管理 occurrence の再 materialize を防ぐ | 利用可（契約記載は core#587 → PR #590） |
+| 再配置・span 変更 | `POST /v1/placements/{id}/changes` に ChangeSet を POST（§5a wire 形式固定済み）。**200 受理 ≠ 反映**のため必ず `GET /v1/timeline` で readback。span 反転は `SPAN_INVALID` で timeline から消える | 利用可（silent no-op 注意、core#432 で恒久対策予定） |
+| 修復（不整合・詰まりの回復） | §7 エラー表に従い revision 取り直し→再試行。source-tile 系は `PUT /v1/source-tiles/{id}`・`POST /v1/source-tiles/{id}/reflow`（`expected_revision` 必須・厳密）。tile archive は `DELETE /v1/tiles/{id}`（実行履歴ありは 422 で拒否） | 利用可 |
+| SwiftBar / メニューバー表示 | ポーリング先として `GET /v1/active-tile`・`GET /v1/timeline`（期間指定）・`GET /v1/candidates` が利用可。`GET /v1/timeline/today` は runtime 実在だが OpenAPI 未記載（parity baseline 残）— 表示用途はまず `/v1/active-tile` + `/v1/timeline` の組合せを推奨 | 一部契約未記載 |
+| 通知・プッシュ | Phase A では通知経路は対象外（`/v1/endpoints`・`/v1/deliveries` は契約記載済みだが Muse 経路での利用は未検証）。当面はポーリング + `sync/stream` doorbell で代替 | Phase B 以降 |
 
 ## 6. 実測結果
 
@@ -325,5 +339,5 @@ window、layer/rank の相違）による silent no-op であり、サーバ側�
 | handoff 用 token の有効期限・ローテーション周期 | `muse-https-202611` は 2027-02-23 失効・14 日前更新ルールで運用（`muse-credentials.md` §4） | #150 |
 | 実 Muse 環境からの初回 probe | **実施済み**（2026-11-26、Muse REPORT.md 受領。接続・CRUD・source-tile・execution は実証。ChangeSet readback は §5c の payload 契約差異が疑因で要再検証） | #150 |
 | CF Access Service Token の要否 | **必須と確定**（ヘッダなしは全経路 403）。handoff §3 の edge auth は必須前提として固定 | #144/#150 |
-| ChangeSet / 未記載 endpoint の OpenAPI 契約 | wire 形式は §5a に実測固定。OpenAPI への正式記載と silent no-op 防止は core contract issue で追跡 | core（§5c） |
-| `build_identity.commit_sha` が null | OCI image build が build identity を埋め込まない既知 gap。core issue で追跡 | core（§5c） |
+| ChangeSet / 未記載 endpoint の OpenAPI 契約 | **対応中**。core#587 → core PR #590 + tastile-openapi PR #43（draft）。wire 形式は §5a に実測固定済み | core（§5c） |
+| `build_identity.commit_sha` が null | **解消済み**。core#588 / PR #589 merge、image `tastile-core:fb9bb58a` 配備・health 実測済み | core |
