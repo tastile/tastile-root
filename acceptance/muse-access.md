@@ -65,7 +65,7 @@ Better Auth の session cookie や `x-tastile-web-bridge-secret` は Muse 経路
 | 項目 | 担当 |
 |---|---|
 | token 発行/失効 API・scope 検証 | 本 harness A-AT05/A-AT06 (local で実測済み) |
-| probe script の実装と実環境実行 | #150 (Muse 連携)。prod-acc での直接 HTTP 実測は harness run `muse-nf04a2` (A-AT05–12 PASS) で実施済み。実 Muse 環境からの probe は承認境界 |
+| probe script の実装と実環境実行 | #150 (Muse 連携)。prod-acc での直接 HTTP 実測は harness run `muse-nf04a2` (A-AT05–12 PASS)、公開 HTTPS 経路での同一手順 probe は 2026-11-26 に実測済み (`.tmp/muse-https/probe.json`)。実 Muse 環境からの初回実行が残作業 |
 | 外部到達性 (DNS/Tunnel/Access) | #144/#66 → A-AT01 (https profile) |
 | 資格情報の保管・供給経路確定 | #150 + Infisical 運用 (#102 費用境界と整合) |
 | handoff (接続先・OpenAPI 版・scope・操作例・失効手順) | #165 実行タスク 4 |

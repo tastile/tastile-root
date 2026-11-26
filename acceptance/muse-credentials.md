@@ -23,14 +23,14 @@
 
 | キー | 内容 | 発行元 / 更新責任 |
 | --- | --- | --- |
-| `TASTILE_MUSE_API_BASE` | API origin。現行値: `https://acc-api.tastile.app`（受入公開ホスト。公開承認前は未到達。loopback 検証時は `http://127.0.0.1:31440`） | 公開経路確定時（#144/#165 A-AT01）に更新 |
-| `TASTILE_MUSE_API_TOKEN` | Core scoped API token。`scopes=tastile.read tastile.write`、`all` なし。label `muse-staging-202611`、token id `01a212b8-c968-7392-b77f-a1128f59ec7f`、expires_at `2027-02-23T00:00:00Z` | 専用 owner credential で `POST /v1/api-tokens`（§4） |
+| `TASTILE_MUSE_API_BASE` | API origin。現行値: `https://acc-api.tastile.app`（prod-https 受入環境、live） | 公開経路確定時（#144/#165 A-AT01）に更新 |
+| `TASTILE_MUSE_API_TOKEN` | Core scoped API token。`scopes=tastile.read tastile.write`、`all` なし。label `muse-https-202611`、token id `01a213b6-a56e-7910-b731-3ad8237578f6`、expires_at `2027-02-23T00:00:00Z`（2026-11-26、prod-https stack で再発行） | 専用 owner credential で `POST /v1/api-tokens`（§4） |
+| `TASTILE_MUSE_API_TOKEN_ID` | 上記 token の id（非秘密。失効・棚卸し用） | 同上 |
+| `TASTILE_MUSE_RO_TOKEN_ID` | probe 用 read-only token の id（検証後 revoke 済み・記録用） | 同上 |
 | `TASTILE_MUSE_OWNER_EMAIL` | 専用 owner `muse-integration@tastile-acceptance.invalid` のメール | owner 再作成時のみ変更 |
 | `TASTILE_MUSE_OWNER_PASSWORD` | 同 owner のパスワード。token 発行・失効（OwnerAdmin 相当操作）に必要 | 同上 |
-
-Cloudflare Access Service Token（`CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`）
-は現時点で **未登録**。理由と判断は §5 を参照。発行が承認された時点で
-`/tastile/muse`（または実行主体別 path）へ追加する。
+| `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET` | Cloudflare Access Service Token `tastile-acc-muse`（client_id `54d41859…`）。acc-api の service-auth policy 対象。2026-11-26 発行・登録 | `tastile-edge-admin / prod / /provisioning` の Service Token Admin token で発行（§7） |
+| `CF_ACCESS_SERVICE_TOKEN_ID` | 上記 service token の id `e74d94cf-0421-4845-b72d-f4c81f934e6e`（非秘密） | 同上 |
 
 ## 3. 取得手順
 
@@ -83,6 +83,9 @@ TOKEN=$(infisical secrets get TASTILE_MUSE_API_TOKEN \
 
 `expires_at` は必須（省略は 400）。現行 handoff token は 2027-02-23 失効予定で、
 更新目安は 2027-02-09（edge 管理 token と同じ 14 日前ルールを適用）。
+prod-https stack の DB は prod-acc とは別のため、token は stack ごとに発行する。
+stack を再構築した場合は owner 作成からやり直す（§4 の sign-up/sign-in →
+bridge → mint 手順。実施記録は `muse-handoff.md` §6b）。
 
 ## 5. 失効・緊急遮断
 
@@ -117,26 +120,26 @@ Authorization: Bearer <owner admin token>
 | 作業 | 状態 | 必要な承認/権限 |
 | --- | --- | --- |
 | Muse 取得用 Machine Identity（`/tastile/muse` read のみ）発行 | 未実施 | Infisical org 管理者による identity 作成と scope 付与 |
-| Access Service Token `tastile-acc-muse` 専用発行 | **推奨・未発行** | 下記 §5-Access の判断記録の通り、Cloudflare write（Service Tokens Write）の実施承認 |
-| `TASTILE_MUSE_API_BASE` の実 HTTPS 到達確認 | 未実施 | 公開経路（Tunnel ingress / DNS / cloudflared 起動）の承認（#144） |
+| Access Service Token `tastile-acc-muse` 専用発行 | **発行済み**（2026-11-26、token id `e74d94cf-…`、acc-api policy に追加、`/tastile/muse` 登録済み） | 実施済み（#144 公開承認の範囲内） |
+| `TASTILE_MUSE_API_BASE` の実 HTTPS 到達確認 | **実測済み**（baseline-27-https + Muse-path probe、`muse-handoff.md` §6b） | 実施済み |
 | `prod` environment 側の `/tastile/muse` 整備 | 未実施 | 実公開後 |
 
 ## 7. Access Service Token の判断記録
 
-- 既存 `tastile-acc-muse-probe`（`tastile-edge-runtime / staging / /access`）は
-  受入プローブ専用に発行済みで、service-auth policy `eaf7f482-…` の対象は
-  当該 token のみ。
-- Muse 用に **専用 token `tastile-acc-muse` の新規発行を推奨**する。
-  理由: 失効独立性（Muse 漏洩時に probe を止めない/その逆も同様）、
-  用途名と実行主体の一致、policy 対象を実行主体ごとに分離できる。
-- 既存 probe token の共有も技術的には可能だが、名前・policy・失効単位が
-  probe と共用になるため最小権限の観点で採用しない。
-- 発行は `Access: Service Tokens Write` 権限を持つ
-  `tastile-edge-admin / prod / /provisioning` の
-  `CLOUDFLARE_ACCESS_SERVICE_TOKEN_API_TOKEN` による Cloudflare write であり、
-  read-only 検証済みの範囲を超えるため **operator 作業として承認待ち**。
-  発行後は client_id/secret を `/tastile/muse`（staging）へ登録し、
-  service-auth policy の対象へ追加する。
+- 既存 `tastile-acc-muse-probe`（token id `3d85fea3-…`、
+  `tastile-edge-runtime / staging / /access`）は受入プローブ専用。
+- Muse 用に **専用 token `tastile-acc-muse`（token id `e74d94cf-…`）を
+  2026-11-26 に発行した**。理由: 失効独立性（Muse 漏洩時に probe を止めない
+  /その逆も同様）、用途名と実行主体の一致、policy 対象を実行主体ごとに分離。
+- acc-api の Access app `tastile-acc-api`（app id `bb8fd020-…`）の
+  service-auth policy `eaf7f482-…` の include に probe token と
+  `tastile-acc-muse` の両方を登録済み。client_id/secret は
+  `/tastile/muse` の `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`。
+- 発行は `tastile-edge-admin / prod / /provisioning` の
+  `CLOUDFLARE_ACCESS_SERVICE_TOKEN_API_TOKEN`（Service Tokens Write）と
+  `CLOUDFLARE_ACCESS_POLICY_API_TOKEN`（Apps and Policies Write）で実施。
+  client_secret は発行応答で 1 回だけ返るため Infisical へ直接登録し、
+  以後の参照は `/tastile/muse` 経由とする。
 
 ## 8. 検証証跡
 
@@ -152,3 +155,15 @@ Authorization: Bearer <owner admin token>
 - 検証用 token は全て revoke 済み（生値を紛失した 1 本を含む）。
   handoff token は Infisical `/tastile/muse` にのみ保管し、ローカルの
   一時コピーは削除済み。
+
+2026-11-26、prod-https stack（`https://acc-api.tastile.app`、CF Access 経由）
+に対して Muse 専用資格情報で実測（証跡: `.tmp/muse-https/probe.json`。
+値は含まない）:
+
+- `tastile-acc-muse` service token + `muse-https-202611` scoped token で
+  `GET /v1/health` = 200、`GET/POST /v1/tiles` = 200、readback = 200。
+- read-only token で `GET /v1/tiles` = 200、`POST /v1/tiles`（妥当な payload）
+  = 403（scope 分離）、revoke 後 = 401。
+- 不正 bearer = 401、Access ヘッダなし = 403（edge で拒否）。
+- probe 用 read-only token は revoke 済み。handoff token
+  `muse-https-202611` は Infisical `/tastile/muse` にのみ保管。
