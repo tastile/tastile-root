@@ -150,3 +150,25 @@ amd64）内で 5 service すべて healthy/up。
 - 隔離復元 drill（別ボリュームへの restore 検証）は root#146
 - 監視・rollback・版管理の運用接続は root#147/#148/#153
 
+
+## 4. 独立再検証（2026-11-29 continuation session）
+
+§3 の記録とは別セッションが、恒久 stack に対して独立に実操作を実行し、次の結果を
+再確認した（証跡: root#155 comment 7242149633）。
+
+| 項目 | 結果 |
+| --- | --- |
+| stack | `tastile-perm` の 5 service（db/api/worker/web/caddy）が up。db healthy、web healthy、api `GET /v1/health` = 200（`database: reachable` / `bridge_secret: present` / `version: 2.1.0` / `build_identity.commit_sha=fb9bb58a…`, dirty=false） |
+| Windows host 到達 | `127.0.0.1:3120`（web）と `127.0.0.1:31470`（api）が Windows loopback で到達可能（WSL2 localhost forwarding）。API 直接応答 `{"status":"ok",…}` を確認 |
+| 専用 distro | `tastile-perm`（WSL2 Ubuntu 24.04, amd64, systemd PID1, docker `is-enabled=enabled`）。dev/CI 混在の `Ubuntu` distro とは分離。`Ubuntu` 側に残っていた arm64 由来の `tastile-perm-*` container / volume / network は削除済み（重複 state's 排除） |
+| owner 作成 → readback | signup **200** → bridge **307**（`tastile_api_token` 発行）→ `GET /v1/tiles?limit=5` **200**（新規 owner の既定 tile 3 件）→ `POST /v1/tiles` **200** `accepted`/`revision=1` → `GET /v1/tiles/{id}` **200**（`title` / `owner_id` / `kind` 一致） |
+| DB 直読 | `v1_owner=10` / `v1_tile=71` / auth `user=10` |
+| 自動復旧 | Windows Task Scheduler `TastilePermanentBackend` が **Running**（`wsl` session を保持 = WSL2 idle poweroff 対策）、`TastilePermUp` は最終 run result=0。両 distro とも Running |
+| Mac からの到達 | Windows OpenSSH は TCP forwarding channel を reset するため使用しない。実測で到達できる経路は (a) Windows loopback、(b) `ssh device-windows` の exec channel 経由で distro 内で実行、(c) distro 内実行 |
+
+### 未解決（本セッションで実測した事実）
+
+- `ssh -L` による Windows→distro の port forward は server 側が direct-tcpip channel を
+  reset するため成立しない（Windows `sshd_config` は `C:\ProgramData\ssh\sshd_config`
+  が存在せず既定設定）。`netsh interface portproxy` も EBPFNETSH_PREV.DLL 欠落で
+  利用不可。恒久 stack への外部到達は root#144 の公開経路決定に依存する。
