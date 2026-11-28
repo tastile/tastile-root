@@ -502,7 +502,30 @@ async function composeRestoreIsolated(
       `SELECT 1 FROM pg_database WHERE datname='${d.name.replace(/'/g, "")}'`,
     ]);
     if (exists.exitCode === 0 && exists.stdout.trim() === "1") {
-      ctx.step(`database ${d.name} already exists`, null, "skip create");
+      // Stack init may pre-provision the database AND its schema (prod
+      // initdb applies the Better Auth schema into tastile_auth). A dump
+      // restore must start from an empty database, so reset it: terminate
+      // connections, drop, and recreate owned by the role the app uses.
+      const owner = restoreDbOwner(kind, d.name, restoreOps).replace(/"/g, "");
+      const dbLit = d.name.replace(/"/g, "");
+      const term = await composeExec(restoreOps, [
+        "exec", "-T", "db", "psql", "-U", pgUser, "-d", "postgres", "-c",
+        `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${dbLit.replace(/'/g, "")}' AND pid<>pg_backend_pid()`,
+      ]);
+      const drop = await composeExec(restoreOps, [
+        "exec", "-T", "db", "psql", "-U", pgUser, "-d", "postgres", "-c",
+        `DROP DATABASE "${dbLit}"`,
+      ]);
+      const mk = await composeExec(restoreOps, [
+        "exec", "-T", "db", "psql", "-U", pgUser, "-d", "postgres", "-c",
+        `CREATE DATABASE "${dbLit}" OWNER "${owner}"`,
+      ]);
+      ctx.step(
+        `reset database ${d.name}`,
+        null,
+        `term=${term.exitCode} drop=${drop.exitCode} create=${mk.exitCode} ${mk.stderr.slice(0, 160)}`,
+      );
+      if (mk.exitCode !== 0) return fail(`reset database ${d.name} failed`);
       continue;
     }
     const mk = await composeExec(restoreOps, [
