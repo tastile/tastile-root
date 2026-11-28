@@ -102,10 +102,10 @@ amd64）内で 5 service すべて healthy/up。
 
 ### 3.5 host 側 port 公開
 
-- WSL2 内: api `0.0.0.0:31470`、web `0.0.0.0:3120`（distro の NAT 内に閉じる）
-- Windows: `netsh portproxy` で `127.0.0.1:13140→<wsl>:31470`、`127.0.0.1:13120→<wsl>:3120`（Windows loopback のみ）
-- **到達性ギャップ（実測）**: Mac から `http://100.118.123.62:13140/v1/health` は timeout。tailnet 経由の client 到達には portproxy の listenaddress を Tailscale interface に追加するか `tailscale serve` が必要。domain/cert 方式は root#144 の公開経路と一体で決めるため、本 stack では loopback 公開に留めた
-- **portproxy の connectaddress は WSL IP 依存**: WSL2 の IP は再起動で変わり得るため、恒久化には logon 時に WSL IP を解決して portproxy を更新する mechanism が必要（root#148 の配備/復旧に接続）
+- api/web/caddy は distro 内 `127.0.0.1` に bind（`compose.perm.yaml`）。WSL2 localhost forwarding が Windows host の `127.0.0.1` へそのまま公開するため portproxy は不要
+- 旧設計（`0.0.0.0` bind + `netsh portproxy` 13120/13140）は廃止。`perm-host-up.sh` が残存 rule を削除する。公開境界の静的検査（A-AT16 `db-not-public`/`worker-not-public`）も loopback bind で PASS
+- Windows 側到達: `https://app.localhost` / `https://api.localhost`（caddy :443、内部 CA）、API 直接は `http://127.0.0.1:31470`
+- **到達性ギャップ（実測）**: tailnet IP `100.118.123.62` 経由は timeout（loopback のみ公開）。tailnet 公開・DNS・証明書は root#144 の決定待ち
 
 ### 3.6 リソース・容量
 
@@ -115,11 +115,36 @@ amd64）内で 5 service すべて healthy/up。
 
 ### 3.7 自動復旧（実装済み・実測）
 
-- `deploy/prod-stack/perm/perm-host-up.sh`（distro 内実行）: docker.service 起動 → distro IPv4 取得 → Windows loopback portproxy（13120/13140）を現 IP へ張り直し → api `/v1/health` 200 待機。`netsh.exe` interop で portproxy 更新、冪等
-- 実測: script 実行で `perm-host-up: ok (distro ip 172.22.156.22, api health 200)`、portproxy は現行 WSL IP と一致を維持
-- Windows Task Scheduler `TastilePermUp`（onlogon, user 権限）を登録済み。distro 内 repo は `git pull` 前提（branch `155`）
+- `deploy/prod-stack/perm/perm-host-up.sh`（distro 内実行）: docker.service 起動 → 旧 portproxy rule（13120/13140）削除 → api `/v1/health` 200 待機。冪等
+- `deploy/prod-stack/perm/perm-keepalive.sh` + `tastile-perm-keepalive.service`: distro 内で docker 停止時の再起動を担う保険（実測: `/var/log/tastile-perm-keepalive.log` で稼働）
+- Windows Task Scheduler 2 本（onlogon, user 権限）:
+  - `TastilePermUp` → perm-host-up.sh（stack 復帰）
+  - `TastilePermanentBackend` → keepalive script を `wsl` session として保持
+- **WSL2 idle poweroff（実測・重要）**: 最後の `wsl` client session が閉じると、distro 内に systemd service / container が残っていても distro が poweroff される（journal: `systemd-logind: The system will power off now`、session 終了後約 90 秒周期で containerd/docker 全再起動 → 全 endpoint が一時的に 503）。distro 内 unit では防げず、`TastilePermanentBackend` が保持する `wsl` session が load-bearing。`TastilePermUp` だけでは session が残らず distro が落ち続ける（acceptance retry run が全 case BLOCKED になった直接原因）
+- 実測: 両 task `Start-ScheduledTask` 後、containerd uptime が伸び続け・journal に poweroff 0 件を 7 分以上確認。session 保持中は distro・stack とも安定
 
-### 3.8 残件（B1 の外側）
+### 3.8 acceptance harness prod-equivalent（B2・実測）
+
+`acceptance/harness` を distro 内で `--profile prod-equivalent` 実行
+（`TASTILE_ACCEPTANCE_API_BASE=https://api.localhost`、
+`WEB_BASE=https://app.localhost`、`TLS_INSECURE=1`、compose ops =
+`deploy/prod-stack` + `compose.perm.yaml`、project `tastile-perm`）。
+
+- 途中経過: 初回 full run は A-AT02（Playwright browser 未導入）/
+  A-AT15（prod initdb が `tastile_auth` schema を事前適用し restore が
+  `relation "account" already exists` で失敗）/ A-AT16（`0.0.0.0` bind を
+  公開境界違反と検出）の 3 件 FAIL。各修正: `ops.ts` の isolated restore で
+  既存 DB を owner 付きで DROP/CREATE し直す（commit `9c4ffe0`）、
+  api/web を loopback bind へ変更（同 commit + `62f8f75`）、distro へ
+  `bunx playwright install chromium` + 依存導入
+- retry run は distro idle poweroff（§3.7）で全 case BLOCKED → keepalive
+  session 確立後に `--only A-AT02,A-AT15,A-AT16` で 3 件とも PASS を個別確認
+- **最終 full run `perm-b2-final`（2026-11-28T15:20Z 開始、約 4 分で完了）: PASS 17 / N-A 1 /
+  FAIL 0**。N-A は A-AT01（`https` profile 専用、正規ドメイン + 公開
+  DNS/cert 待ちの root#144 範囲）。証跡:
+  `/root/tastile/tastile-root/acceptance/.tmp/acceptance/perm-b2-final-prod-equivalent`
+
+### 3.9 残件（B1 の外側）
 
 - tailnet/公開経路での client 到達（§3.5）と DNS/domain/cert は root#144
 - 隔離復元 drill（別ボリュームへの restore 検証）は root#146

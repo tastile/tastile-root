@@ -1,0 +1,12 @@
+[Unit]
+Description=Tastile permanent backend keepalive
+After=docker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/tastile-perm-keepalive
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -32,6 +32,37 @@ script を取得していることが前提。手動実行も同じ経路で可�
 wsl -d tastile-perm -u root -- /root/tastile/tastile-root/deploy/prod-stack/perm/perm-host-up.sh
 ```
 
+## distro keepalive（必須・別経路）
+
+WSL2 は最後の `wsl` client session が閉じると、distro 内に systemd
+service と container が残っていても distro を poweroff する（実測:
+session 終了から約 90 秒で `systemd-logind: The system will power off
+now` → containerd/docker が全再起動し、全 case が一時的に 503 になった）。
+distro 内の systemd unit だけでは防げないため、session を保持する Windows
+側 task が必須。
+
+`perm-keepalive.sh` / `tastile-perm-keepalive.service` を repo に置き、
+distro へ導入する:
+
+```bash
+install -m 0755 perm-keepalive.sh /usr/local/bin/tastile-perm-keepalive
+install -m 0644 tastile-perm-keepalive.service /etc/systemd/system/
+systemctl enable --now tastile-perm-keepalive.service
+```
+
+service は docker 停止時の再起動（保険）を担うが、distro 生存の根拠は
+下記 task が保持する `wsl` session である。
+
+```powershell
+schtasks /create /tn "TastilePermanentBackend" /sc onlogon /f `
+  /tr "wsl -d tastile-perm -u root -- /usr/local/bin/tastile-perm-keepalive"
+```
+
+`TastilePermUp`（stack 復帰）と `TastilePermanentBackend`（session 保持）
+の 2 task が揃って初めて logon 後の自律稼働になる。どちらか一方だけでは
+不足: session が切れれば distro ごと落ち、session があっても host 再起動後は
+stack が止まったままになり得る。
+
 ## 公開範囲
 
 全 service は distro 内 loopback bind + WSL2 localhost forwarding のみ。
