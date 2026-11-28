@@ -91,6 +91,8 @@ amd64）内で 5 service すべて healthy/up。
 2. `GET /api/auth/bridge?next=/dashboard` → 307、`tastile_api_token` / `tastile_uid` cookie 発行
 3. `GET https://api.localhost/v1/tiles`（Bearer = bridge token）→ 200、owner の tile 一覧を返却（新規 owner に既定 tile 3 件が provision されることを確認）
 4. DB 側: `v1_owner` = 1、`v1_tile` = 3、auth `user` = 1
+5. **書き込み経路（追加実測）**: 第 2 owner（`perm-owner-b@tastile-perm.invalid`）を sign-up → sign-in → bridge → `POST /v1/tiles`（UUID idempotency_key, kind=1）が `accepted`/`revision=1` を返し、`GET /v1/tiles` の readback に `perm write test` が出ることを確認。credential は distro 内 `.tmp/perm/owner.env`（chmod 600, gitignored）に保存し、sign-in の再現性も確認済み
+6. 補足: 第 1 owner（`perm-owner@…`）の password は検証用に都度生成したため未保存。今後の操作は `owner.env` の owner-b を使う
 
 ### 3.4 再起動・停止での状態保持（最小実証）
 
