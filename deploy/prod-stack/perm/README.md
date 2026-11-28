@@ -63,8 +63,44 @@ schtasks /create /tn "TastilePermanentBackend" /sc onlogon /f `
 不足: session が切れれば distro ごと落ち、session があっても host 再起動後は
 stack が止まったままになり得る。
 
+## Mac への private tunnel (tastile-perm-tunnel.service)
+
+同一 tailnet 上の Mac から perm stack を使う開発経路。distro から Mac の
+sshd へ reverse forward を張る（Mac 側 sshd の `AllowTcpForwarding` が
+有効なため `-R` は通るが、Windows 側 sshd は direct-tcpip を拒否するため
+`ssh -L` は使えない — 実測済み）。
+
+- `127.0.0.1:13140` → distro `127.0.0.1:31470` (API, HTTP)
+- `127.0.0.1:13120` → distro `127.0.0.1:3120` (web, HTTP)
+
+前提（1 回だけ、秘密値は repo に置かない）:
+
+1. Mac で専用鍵を生成し公開鍵を `~/.ssh/authorized_keys` へ追加:
+   `ssh-keygen -t ed25519 -f ~/.ssh/tastile-perm-tunnel -N ""`
+2. 秘密鍵を distro `/root/.ssh/tastile-perm-tunnel` (`chmod 600`) へ配置
+3. unit を導入:
+
+```bash
+install -m 0644 tastile-perm-tunnel.service /etc/systemd/system/
+systemctl enable --now tastile-perm-tunnel.service
+```
+
+注意:
+
+- Mac 側で 13120/13140 が既に LISTEN されていると `ExitOnForwardFailure`
+  で unit が再起動ループになる（旧 `ssh -L` 残骸が典型）。
+- web を `http://127.0.0.1:13120` で開く場合、`BETTER_AUTH_URL` /
+  cookie の Secure 前提と `app.localhost` origin が一致しないため
+  sign-in 系の動作は保証しない。API/CLI/Desktop の data plane
+  (`http://127.0.0.1:13140`) はそのまま使える。Web UI の正式経路は
+  #144 の DNS/cert 決定待ち。
+- tunnel は keepalive task の `wsl` session に依存する。session が
+  切れれば distro ごと落ち、Mac 側の forward も切れる（unit の
+  `Restart=always` は distro 生存中の ssh 切断のみをカバー）。
+
 ## 公開範囲
 
 全 service は distro 内 loopback bind + WSL2 localhost forwarding のみ。
-物理 LAN・tailnet からは到達不能。tailnet / 外部公開経路と DNS・証明書は
-root#144 の決定待ち。
+物理 LAN・tailnet からは到達不能。Mac への到達は上記 reverse tunnel
+（tailnet SSH のみ、認証は専用鍵）のみ。tailnet / 外部公開経路と
+DNS・証明書は root#144 の決定待ち。

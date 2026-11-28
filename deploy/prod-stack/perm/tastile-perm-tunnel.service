@@ -1,0 +1,13 @@
+[Unit]
+Description=Tastile perm reverse SSH tunnel to Mac (private dev path, root#144)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/ssh -N -T -i /root/.ssh/tastile-perm-tunnel -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -o ExitOnForwardFailure=yes -R 13140:127.0.0.1:31470 -R 13120:127.0.0.1:3120 rebui@100.83.203.34
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
