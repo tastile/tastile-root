@@ -1,0 +1,76 @@
+# Permanent backend overlay for deploy/prod-stack (root#155 B1, root#143).
+# Used ONLY on the always-on Windows host (WSL2) for the dedicated permanent
+# backend instance (compose project `tastile-perm`). Canonical compose.yaml is
+# not modified.
+#
+#   scripts/stack.sh perm up -d db api worker caddy web
+#
+# Rendered env (.tmp/perm/perm.env) must set:
+#   COMPOSE_PROJECT_NAME=tastile-perm
+#   APP_DOMAIN=app.localhost  API_DOMAIN=api.localhost
+#   CADDY_HTTP_PORT=127.0.0.1:<port>  CADDY_HTTPS_PORT=127.0.0.1:<port>
+#   TASTILE_CORE_IMAGE / TASTILE_WEB_IMAGE  (pinned image refs)
+#   TASTILE_PG_PASSWORD / TASTILE_CORE_DB_PASSWORD / TASTILE_AUTH_DB_PASSWORD
+#   TASTILE_WEB_BRIDGE_SECRET / BETTER_AUTH_SECRET
+#
+# Isolation from the operational SoT and from the Mac-hosted acceptance stacks:
+#   - distinct compose project => distinct container names, network, volumes
+#     (`tastile-perm-pgdata`, `tastile-perm-caddy-data`, ...)
+#   - distinct database/role/credential set (rendered into .tmp/perm/perm.env)
+#   - all published ports bound to loopback on the host; db/api/worker publish
+#     nothing on the external interface
+#   - distinct host ports so the same compose file can run beside prod-acc
+#
+# web -> api connectivity: the web image runs with a protected runtime that
+# rejects plain http core URLs off-loopback, so web reaches the API through
+# caddy's internal TLS site (network alias `api.localhost`) and trusts the
+# caddy internal CA via NODE_EXTRA_CA_CERTS. Bring caddy up first so the root
+# certificate exists in caddy-data before web boots.
+
+services:
+  api:
+    ports:
+      - "127.0.0.1:${TASTILE_API_HOST_PORT:-31470}:31400"
+    environment:
+      TASTILE_ALLOWED_ORIGINS: https://app.localhost
+
+  caddy:
+    networks:
+      default:
+        aliases:
+          # Resolve the public API hostname to caddy inside the compose
+          # network, mirroring prod DNS -> tunnel -> caddy.
+          - api.localhost
+          - app.localhost
+
+  worker:
+    environment:
+      # `fake` is rejected under TASTILE_ENV=production; drain through the
+      # stack's own API over the internal TLS hop instead. Per-item send
+      # failures do not fail the drain.
+      TASTILE_DELIVERY_PROVIDER: http
+      TASTILE_DELIVERY_BASE_URL: https://api.localhost
+      TASTILE_DELIVERY_PROVIDER_TOKEN: ${TASTILE_DELIVERY_PROVIDER_TOKEN:-permanent-local-provider}
+
+  web:
+    ports:
+      - "127.0.0.1:${TASTILE_WEB_HOST_PORT:-3120}:3000"
+    # Runtime NEXT_PUBLIC_*/Better-Auth env rendered into .tmp/perm/web.env
+    # (gitignored; never committed).
+    env_file:
+      - ../../.tmp/perm/web.env
+    volumes:
+      # Caddy internal CA root so server-side fetches trust
+      # https://api.localhost. Cert lives at
+      # caddy/pki/authorities/local/root.crt inside the volume.
+      - caddy-data:/etc/tastile-caddy-ca:ro
+    environment:
+      BETTER_AUTH_URL: https://app.localhost
+      NEXT_PUBLIC_DAEMON_BASE_URL: https://api.localhost
+      NEXT_PUBLIC_APP_URL: https://app.localhost
+      NEXT_PUBLIC_APP_HOST: app.localhost
+      NEXT_PUBLIC_APEX_HOST: localhost
+      CLOUD_API_BASE: https://api.localhost
+      TASTILE_RUST_API_URL: https://api.localhost
+      TASTILE_CORE_URL: https://api.localhost
+      NODE_EXTRA_CA_CERTS: /etc/tastile-caddy-ca/caddy/pki/authorities/local/root.crt
