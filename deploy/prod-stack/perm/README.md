@@ -9,11 +9,14 @@ registry は `../../stacks.tsv` の `perm` 行。ここに置くのは Windows �
 専用 distro 内で実行する冪等 script。役割:
 
 1. docker.service 起動（systemd / `restart: unless-stopped` で stack 復帰）
-2. 現在の distro IPv4 を取得
-3. Windows loopback portproxy（`127.0.0.1:13120→web:3120`、
-   `127.0.0.1:13140→api:31470`）を現在 IP へ張り直す
-   （WSL2 は再起動で IP が変わるため、起動のたびに更新が必要）
-4. api `/v1/health` が 200 になるまで最大 180s 待機
+2. 旧 portproxy 設計の残存 rule（13120/13140）を削除
+3. api `/v1/health` が 200 になるまで最大 180s 待機
+
+公開モデル: api/web/caddy は distro 内 `127.0.0.1` に bind し、WSL2 localhost
+forwarding が Windows host の `127.0.0.1` へ公開する（portproxy 不要）。
+`https://app.localhost` / `https://api.localhost` は Windows 側で名前解決に
+hosts entry が必要（管理者権限、#144/#148 で扱う）。API 直接利用は
+`http://127.0.0.1:31470`。
 
 ### Task Scheduler 登録（ユーザー権限、要 Windows 側で 1 回）
 
@@ -31,6 +34,6 @@ wsl -d tastile-perm -u root -- /root/tastile/tastile-root/deploy/prod-stack/perm
 
 ## 公開範囲
 
-portproxy の listenaddress は `127.0.0.1` 固定（Windows loopback のみ）。
-tailnet / 外部公開経路と DNS・証明書は root#144 の決定待ち。変更する場合は
-listenaddress を引数化するのではなく、#144 の構成確定後に別 commit で行う。
+全 service は distro 内 loopback bind + WSL2 localhost forwarding のみ。
+物理 LAN・tailnet からは到達不能。tailnet / 外部公開経路と DNS・証明書は
+root#144 の決定待ち。
