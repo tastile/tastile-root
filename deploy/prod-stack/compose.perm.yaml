@@ -30,7 +30,11 @@
 services:
   api:
     ports:
-      - "127.0.0.1:${TASTILE_API_HOST_PORT:-31470}:31400"
+      # Bound on all interfaces *inside the dedicated WSL2 distro*: the
+      # distro sits behind the WSL NAT network, so nothing on the physical
+      # LAN can reach it. The host exposes the port to the outside world
+      # only through a Windows loopback portproxy rule.
+      - "0.0.0.0:${TASTILE_API_HOST_PORT:-31470}:31400"
     environment:
       TASTILE_ALLOWED_ORIGINS: https://app.localhost
 
@@ -54,7 +58,9 @@ services:
 
   web:
     ports:
-      - "127.0.0.1:${TASTILE_WEB_HOST_PORT:-3120}:3000"
+      # See the api service: reachable from the Windows host only through a
+      # loopback portproxy rule, never from the physical LAN.
+      - "0.0.0.0:${TASTILE_WEB_HOST_PORT:-3120}:3000"
     # Runtime NEXT_PUBLIC_*/Better-Auth env rendered into .tmp/perm/web.env
     # (gitignored; never committed).
     env_file:
