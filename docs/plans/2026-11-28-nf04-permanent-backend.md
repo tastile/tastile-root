@@ -111,9 +111,14 @@ amd64）内で 5 service すべて healthy/up。
 - Windows C: 残り約 13.9 GiB（VHDX 成長で逼迫気味。D: は依然不在のため VHDX 移行先なし。容量監視は root#152 へ）
 - compose `deploy.resources.limits` で db 1.0cpu/2G、api 1.25/2G、worker 0.75/768M、web 0.5/1G、caddy 0.25/128M を設定済み（root#145 の上限実測対象）
 
-### 3.7 残件（B1 の外側）
+### 3.7 自動復旧（実装済み・実測）
 
-- distro 自動起動: 現状は `wsl -d` 呼出で初めて docker が上がる。Windows logon 時の自動起動（Task Scheduler 等）は root#143 準備計画 §自動復旧の残実装
+- `deploy/prod-stack/perm/perm-host-up.sh`（distro 内実行）: docker.service 起動 → distro IPv4 取得 → Windows loopback portproxy（13120/13140）を現 IP へ張り直し → api `/v1/health` 200 待機。`netsh.exe` interop で portproxy 更新、冪等
+- 実測: script 実行で `perm-host-up: ok (distro ip 172.22.156.22, api health 200)`、portproxy は現行 WSL IP と一致を維持
+- Windows Task Scheduler `TastilePermUp`（onlogon, user 権限）を登録済み。distro 内 repo は `git pull` 前提（branch `155`）
+
+### 3.8 残件（B1 の外側）
+
 - tailnet/公開経路での client 到達（§3.5）と DNS/domain/cert は root#144
 - 隔離復元 drill（別ボリュームへの restore 検証）は root#146
 - 監視・rollback・版管理の運用接続は root#147/#148/#153
